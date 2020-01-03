@@ -31,11 +31,18 @@ typedef __u16 __bitwise __sum16;
 #include <common/common_user_bpf_xdp.h>
 #include <common/common_libbpf.h>
 
+#include <dlfcn.h>
+#include <packetvisor/driver.h>
 
 #define NUM_FRAMES         4096
 #define FRAME_SIZE         XSK_UMEM__DEFAULT_FRAME_SIZE
 #define RX_BATCH_SIZE      64
 #define INVALID_UMEM_FRAME UINT64_MAX
+
+struct packetvisor_Driver* driver;
+
+struct packetvisor_Callback callback = {
+};
 
 struct xsk_umem_info {
 	struct xsk_ring_prod fq;
@@ -276,6 +283,10 @@ static bool process_packet(struct xsk_socket_info *xsk,
 {
 	uint8_t *pkt = xsk_umem__get_data(xsk->umem->buffer, addr);
 
+	if(true) {
+		driver->received(0, pkt, 0, len, len);
+		return false;
+	}
         /* Lesson#3: Write an IPv6 ICMP ECHO parser to send responses
 	 *
 	 * Some assumptions to make it easier:
@@ -286,6 +297,13 @@ static bool process_packet(struct xsk_socket_info *xsk,
 	 * - Recalculate the icmp checksum */
 
 	if (false) {
+		for(int i = 0; i < 64; i++) {
+			printf("%02x ", pkt[i]);
+			if((i + 1) % 8 == 0)
+				printf("\n");
+		}
+		printf("\n");
+
 		int ret;
 		uint32_t tx_idx = 0;
 		uint8_t tmp_mac[ETH_ALEN];
@@ -514,6 +532,27 @@ int main(int argc, char **argv)
 	struct bpf_object *bpf_obj = NULL;
 	pthread_t stats_poll_thread;
 
+	// Load packetvisor
+	void* handle = dlopen ("libpv.so", RTLD_LAZY);
+    if(!handle) {
+        fprintf(stderr, "%s\n", dlerror());
+        exit(1);
+    }
+    dlerror();    /* Clear any existing error */
+
+	packetvisor_Init init = dlsym(handle, "packetvisor_init");
+	char* error;
+    if((error = dlerror()) != NULL) {
+        fprintf(stderr, "%s\n", error);
+        exit(1);
+    }
+
+	driver = init(&callback);
+	if(driver == NULL) {
+		fprintf(stderr, "packetvisor init is failed\n");
+		exit(1);
+	}
+
 	/* Global shutdown handler */
 	signal(SIGINT, exit_application);
 
@@ -604,6 +643,8 @@ int main(int argc, char **argv)
 	xsk_socket__delete(xsk_socket->xsk);
 	xsk_umem__delete(umem->umem);
 	xdp_link_detach(cfg.ifindex, cfg.xdp_flags, 0);
+
+    dlclose(handle);
 
 	return EXIT_OK;
 }

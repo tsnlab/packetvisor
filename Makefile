@@ -1,64 +1,39 @@
-.PHONY: all run test clean cleanall
+.PHONY: all run clean pv/libpv.so xdp_user/packetvisor xdp_kern/pv.o
 
 RELEASE ?= 0
-CC=gcc
-ifeq ($(RELEASE), 1)
-	CFLAGS=-Iinclude -Ilibbpf/include -Ilibbpf/include/uapi -Llibbpf/src -Wall -std=gnu99 -O3
-else
-	CFLAGS=-Iinclude -Ilibbpf/include -Ilibbpf/include/uapi -Llibbpf/src -Wall -std=gnu99 -O0 -g -fsanitize=address
-endif
 
-LIBS=-Wl,-Bstatic -lbpf -lz -Wl,-Bdynamic -lelf -lpthread -Wl,--as-needed
-
-OBJS=$(patsubst src/%.c, obj/%.o, $(filter-out src/xdp_edge.c, $(wildcard src/*.c)))
-
-all: edge xdp_edge.o
+all: libbpf.so libpv.so pv.o packetvisor
 
 run: all
-	./edge
+	sudo LD_LIBRARY_PATH=. ./packetvisor -d lo --filename pv.o
 
 clean:
-#	make -C test clean
-	rm -rf obj
-	rm -f edge
-	rm -f xdp_edge.o
+	rm -f libbpf.so*
+	rm -f libpv.so pv.o packetvisor
+	make -C pv clean
+	make -C xdp_user clean
+	make -C xdp_kern clean
 
-cleanall: clean
+libbpf/src/libbpf.so:
+	make -C libbpf/src
 
-#test: all
-#	make -C test run
+libbpf.so: libbpf/src/libbpf.so
+	cp libbpf/src/libbpf.so* .
 
-edge: libbpf/src/libbpf.a $(OBJS)
-	$(CC) $(CFLAGS) -o $@ $(filter %.o, $^) $(LIBS)
+pv/libpv.so:
+	make -C pv RELEASE=$(RELEASE)
 
+libpv.so: pv/libpv.so
+	cp $^ $@
 
-#		-I/usr/src/$(shell uname -r)/include/uapi \
-#		-Ilibbpf/include \
+xdp_user/packetvisor:
+	make -C xdp_user RELEASE=$(RELEASE)
 
-obj/xdp_edge.ll: src/xdp_edge.c
-	mkdir -p obj
-	clang -S \
-		-target bpf \
-		-D __BPF_TRACING__ \
-		-Ilibbpf/include/uapi \
-		-Iinclude \
-		-Wall \
-		-Wno-unused-value \
-		-Wno-pointer-sign \
-		-Wno-compare-distinct-pointer-types \
-		-Werror \
-		-O2 -emit-llvm -c -g -o $@ $^
+packetvisor: xdp_user/packetvisor
+	cp $^ $@
 
-xdp_edge.o: obj/xdp_edge.ll
-	llc -march=bpf -filetype=obj -o $@ $^
+xdp_kern/pv.o:
+	make -C xdp_kern RELEASE=$(RELEASE)
 
-libbpf/src/libbpf.a:
-	cd libbpf/src; make
-
-obj/%.d : src/%.c src/onnx.proto3.pb-c.c
-	mkdir -p obj; $(CC) $(CFLAGS) -M $< > $@
-
--include $(patsubst src/%.c, obj/%.d, $(wildcard src/*.c))  
-
-obj/%.o: src/%.c
-	mkdir -p obj; $(CC) $(CFLAGS) -c -o $@ $^
+pv.o: xdp_kern/pv.o
+	cp $^ $@

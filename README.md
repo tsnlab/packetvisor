@@ -1,5 +1,5 @@
-# CONNX Edge
-CONNX Edge is a packet processing framework
+# Packetvisor
+Packetvisor is a packet processing framework
 
 # Install
 ## libbpf
@@ -20,6 +20,8 @@ make RELEASE=1	# for release
 make run
 
 # License
- * CONNX Edge is licensed under dual license GPLv3 or MIT
+ * packetngin (xdp_user) is licensed under dual license GPLv3 or MIT
+ * pv.so (pv) is licensed under dual license LGPLv3 or MIT
+ * pv.o (xdp_kern) is licensed under GPLv2
  * libbpf is licensed under dual license BSD-2-Clause or LGPL-2.1
- * include/common is copied from xdp-tutorial
+ * xdp_user/include/common is copied from xdp-tutorial
