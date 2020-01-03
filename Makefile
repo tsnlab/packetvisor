@@ -8,7 +8,7 @@ else
 	CFLAGS=-Iinclude -Ilibbpf/include -Ilibbpf/include/uapi -Llibbpf/src -Wall -std=gnu99 -O0 -g -fsanitize=address
 endif
 
-LIBS=-lbpf -lelf -lpthread
+LIBS=-Wl,-Bstatic -lbpf -lz -Wl,-Bdynamic -lelf -lpthread -Wl,--as-needed
 
 OBJS=$(patsubst src/%.c, obj/%.o, $(filter-out src/xdp_edge.c, $(wildcard src/*.c)))
 

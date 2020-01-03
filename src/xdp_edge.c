@@ -1,4 +1,5 @@
 #include <linux/bpf.h>
+#include <linux/version.h>
 
 typedef __u32 __bitwise __wsum;
 #include <bpf/bpf_helpers.h>
@@ -18,6 +19,17 @@ struct bpf_map_def SEC("maps") xdp_stats_map = {
 	.value_size  = sizeof(__u32),
 	.max_entries = 64,
 };
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5,3,0)
+
+/* Kernel version before 5.3 needed an additional map */
+struct bpf_map_def SEC("maps") qidconf_map = {
+	.type = BPF_MAP_TYPE_ARRAY,
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.max_entries = 64,
+};
+#endif
 
 SEC("xdp_sock")
 int xdp_sock_prog(struct xdp_md *ctx)
