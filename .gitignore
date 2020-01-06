@@ -1,5 +1,5 @@
 obj
 libbpf.so*
 libpv.so
-packetvisor
+pv
 pv.o

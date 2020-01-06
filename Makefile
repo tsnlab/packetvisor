@@ -1,16 +1,16 @@
-.PHONY: all run clean pv/libpv.so xdp_user/packetvisor xdp_kern/pv.o
+.PHONY: all run clean libpv/libpv.so xdp_user/pv xdp_kern/pv.o
 
 RELEASE ?= 0
 
-all: libbpf.so libpv.so pv.o packetvisor
+all: libbpf.so libpv.so pv.o pv
 
 run: all
-	sudo LD_LIBRARY_PATH=. ./packetvisor -d lo --filename pv.o
+	sudo LD_LIBRARY_PATH=. ./pv -d lo --filename pv.o
 
 clean:
 	rm -f libbpf.so*
-	rm -f libpv.so pv.o packetvisor
-	make -C pv clean
+	rm -f libpv.so pv.o pv
+	make -C libpv clean
 	make -C xdp_user clean
 	make -C xdp_kern clean
 
@@ -20,16 +20,16 @@ libbpf/src/libbpf.so:
 libbpf.so: libbpf/src/libbpf.so
 	cp libbpf/src/libbpf.so* .
 
-pv/libpv.so:
-	make -C pv RELEASE=$(RELEASE)
+libpv/libpv.so:
+	make -C libpv RELEASE=$(RELEASE)
 
-libpv.so: pv/libpv.so
+libpv.so: libpv/libpv.so
 	cp $^ $@
 
-xdp_user/packetvisor:
+xdp_user/pv:
 	make -C xdp_user RELEASE=$(RELEASE)
 
-packetvisor: xdp_user/packetvisor
+pv: xdp_user/pv
 	cp $^ $@
 
 xdp_kern/pv.o:

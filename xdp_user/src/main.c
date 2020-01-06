@@ -32,16 +32,16 @@ typedef __u16 __bitwise __sum16;
 #include <common/common_libbpf.h>
 
 #include <dlfcn.h>
-#include <packetvisor/driver.h>
+#include <pv/driver.h>
 
 #define NUM_FRAMES         4096
 #define FRAME_SIZE         XSK_UMEM__DEFAULT_FRAME_SIZE
 #define RX_BATCH_SIZE      64
 #define INVALID_UMEM_FRAME UINT64_MAX
 
-struct packetvisor_Driver* driver;
+struct pv_Driver* driver;
 
-struct packetvisor_Callback callback = {
+struct pv_Callback callback = {
 };
 
 struct xsk_umem_info {
@@ -540,7 +540,7 @@ int main(int argc, char **argv)
     }
     dlerror();    /* Clear any existing error */
 
-	packetvisor_Init init = dlsym(handle, "packetvisor_init");
+	pv_Init init = dlsym(handle, "pv_init");
 	char* error;
     if((error = dlerror()) != NULL) {
         fprintf(stderr, "%s\n", error);

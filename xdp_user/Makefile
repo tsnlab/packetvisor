@@ -1,6 +1,6 @@
 .PHONY: all run test clean
 
-TARGET=packetvisor
+TARGET=pv
 RELEASE ?= 0
 CC=gcc
 ifeq ($(RELEASE), 1)
