@@ -1,6 +1,9 @@
 #include <stdio.h>
+#include <iostream>
 #include <pv/packet.h>
 #include <pv/driver.h>
+
+#include <pv/ethernet.h>
 
 namespace pv {
 
@@ -38,13 +41,21 @@ MyPacketlet::MyPacketlet() : Packetlet() {
 }
 
 bool MyPacketlet::received(Packet* packet) {
-	printf("received in packetlet ");
+	printf("received in packetlet\n");
+	/*
 	for(uint32_t i = packet->start; i < packet->end; i++) {
 		printf("%02x ", packet->payload[i]);
 		if((i + 1) % 16 == 0)
 			printf("\n");
 	}
 	printf("\n");
+	*/
+	std::cout << packet << std::endl;
+
+	Ethernet* eth = new Ethernet(packet);
+	std::cout << eth << std::endl;
+
+	delete eth;
 
 	return false;
 }

@@ -1,3 +1,5 @@
+#include <stdio.h>
+#include <iostream>
 #include <pv/driver.h>
 #include <pv/packet.h>
 
@@ -42,6 +44,24 @@ Packet::Packet(int32_t queueId, uint8_t* payload, uint32_t start, uint32_t end, 
 Packet::~Packet() {
 	if(payload != nullptr)
 		pv_driver_free(payload);
+}
+
+std::ostream& operator<<(std::ostream& out, const Packet& obj) {
+	out << &obj;
+
+	return out;
+}
+
+std::ostream& operator<<(std::ostream& out, const Packet* obj) {
+	out << "Packet[len: " << (obj->end - obj->start) << ", ";
+	for(uint32_t i = obj->start; i < obj->end; i++) {
+		char buf[4];
+		sprintf(buf, "%02x ", obj->payload[i]);
+		out << buf;
+	}
+	out << "]";
+
+	return out;
 }
 
 };
