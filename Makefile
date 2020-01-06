@@ -1,4 +1,4 @@
-.PHONY: all run clean libpv/libpv.so xdp_user/pv xdp_kern/pv.o
+.PHONY: all run off clean libpv/libpv.so xdp_user/pv xdp_kern/pv.o
 
 RELEASE ?= 0
 
@@ -6,6 +6,9 @@ all: libbpf.so libpv.so pv.o pv
 
 run: all
 	sudo LD_LIBRARY_PATH=. ./pv -d lo --filename pv.o
+
+off:
+	sudo ip link set dev lo xdpgeneric off
 
 clean:
 	rm -f libbpf.so*

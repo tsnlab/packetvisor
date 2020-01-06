@@ -4,6 +4,7 @@
 #include <pv/driver.h>
 
 #include <pv/ethernet.h>
+#include <pv/ipv4.h>
 
 namespace pv {
 
@@ -55,6 +56,10 @@ bool MyPacketlet::received(Packet* packet) {
 	Ethernet* eth = new Ethernet(packet);
 	std::cout << eth << std::endl;
 
+	IPv4* ipv4 = new IPv4(packet, eth->getPayloadOffset());
+	std::cout << ipv4 << std::endl;
+
+	delete ipv4;
 	delete eth;
 
 	return false;

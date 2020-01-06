@@ -2,6 +2,8 @@
 #include <string.h>
 #include <pv/ethernet.h>
 
+#define OFFSET(offset)	(packet->payload + packet->start + offset)
+
 namespace pv {
 
 Ethernet::Ethernet(Packet* packet) {
@@ -12,33 +14,33 @@ Ethernet::~Ethernet() {
 }
 
 uint64_t Ethernet::getDst() const {
-	return endian48(*(uint64_t*)(packet->payload + packet->start + 0));
+	return endian48(*(uint64_t*)OFFSET(0));
 }
 
 Ethernet* Ethernet::setDst(uint64_t mac) {
 	mac = endian48(mac);
-	memcpy(packet->payload + packet->start + 0, &mac, 6);
+	memcpy(OFFSET(0), &mac, 6);
 
 	return this;
 }
 
 uint64_t Ethernet::getSrc() const {
-	return endian48(*(uint64_t*)(packet->payload + packet->start + 6));
+	return endian48(*(uint64_t*)(OFFSET(6)));
 }
 
 Ethernet* Ethernet::setSrc(uint64_t mac) {
 	mac = endian48(mac);
-	memcpy(packet->payload + packet->start + 6, &mac, 6);
+	memcpy(OFFSET(6), &mac, 6);
 
 	return this;
 }
 
 uint16_t Ethernet::getType() const {
-	return endian16(*(uint16_t*)(packet->payload + packet->start + 12));
+	return endian16(*(uint16_t*)OFFSET(12));
 }
 
 Ethernet* Ethernet::setType(uint16_t type) {
-	*(uint16_t*)(packet->payload + packet->start + 12) = endian16(type);
+	*(uint16_t*)OFFSET(12) = endian16(type);
 
 	return this;
 }
@@ -48,17 +50,16 @@ uint32_t Ethernet::getPayloadOffset() const {
 
 	switch(type) {
 		case ETHER_TYPE_8021Q:
-			return packet->start + 16;
+			return packet->start + ETHER_LEN + 2;
 		case ETHER_TYPE_8021AD:
-			return packet->start + 18;
+			return packet->start + ETHER_LEN + 4;
 		default:
-			return packet->start + 14;
+			return packet->start + ETHER_LEN;
 	}
 }
 
 std::ostream& operator<<(std::ostream& out, const Ethernet& obj) {
 	out << &obj;
-
 	return out;
 }
 
