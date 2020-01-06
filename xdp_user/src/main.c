@@ -39,11 +39,6 @@ typedef __u16 __bitwise __sum16;
 #define RX_BATCH_SIZE      64
 #define INVALID_UMEM_FRAME UINT64_MAX
 
-struct pv_Driver* driver;
-
-struct pv_Callback callback = {
-};
-
 struct xsk_umem_info {
 	struct xsk_ring_prod fq;
 	struct xsk_ring_cons cq;
@@ -72,6 +67,50 @@ struct xsk_socket_info {
 
 	struct stats_record stats;
 	struct stats_record prev_stats;
+};
+
+struct xsk_socket_info* current_xsk;
+
+struct pv_Driver* driver;
+
+static uint64_t xsk_alloc_umem_frame(struct xsk_socket_info *xsk);
+static void xsk_free_umem_frame(struct xsk_socket_info *xsk, uint64_t frame);
+
+uint8_t* pv_alloc(uint32_t size) {
+	uint64_t addr = xsk_alloc_umem_frame(current_xsk);
+
+	return (uint8_t*)addr;
+}
+
+void pv_free(uint8_t* payload) {
+	xsk_free_umem_frame(current_xsk, (uint64_t)payload);
+}
+
+bool pv_send(uint32_t queueId, uint8_t* payload, uint32_t start, uint32_t end, uint32_t size) {
+	struct xsk_socket_info* xsk = current_xsk;
+
+	uint32_t tx_idx = 0;
+	int ret = xsk_ring_prod__reserve(&xsk->tx, 1, &tx_idx);
+	if (ret != 1) {
+		/* No more transmit slots, drop the packet */
+		return false;
+	}
+
+	xsk_ring_prod__tx_desc(&xsk->tx, tx_idx)->addr = (uint64_t)payload + start;
+	xsk_ring_prod__tx_desc(&xsk->tx, tx_idx)->len = end - start;
+	xsk_ring_prod__submit(&xsk->tx, 1);
+	xsk->outstanding_tx++;
+
+	xsk->stats.tx_bytes += end - start;
+	xsk->stats.tx_packets++;
+
+	return true;
+}
+
+struct pv_Callback callback = {
+	.alloc = pv_alloc,
+	.free = pv_free,
+	.send = pv_send
 };
 
 static inline __u32 xsk_ring_prod__free(struct xsk_ring_prod *r)
@@ -635,6 +674,8 @@ int main(int argc, char **argv)
 			exit(EXIT_FAILURE);
 		}
 	}
+
+	current_xsk = xsk_socket;
 
 	/* Receive and count packets than drop them */
 	rx_and_process(&cfg, xsk_socket);
