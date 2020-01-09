@@ -1,7 +1,6 @@
 #pragma once
 
-#include <iostream>
-#include <pv/packet.h>
+#include <pv/protocol.h>
 
 namespace pv {
 
@@ -12,11 +11,7 @@ namespace pv {
 #define IP_PROTOCOL_ESP		0x32	///< IP protocol number for ESP
 #define IP_PROTOCOL_AH		0x33	///< IP protocol number for AH
 
-class IPv4 {
-protected:
-	Packet*		packet;
-	uint32_t	offset;
-
+class IPv4 : public Protocol {
 public:
 	IPv4(Packet* packet, uint32_t offset);
 	virtual ~IPv4();

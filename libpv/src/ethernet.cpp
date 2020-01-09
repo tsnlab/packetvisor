@@ -2,22 +2,21 @@
 #include <string.h>
 #include <pv/ethernet.h>
 
-#define OFFSET(offset)	(packet->payload + packet->start + offset)
-
 namespace pv {
 
-Ethernet::Ethernet(Packet* packet) {
-	this->packet = packet;
+Ethernet::Ethernet(Packet* packet) : Protocol(packet, 0) {
 }
 
 Ethernet::~Ethernet() {
 }
 
 uint64_t Ethernet::getDst() const {
+	CHECK(0, 6);
 	return endian48(*(uint64_t*)OFFSET(0));
 }
 
 Ethernet* Ethernet::setDst(uint64_t mac) {
+	CHECK(0, 6);
 	mac = endian48(mac);
 	memcpy(OFFSET(0), &mac, 6);
 
@@ -25,10 +24,12 @@ Ethernet* Ethernet::setDst(uint64_t mac) {
 }
 
 uint64_t Ethernet::getSrc() const {
+	CHECK(6, 6);
 	return endian48(*(uint64_t*)(OFFSET(6)));
 }
 
 Ethernet* Ethernet::setSrc(uint64_t mac) {
+	CHECK(6, 6);
 	mac = endian48(mac);
 	memcpy(OFFSET(6), &mac, 6);
 
@@ -36,10 +37,12 @@ Ethernet* Ethernet::setSrc(uint64_t mac) {
 }
 
 uint16_t Ethernet::getType() const {
+	CHECK(12, 2);
 	return endian16(*(uint16_t*)OFFSET(12));
 }
 
 Ethernet* Ethernet::setType(uint16_t type) {
+	CHECK(12, 2);
 	*(uint16_t*)OFFSET(12) = endian16(type);
 
 	return this;
@@ -80,7 +83,7 @@ std::ostream& operator<<(std::ostream& out, const Ethernet* obj) {
 	sprintf(buf, "%04x", obj->getType());
 	out << ", type: " << buf;
 
-	out << ", payload: " << (obj->packet->end - obj->getPayloadOffset()) << " bytes";
+	out << ", payload: " << (obj->packet->end - obj->getPayloadOffset()) << " bytes]";
 
 	return out;
 }

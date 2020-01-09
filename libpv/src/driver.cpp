@@ -5,6 +5,7 @@
 
 #include <pv/ethernet.h>
 #include <pv/ipv4.h>
+#include <pv/icmp.h>
 
 namespace pv {
 
@@ -17,8 +18,16 @@ static void received(uint32_t queueId, uint8_t* payload, uint32_t start, uint32_
 	Packet* packet = new Packet(queueId, payload, start, end, size);
 
 	for(uint32_t i = 0; i < packetlet_count; i++) {
-		if(packetlets[i] != nullptr && packetlets[i]->received(packet))
-			return;
+		try {
+			if(packetlets[i] != nullptr && packetlets[i]->received(packet))
+				return;
+		} catch(const std::exception& e) {
+			fprintf(stderr, "Exception occurred: Packetlet[%u] - %s\n", i, e.what());
+			printf("Exception occurred: Packetlet[%u] - %s\n", i, e.what());
+		} catch(...) {
+			fprintf(stderr, "Unexpected exception occurred: Packetlet[%u]\n", i);
+			printf("Unexpected exception occurred: Packetlet[%u]\n", i);
+		}
 	}
 
 	delete packet;
@@ -42,25 +51,26 @@ MyPacketlet::MyPacketlet() : Packetlet() {
 }
 
 bool MyPacketlet::received(Packet* packet) {
-	printf("received in packetlet\n");
-	/*
-	for(uint32_t i = packet->start; i < packet->end; i++) {
-		printf("%02x ", packet->payload[i]);
-		if((i + 1) % 16 == 0)
-			printf("\n");
+	try {
+		printf("received in packetlet\n");
+		std::cout << packet << std::endl;
+
+		Ethernet* eth = new Ethernet(packet);
+		std::cout << "type: " << eth->getType() << std::endl;
+		std::cout << eth << std::endl;
+
+		IPv4* ipv4 = new IPv4(packet, eth->getPayloadOffset());
+		std::cout << ipv4 << std::endl;
+
+		ICMP* icmp = new ICMP(packet, ipv4->getBodyOffset());
+		std::cout << icmp << std::endl;
+
+		delete icmp;
+		delete ipv4;
+		delete eth;
+	} catch(const std::exception& e) {
+		fprintf(stderr, "Exception occurred in class: Packetlet[%u] - %s\n", id, e.what());
 	}
-	printf("\n");
-	*/
-	std::cout << packet << std::endl;
-
-	Ethernet* eth = new Ethernet(packet);
-	std::cout << eth << std::endl;
-
-	IPv4* ipv4 = new IPv4(packet, eth->getPayloadOffset());
-	std::cout << ipv4 << std::endl;
-
-	delete ipv4;
-	delete eth;
 
 	return false;
 }

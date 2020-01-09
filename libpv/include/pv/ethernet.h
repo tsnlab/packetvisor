@@ -1,7 +1,6 @@
 #pragma once
 
-#include <iostream>
-#include <pv/packet.h>
+#include <pv/protocol.h>
 
 namespace pv {
 
@@ -13,10 +12,7 @@ namespace pv {
 #define ETHER_TYPE_8021Q	0x8100		///< Ether type of 802.1q
 #define ETHER_TYPE_8021AD	0x88a8		///< Ether type of 802.1ad
 
-class Ethernet {
-protected:
-	Packet*		packet;
-
+class Ethernet : public Protocol {
 public:
 	Ethernet(Packet* packet);
 	virtual ~Ethernet();
