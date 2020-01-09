@@ -19,6 +19,7 @@ bool Packetlet::received(Packet* packet) {
 
 void Packetlet::send(Packet* packet) {
 	pv_driver_send(packet->queueId, packet->payload, packet->start, packet->end, packet->size);
+	packet->payload = nullptr;
 	delete packet;
 }
 

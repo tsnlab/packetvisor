@@ -25,11 +25,22 @@ public:
 	Protocol(Packet* packet, uint32_t offset);
 	virtual ~Protocol();
 
-	Packet* getPacket();
+	Packet* getPacket() const;
 	Protocol* setPacket(Packet* packet);
 
-	uint32_t getOffset();
+	uint32_t getStart() const;
+	Protocol* setStart(uint32_t start);
+
+	uint32_t getEnd() const;
+	Protocol* setEnd(uint32_t end);
+
+	uint32_t getSize() const;
+	Protocol* setSize(uint32_t size);
+
+	uint32_t getOffset() const;
 	Protocol* setOffset(uint32_t offset);
+
+	uint16_t checksum(uint32_t offset, uint32_t size);
 };
 
 }; // namespace pv

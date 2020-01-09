@@ -14,7 +14,7 @@ Protocol::Protocol(Packet* packet, uint32_t offset) {
 Protocol::~Protocol() {
 }
 
-Packet* Protocol::getPacket() {
+Packet* Protocol::getPacket() const {
 	return packet;
 }
 
@@ -23,7 +23,34 @@ Protocol* Protocol::setPacket(Packet* packet) {
 	return this;
 }
 
-uint32_t Protocol::getOffset() {
+uint32_t Protocol::getStart() const {
+	return packet->start;
+}
+
+Protocol* Protocol::setStart(uint32_t start) {
+	packet->start = start;
+	return this;
+}
+
+uint32_t Protocol::getEnd() const {
+	return packet->end;
+}
+
+Protocol* Protocol::setEnd(uint32_t end) {
+	packet->end = end;
+	return this;
+}
+
+uint32_t Protocol::getSize() const {
+	return packet->size;
+}
+
+Protocol* Protocol::setSize(uint32_t size) {
+	packet->size = size;
+	return this;
+}
+
+uint32_t Protocol::getOffset() const {
 	return offset;
 }
 
@@ -43,6 +70,27 @@ void Protocol::CHECK(uint32_t pos, uint32_t size) const {
 
 uint8_t* Protocol::OFFSET(uint32_t pos) const {
 	return packet->payload + packet->start + offset + pos;
+}
+
+uint16_t Protocol::checksum(uint32_t offset, uint32_t size) {
+	uint32_t sum = 0;
+	uint16_t* p = (uint16_t*)OFFSET(offset);
+	
+	while(size > 1) {
+		sum += *p++;
+		if(sum >> 16)
+			sum = (sum & 0xffff) + (sum >> 16);
+		
+		size -= 2;
+	}
+	
+	if(size > 0)
+		sum += *(uint8_t*)p;
+	
+	while(sum >> 16)
+		sum = (sum & 0xffff) + (sum >> 16);
+	
+	return endian16((uint16_t)~sum);
 }
 
 }; // namespace pv

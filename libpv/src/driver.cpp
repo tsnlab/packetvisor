@@ -51,26 +51,53 @@ MyPacketlet::MyPacketlet() : Packetlet() {
 }
 
 bool MyPacketlet::received(Packet* packet) {
-	try {
-		printf("received in packetlet\n");
-		std::cout << packet << std::endl;
+	printf("received in packetlet\n");
+	std::cout << packet << std::endl;
 
-		Ethernet* eth = new Ethernet(packet);
-		std::cout << "type: " << eth->getType() << std::endl;
-		std::cout << eth << std::endl;
+	Ethernet* ether = new Ethernet(packet);
+	std::cout << "type: " << ether->getType() << std::endl;
+	std::cout << ether << std::endl;
 
-		IPv4* ipv4 = new IPv4(packet, eth->getPayloadOffset());
+	if(ether->getType() == ETHER_TYPE_IPv4) {
+		IPv4* ipv4 = new IPv4(packet, ether->getPayloadOffset());
 		std::cout << ipv4 << std::endl;
 
-		ICMP* icmp = new ICMP(packet, ipv4->getBodyOffset());
-		std::cout << icmp << std::endl;
+		if(ipv4->getProto() == IP_PROTOCOL_ICMP && ipv4->getDst() == 0x7f000001) { // 127.0.0.1
+			ICMP* icmp = new ICMP(packet, ipv4->getBodyOffset());
+			std::cout << icmp << std::endl;
 
-		delete icmp;
+			if(icmp->getType() == 8) {
+				icmp->setType(0); // ICMP reply
+				icmp->setChecksum(0);
+				icmp->setChecksum(icmp->checksum(icmp->getOffset(), icmp->getEnd() - icmp->getOffset()));
+				
+				uint32_t addr = ipv4->getSrc();
+				ipv4->setDst(ipv4->getSrc());
+				ipv4->setSrc(addr);
+				ipv4->setTtl(64);
+				ipv4->setChecksum(0);
+				ipv4->setChecksum(ipv4->checksum(ipv4->getOffset(), ipv4->getHdrLen() * 4));
+
+				uint64_t mac = ether->getDst();
+				ether->setDst(ether->getSrc());
+				ether->setSrc(mac);
+
+				send(packet);
+
+				delete icmp;
+				delete ipv4;
+				delete ether;
+
+				return true;
+			}
+
+			delete icmp;
+		}
+
 		delete ipv4;
-		delete eth;
-	} catch(const std::exception& e) {
-		fprintf(stderr, "Exception occurred in class: Packetlet[%u] - %s\n", id, e.what());
 	}
+
+	delete ether;
 
 	return false;
 }
