@@ -1,5 +1,7 @@
 obj
 libbpf.so*
 libpv.so
-pv
+/pv
+xdp_user/pv
 pv.o
+*.swp

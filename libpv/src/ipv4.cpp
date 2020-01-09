@@ -14,38 +14,38 @@ IPv4::~IPv4() {
 }
 
 uint8_t IPv4::getVersion() const {
-	return *(uint8_t*)OFFSET(0) & 0x0f;
+	return (*OFFSET(0) >> 4) & 0x0f;
 }
 
-IPv4* IPv4::setVersion(uint8_t ver) {
-	*(uint8_t*)OFFSET(0) |= ver & 0x0f;
+IPv4* IPv4::setVersion(uint8_t version) {
+	*OFFSET(0) = ((version & 0x0f) << 4) | (*OFFSET(0) & 0x0f);
 	return this;
 }
 
 uint8_t IPv4::getHdrLen() const {
-	return (*(uint8_t*)OFFSET(0) & 0xf0) >> 4;
+	return *OFFSET(0) & 0x0f;
 }
 
 IPv4* IPv4::setHdrLen(uint8_t hdr_len) {
-	*(uint8_t*)OFFSET(0) |= (hdr_len & 0x0f) << 4;
+	*OFFSET(0) = (hdr_len & 0x0f) | (*OFFSET(0) & 0xf0);
 	return this;
 }
 
 uint8_t IPv4::getDscp() const {
-	return *(uint8_t*)OFFSET(1) & 0x3f;
+	return *OFFSET(1) >> 2;
 }
 
 IPv4* IPv4::setDscp(uint8_t dscp) {
-	*(uint8_t*)OFFSET(1) |= dscp & 0x3f;
+	*OFFSET(1) = (dscp << 2) | (*OFFSET(1) & 0x03);
 	return this;
 }
 
 uint8_t IPv4::getEcn() const {
-	return (*(uint8_t*)OFFSET(1) & 0xc0) >> 6;
+	return *OFFSET(1) & 0x03;
 }
 
 IPv4* IPv4::setEcn(uint8_t ecn) {
-	*(uint8_t*)OFFSET(1) |= (ecn& 0x03) << 6;
+	*OFFSET(1) = (ecn & 0x03) | (*OFFSET(1) & 0xfc);
 	return this;
 }
 
@@ -59,74 +59,75 @@ IPv4* IPv4::setLen(uint16_t len) {
 }
 
 uint16_t IPv4::getId() const {
-	return endian16(*(uint16_t*)OFFSET(3));
+	return endian16(*(uint16_t*)OFFSET(4));
 }
 
 IPv4* IPv4::setId(uint16_t id) {
-	*(uint16_t*)OFFSET(3) = endian16(id);
+	*(uint16_t*)OFFSET(4) = endian16(id);
 	return this;
 }
 
 uint8_t IPv4::getFlags() const {
-	return *(uint8_t*)OFFSET(5) & 0x08;
+	return *OFFSET(6) >> 5;
 }
 
 IPv4* IPv4::setFlags(uint8_t flags) {
-	*(uint8_t*)OFFSET(5) |= flags & 0x08;
+	*OFFSET(6) = ((flags & 0x03) << 5) | (*OFFSET(6) & 0x1f);
 	return this;
 }
 
 bool IPv4::isRb() const {
-	return !!*(uint8_t*)OFFSET(6) & 0x01;
+	return !!(*OFFSET(6) & 0x80);
 }
 
 IPv4* IPv4::setRb(bool rb) {
-	*(uint8_t*)OFFSET(6) |= !!rb;
+	*OFFSET(6) = (rb ? (uint8_t)0x80 : (uint8_t)0x00) | (*OFFSET(6) & 0x7f);
 	return this;
 }
 
 bool IPv4::isDf() const {
-	return !!(*(uint8_t*)OFFSET(6) & 0x02);
+	return !!(*OFFSET(6) & 0x40);
 }
 
 IPv4* IPv4::setDf(bool df) {
-	*(uint8_t*)OFFSET(6) |= !!df << 1;
+	*OFFSET(6) = (df ? (uint8_t)0x40 : (uint8_t)0x00) | (*OFFSET(6) & 0xbf);
 	return this;
 }
 
 bool IPv4::isMf() const {
-	return !!(*(uint8_t*)OFFSET(6) & 0x04);
+	return !!(*OFFSET(6) & 0x20);
 }
 
 IPv4* IPv4::setMf(bool mf) {
-	*(uint8_t*)OFFSET(6) |= !!mf << 2;
+	*OFFSET(6) = (mf ? (uint8_t)0x20 : (uint8_t)0x00) | (*OFFSET(6) & 0xdf);
 	return this;
 }
 
 uint16_t IPv4::getFragOffset() const {
-	return endian16(*(uint16_t*)OFFSET(7) >> 3);
+	return (uint16_t)(*OFFSET(6) & 0x1f) | (uint16_t)*OFFSET(7);
 }
 
 IPv4* IPv4::setFragOffset(uint16_t frag_offset) {
-	*(uint16_t*)OFFSET(7) = (frag_offset << 3) | (*(uint16_t*)OFFSET(7) & 0x07);
+	*OFFSET(6) = ((frag_offset & 0x1f00) >> 8) | (*OFFSET(6) & 0xe0);
+	*OFFSET(7) = (uint8_t)(frag_offset & 0xff);
 	return this;
 }
 
 uint8_t IPv4::getTtl() const {
-	return *(uint8_t*)OFFSET(8);
+	return *OFFSET(8);
 }
 
 IPv4* IPv4::setTtl(uint8_t ttl) {
-	*(uint8_t*)OFFSET(8) = ttl;
+	*OFFSET(8) = ttl;
 	return this;
 }
 
 uint8_t IPv4::getProto() const {
-	return *(uint8_t*)OFFSET(9);
+	return *OFFSET(9);
 }
 
 IPv4* IPv4::setProto(uint8_t proto) {
-	*(uint8_t*)OFFSET(9) = proto;
+	*OFFSET(9) = proto;
 	return this;
 }
 
@@ -140,7 +141,7 @@ IPv4* IPv4::setChecksum(uint16_t checksum) {
 }
 
 uint32_t IPv4::getSrc() const {
-	return endian32(*(uint16_t*)OFFSET(12));
+	return endian32(*(uint32_t*)OFFSET(12));
 }
 
 IPv4* IPv4::setSrc(uint32_t src) {
@@ -149,11 +150,11 @@ IPv4* IPv4::setSrc(uint32_t src) {
 }
 
 uint32_t IPv4::getDst() const {
-	return endian32(*(uint16_t*)OFFSET(14));
+	return endian32(*(uint32_t*)OFFSET(16));
 }
 
 IPv4* IPv4::setDst(uint32_t dst) {
-	*(uint32_t*)OFFSET(14) = endian32(dst);
+	*(uint32_t*)OFFSET(16) = endian32(dst);
 	return this;
 }
 
@@ -177,15 +178,15 @@ std::ostream& operator<<(std::ostream& out, const IPv4* obj) {
 	sprintf(buf, "%04x", obj->getId());
 	out << ", id: " << buf;
 	sprintf(buf, "%01x", obj->getFlags());
-	out << ", id: " << buf;
+	out << ", flags: " << buf;
 	out << ", flags.rb: " << (obj->isRb() ? 1 : 0);
 	out << ", flags.df: " << (obj->isDf() ? 1 : 0);
 	out << ", flags.mf: " << (obj->isMf() ? 1 : 0);
 	out << ", frag_offset: " << obj->getFragOffset();
 	out << ", ttl: " << std::to_string(obj->getTtl());
-	sprintf(buf, "%04x", obj->getProto());
+	sprintf(buf, "%02x", obj->getProto());
 	out << ", proto: " << buf;
-	sprintf(buf, "%08x", obj->getChecksum());
+	sprintf(buf, "%04x", obj->getChecksum());
 	out << ", checksum: " << buf;
 	uint32_t addr = obj->getSrc();
 	out << ", src: " << ((addr >> 24) & 0xff) << "." << ((addr >> 16) & 0xff) << ".";
