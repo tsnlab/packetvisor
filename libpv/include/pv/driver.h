@@ -10,17 +10,17 @@ extern "C" {
 #endif
 
 struct pv_Driver {
-	void (*received)(uint32_t queueId, uint8_t* payload, uint32_t start, uint32_t end, uint32_t size);
+	bool (*received)(uint32_t queueId, uint64_t addr, uint8_t* payload, uint32_t start, uint32_t end, uint32_t size);
 };
 
 struct pv_Callback {
-	uint8_t* (*alloc)(uint32_t size);
-	void (*free)(uint8_t* payload);
-	bool (*send)(uint32_t queueId, uint8_t* payload, uint32_t start, uint32_t end, uint32_t size);
+	bool (*alloc)(uint64_t* addr, uint8_t** payload, uint32_t size);
+	void (*free)(uint64_t addr);
+	bool (*send)(uint32_t queueId, uint64_t addr, uint8_t* payload, uint32_t start, uint32_t end, uint32_t size);
 };
 
 typedef struct pv_Driver* (*pv_Init)(struct pv_Callback* callback);
-typedef void (*pv_Received)(uint32_t queueId, uint8_t* payload, uint32_t start, uint32_t end, uint32_t size);
+typedef void (*pv_Received)(uint32_t queueId, uint64_t addr, uint8_t* payload, uint32_t start, uint32_t end, uint32_t size);
 
 #ifdef __cplusplus
 } // extern "C"
@@ -34,9 +34,9 @@ namespace pv {
 int32_t pv_driver_add_packetlet(void* packetlet);
 bool pv_driver_remove_packetlet(void* packetlet);
 
-uint8_t* pv_driver_alloc(uint32_t size);
-void pv_driver_free(uint8_t* payload);
-bool pv_driver_send(uint32_t queueId, uint8_t* payload, uint32_t start, uint32_t end, uint32_t size);
+bool pv_driver_alloc(uint64_t* addr, uint8_t** payload, uint32_t size);
+void pv_driver_free(uint64_t addr);
+bool pv_driver_send(uint32_t queueId, uint64_t addr, uint8_t* payload, uint32_t start, uint32_t end, uint32_t size);
 
 #ifdef __cplusplus
 }; // namespace pv

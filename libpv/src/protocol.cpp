@@ -60,10 +60,10 @@ Protocol* Protocol::setOffset(uint32_t offset) {
 }
 
 void Protocol::CHECK(uint32_t pos, uint32_t size) const {
-	if(packet->start + offset + pos + size >= packet->end) {
-		char buf[80];
-		sprintf(buf, "Buffer overflow pos(%d) + size(%d) >= end(%d)", pos, size, packet->end);
-		printf("exception: %s\n", buf);
+	if(packet->start + offset + pos + size > packet->end) {
+		char buf[160];
+		sprintf(buf, "Buffer overflow start(%d) + offset(%d) + pos(%d) + size(%d) > end(%d)", packet->start, offset, pos, size, packet->end);
+		fprintf(stderr, "Exception occurred: %s\n", buf);
 		throw new std::overflow_error(buf);
 	}
 }
@@ -73,6 +73,8 @@ uint8_t* Protocol::OFFSET(uint32_t pos) const {
 }
 
 uint16_t Protocol::checksum(uint32_t offset, uint32_t size) {
+	CHECK(offset, size);
+
 	uint32_t sum = 0;
 	uint16_t* p = (uint16_t*)OFFSET(offset);
 	

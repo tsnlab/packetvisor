@@ -17,19 +17,20 @@ public:
 	virtual ~Packetlet();
 
 	virtual bool received(Packet* packet);
-	void send(Packet* packet);
+	bool send(Packet* packet);
 };
 
 class Packet {
 public:
 	int32_t		queueId;
+	uint64_t	addr;
 	uint8_t*	payload;
 	uint32_t	start;
 	uint32_t	end;
 	uint32_t	size;
 
-	Packet(uint32_t size);
-	Packet(int32_t queueId, uint8_t* payload, uint32_t start, uint32_t end, uint32_t size);
+	Packet(uint64_t addr, uint32_t size);
+	Packet(int32_t queueId, uint64_t addr, uint8_t* payload, uint32_t start, uint32_t end, uint32_t size);
 	virtual ~Packet();
 
 	friend std::ostream& operator<<(std::ostream& out, const Packet& obj);

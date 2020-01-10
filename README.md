@@ -19,7 +19,7 @@ make RELEASE=1	# for release
 # Run
 make run
 
-When device is busy error just type
+When "ERROR: Can't setup AF_XDP socket "Device or resource busy" occurs
 
 make off
 

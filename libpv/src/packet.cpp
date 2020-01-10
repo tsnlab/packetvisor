@@ -17,25 +17,30 @@ bool Packetlet::received(Packet* packet) {
 	return false;
 }
 
-void Packetlet::send(Packet* packet) {
-	pv_driver_send(packet->queueId, packet->payload, packet->start, packet->end, packet->size);
+bool Packetlet::send(Packet* packet) {
+	bool result = pv_driver_send(packet->queueId, packet->addr, packet->payload, packet->start, packet->end, packet->size);
+
 	packet->payload = nullptr;
 	delete packet;
+
+	return result;
 }
 
-Packet::Packet(uint32_t size) {
-	payload = pv_driver_alloc(size);
-	if(payload == nullptr)
-		throw "cannot allocate payload";
+Packet::Packet(uint64_t addr, uint32_t size) {
+	if(!pv_driver_alloc(&addr, &payload, size)) {
+		throw "cannot allocate payload"; // TODO: change it to exception
+	}
 
 	queueId = -1;
+	addr = addr;
 	start = 0;
 	end = size;
 	this->size = size;
 }
 
-Packet::Packet(int32_t queueId, uint8_t* payload, uint32_t start, uint32_t end, uint32_t size) {
+Packet::Packet(int32_t queueId, uint64_t addr, uint8_t* payload, uint32_t start, uint32_t end, uint32_t size) {
 	this->queueId = queueId;
+	this->addr = addr;
 	this->payload = payload;
 	this->start = start;
 	this->end = end;
@@ -44,7 +49,7 @@ Packet::Packet(int32_t queueId, uint8_t* payload, uint32_t start, uint32_t end, 
 
 Packet::~Packet() {
 	if(payload != nullptr)
-		pv_driver_free(payload);
+		pv_driver_free(addr);
 }
 
 std::ostream& operator<<(std::ostream& out, const Packet& obj) {

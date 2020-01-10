@@ -76,17 +76,21 @@ struct pv_Driver* driver;
 static uint64_t xsk_alloc_umem_frame(struct xsk_socket_info *xsk);
 static void xsk_free_umem_frame(struct xsk_socket_info *xsk, uint64_t frame);
 
-uint8_t* pv_alloc(uint32_t size) {
-	uint64_t addr = xsk_alloc_umem_frame(current_xsk);
-
-	return (uint8_t*)addr;
+bool pv_alloc(uint64_t* addr, uint8_t** payload, uint32_t size) {
+	*addr = xsk_alloc_umem_frame(current_xsk);
+	if(*addr != 0) {
+		*payload = xsk_umem__get_data(current_xsk->umem->buffer, *addr);
+		return true;
+	} else {
+		return false;
+	}
 }
 
-void pv_free(uint8_t* payload) {
-	xsk_free_umem_frame(current_xsk, (uint64_t)payload);
+void pv_free(uint64_t addr) {
+	xsk_free_umem_frame(current_xsk, addr);
 }
 
-bool pv_send(uint32_t queueId, uint8_t* payload, uint32_t start, uint32_t end, uint32_t size) {
+bool pv_send(uint32_t queueId, uint64_t addr, uint8_t* payload, uint32_t start, uint32_t end, uint32_t size) {
 	struct xsk_socket_info* xsk = current_xsk;
 
 	uint32_t tx_idx = 0;
@@ -96,13 +100,14 @@ bool pv_send(uint32_t queueId, uint8_t* payload, uint32_t start, uint32_t end, u
 		return false;
 	}
 
-	xsk_ring_prod__tx_desc(&xsk->tx, tx_idx)->addr = (uint64_t)payload + start;
+	xsk_ring_prod__tx_desc(&xsk->tx, tx_idx)->addr = addr;
 	xsk_ring_prod__tx_desc(&xsk->tx, tx_idx)->len = end - start;
 	xsk_ring_prod__submit(&xsk->tx, 1);
 	xsk->outstanding_tx++;
 
 	xsk->stats.tx_bytes += end - start;
 	xsk->stats.tx_packets++;
+	printf("pv_send: addr: %p, payload: %p, len: %d\n", addr, payload + start, end - start);
 
 	return true;
 }
@@ -321,11 +326,12 @@ static bool process_packet(struct xsk_socket_info *xsk,
 			   uint64_t addr, uint32_t len)
 {
 	uint8_t *pkt = xsk_umem__get_data(xsk->umem->buffer, addr);
+	printf("addr: %p, pkt: %p, len: %d\n", addr, pkt, len);
 
-	if(true) {
-		driver->received(0, pkt, 0, len, len);
-		return false;
+	if(driver->received(0, addr, pkt, 0, len, len)) {
+		return true;
 	}
+
         /* Lesson#3: Write an IPv6 ICMP ECHO parser to send responses
 	 *
 	 * Some assumptions to make it easier:
@@ -335,7 +341,7 @@ static bool process_packet(struct xsk_socket_info *xsk,
 	 *   ICMPV6_ECHO_REPLY
 	 * - Recalculate the icmp checksum */
 
-	if (false) {
+	if (true) {
 		for(int i = 0; i < 64; i++) {
 			printf("%02x ", pkt[i]);
 			if((i + 1) % 8 == 0)
@@ -371,24 +377,27 @@ static bool process_packet(struct xsk_socket_info *xsk,
 			      htons(ICMPV6_ECHO_REQUEST << 8),
 			      htons(ICMPV6_ECHO_REPLY << 8));
 
+		return pv_send(0, addr, pkt, 0, len, len);
+
 		/* Here we sent the packet out of the receive port. Note that
 		 * we allocate one entry and schedule it. Your design would be
 		 * faster if you do batch processing/transmission */
 
-		ret = xsk_ring_prod__reserve(&xsk->tx, 1, &tx_idx);
-		if (ret != 1) {
-			/* No more transmit slots, drop the packet */
-			return false;
-		}
-
-		xsk_ring_prod__tx_desc(&xsk->tx, tx_idx)->addr = addr;
-		xsk_ring_prod__tx_desc(&xsk->tx, tx_idx)->len = len;
-		xsk_ring_prod__submit(&xsk->tx, 1);
-		xsk->outstanding_tx++;
-
-		xsk->stats.tx_bytes += len;
-		xsk->stats.tx_packets++;
-		return true;
+// 		ret = xsk_ring_prod__reserve(&xsk->tx, 1, &tx_idx);
+// 		if (ret != 1) {
+// 			/* No more transmit slots, drop the packet */
+// 			return false;
+// 		}
+// 
+// 		xsk_ring_prod__tx_desc(&xsk->tx, tx_idx)->addr = addr;
+// 		xsk_ring_prod__tx_desc(&xsk->tx, tx_idx)->len = len;
+// 		xsk_ring_prod__submit(&xsk->tx, 1);
+// 		xsk->outstanding_tx++;
+// 
+// 		xsk->stats.tx_bytes += len;
+// 		xsk->stats.tx_packets++;
+// 		printf("Replying...\n");
+// 		return true;
 	}
 
 	return false;
