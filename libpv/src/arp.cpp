@@ -6,6 +6,9 @@ namespace pv {
 ARP::ARP(Packet* packet, uint32_t offset) : Protocol(packet, offset) {
 }
 
+ARP::ARP(Protocol* parent) : Protocol(parent) {
+}
+
 ARP::~ARP() {
 }
 

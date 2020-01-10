@@ -77,7 +77,7 @@ uint8_t pl[] = {
 	std::cout << ether << std::endl;
 
 	if(ether->getType() == ETHER_TYPE_ARP) {
-		ARP* arp = new ARP(packet, ether->getPayloadOffset());
+		ARP* arp = new ARP(ether);
 		std::cout << arp << std::endl;
 
 		if(arp->getOpcode() == 1 && arp->getDstProto() == myip) {
@@ -91,9 +91,6 @@ uint8_t pl[] = {
 			   ->setSrcHw(callback->mac)
 			   ->setSrcProto(myip);
 
-			delete arp;
-			delete ether;
-
 			if(!send(packet)) {
 				fprintf(stderr, "Cannot reply arp\n");
 				return false;
@@ -102,16 +99,13 @@ uint8_t pl[] = {
 			}
 		}
 
-		delete arp;
-		delete ether;
-
 		return false;
 	} else if(ether->getType() == ETHER_TYPE_IPv4) {
-		IPv4* ipv4 = new IPv4(packet, ether->getPayloadOffset());
+		IPv4* ipv4 = new IPv4(ether);
 		std::cout << ipv4 << std::endl;
 
 		if(ipv4->getProto() == IP_PROTOCOL_ICMP && ipv4->getDst() == myip) {
-			ICMP* icmp = new ICMP(packet, ipv4->getBodyOffset());
+			ICMP* icmp = new ICMP(ipv4);
 			std::cout << icmp << std::endl;
 
 			if(icmp->getType() == 8) {
@@ -136,10 +130,6 @@ uint8_t pl[] = {
 				}
 				printf("\n");
 
-				delete icmp;
-				delete ipv4;
-				delete ether;
-
 				if(!send(packet)) {
 					fprintf(stderr, "Cannot reply icmp\n");
 					return false;
@@ -147,14 +137,8 @@ uint8_t pl[] = {
 					return true;
 				}
 			}
-
-			delete icmp;
 		}
-
-		delete ipv4;
 	}
-
-	delete ether;
 
 	return false;
 }

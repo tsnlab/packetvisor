@@ -15,6 +15,7 @@ namespace pv {
 class Ethernet : public Protocol {
 public:
 	Ethernet(Packet* packet);
+	Ethernet(Protocol* parent);
 	virtual ~Ethernet();
 
 	uint64_t getDst() const;
@@ -26,7 +27,7 @@ public:
 	uint16_t getType() const;
 	Ethernet* setType(uint16_t type);
 
-	uint32_t getPayloadOffset() const;
+	virtual uint32_t getBodyOffset() const;
 
 	friend std::ostream& operator<<(std::ostream& out, const Ethernet& obj);
 	friend std::ostream& operator<<(std::ostream& out, const Ethernet* obj);

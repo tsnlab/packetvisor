@@ -3,15 +3,20 @@
 
 namespace pv {
 
-Protocol::Protocol() {
-}
-
 Protocol::Protocol(Packet* packet, uint32_t offset) {
+	this->parent = nullptr;
 	this->packet = packet;
 	this->offset = offset;
+	packet->protocol = this;
+}
+
+Protocol::Protocol(Protocol* parent) : Protocol(parent->getPacket(), parent->getBodyOffset()) {
+	this->parent = parent;
 }
 
 Protocol::~Protocol() {
+	if(parent != nullptr)
+		delete parent;
 }
 
 Packet* Protocol::getPacket() const {
@@ -57,6 +62,10 @@ uint32_t Protocol::getOffset() const {
 Protocol* Protocol::setOffset(uint32_t offset) {
 	this->offset = offset;
 	return this;
+}
+
+uint32_t Protocol::getBodyOffset() const {
+	return getEnd();
 }
 
 void Protocol::CHECK(uint32_t pos, uint32_t size) const {

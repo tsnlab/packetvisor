@@ -9,6 +9,7 @@ namespace pv {
 class ARP : public Protocol {
 public:
 	ARP(Packet* packet, uint32_t offset);
+	ARP(Protocol* parent);
 	virtual ~ARP();
 
 	uint16_t getHwType() const;

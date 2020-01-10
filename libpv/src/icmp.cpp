@@ -5,6 +5,9 @@ namespace pv {
 ICMP::ICMP(Packet* packet, uint32_t offset) : Protocol(packet, offset) {
 }
 
+ICMP::ICMP(Protocol* parent) : Protocol(parent) {
+}
+
 ICMP::~ICMP() {
 }
 

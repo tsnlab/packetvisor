@@ -14,6 +14,7 @@ namespace pv {
 
 class Protocol {
 protected:
+	Protocol*	parent;
 	Packet*		packet;
 	uint32_t	offset;
 
@@ -21,8 +22,8 @@ protected:
 	uint8_t* 	OFFSET(uint32_t pos) const;
 
 public:
-	Protocol();
 	Protocol(Packet* packet, uint32_t offset);
+	Protocol(Protocol* parent);
 	virtual ~Protocol();
 
 	Packet* getPacket() const;
@@ -39,6 +40,8 @@ public:
 
 	uint32_t getOffset() const;
 	Protocol* setOffset(uint32_t offset);
+
+	virtual uint32_t getBodyOffset() const;
 
 	uint16_t checksum(uint32_t offset, uint32_t size);
 };

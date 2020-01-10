@@ -6,6 +6,9 @@ namespace pv {
 IPv4::IPv4(Packet* packet, uint32_t offset) : Protocol(packet, offset) {
 }
 
+IPv4::IPv4(Protocol* parent) : Protocol(parent) {
+}
+
 IPv4::~IPv4() {
 }
 

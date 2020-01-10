@@ -20,6 +20,8 @@ public:
 	bool send(Packet* packet);
 };
 
+class Protocol;
+
 class Packet {
 public:
 	int32_t		queueId;
@@ -28,6 +30,7 @@ public:
 	uint32_t	start;
 	uint32_t	end;
 	uint32_t	size;
+	Protocol*	protocol;
 
 	Packet(uint64_t addr, uint32_t size);
 	Packet(int32_t queueId, uint64_t addr, uint8_t* payload, uint32_t start, uint32_t end, uint32_t size);

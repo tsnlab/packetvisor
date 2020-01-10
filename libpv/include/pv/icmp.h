@@ -11,6 +11,7 @@ namespace pv {
 class ICMP : public Protocol {
 public:
 	ICMP(Packet* packet, uint32_t offset);
+	ICMP(Protocol* parent);
 	virtual ~ICMP();
 
 	uint8_t getType() const;

@@ -2,6 +2,7 @@
 #include <iostream>
 #include <pv/driver.h>
 #include <pv/packet.h>
+#include <pv/protocol.h>
 
 namespace pv {
 
@@ -36,6 +37,7 @@ Packet::Packet(uint64_t addr, uint32_t size) {
 	start = 0;
 	end = size;
 	this->size = size;
+	protocol = nullptr;
 }
 
 Packet::Packet(int32_t queueId, uint64_t addr, uint8_t* payload, uint32_t start, uint32_t end, uint32_t size) {
@@ -45,9 +47,13 @@ Packet::Packet(int32_t queueId, uint64_t addr, uint8_t* payload, uint32_t start,
 	this->start = start;
 	this->end = end;
 	this->size = size;
+	protocol = nullptr;
 }
 
 Packet::~Packet() {
+	if(protocol != nullptr)
+		delete protocol;
+
 	if(payload != nullptr)
 		pv_driver_free(addr);
 }

@@ -14,6 +14,7 @@ namespace pv {
 class IPv4 : public Protocol {
 public:
 	IPv4(Packet* packet, uint32_t offset);
+	IPv4(Protocol* parent);
 	virtual ~IPv4();
 
 	uint8_t getVersion() const;
@@ -64,7 +65,7 @@ public:
 	uint32_t getDst() const;
 	IPv4* setDst(uint32_t dst);
 	
-	uint32_t getBodyOffset() const;
+	virtual uint32_t getBodyOffset() const;
 
 	friend std::ostream& operator<<(std::ostream& out, const IPv4& obj);
 	friend std::ostream& operator<<(std::ostream& out, const IPv4* obj);

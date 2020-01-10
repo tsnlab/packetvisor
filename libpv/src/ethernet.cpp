@@ -7,6 +7,9 @@ namespace pv {
 Ethernet::Ethernet(Packet* packet) : Protocol(packet, 0) {
 }
 
+Ethernet::Ethernet(Protocol* parent) : Protocol(parent) {
+}
+
 Ethernet::~Ethernet() {
 }
 
@@ -48,7 +51,7 @@ Ethernet* Ethernet::setType(uint16_t type) {
 	return this;
 }
 
-uint32_t Ethernet::getPayloadOffset() const {
+uint32_t Ethernet::getBodyOffset() const {
 	uint16_t type = getType();
 
 	switch(type) {
@@ -83,7 +86,7 @@ std::ostream& operator<<(std::ostream& out, const Ethernet* obj) {
 	sprintf(buf, "%04x", obj->getType());
 	out << ", type: " << buf;
 
-	out << ", payload: " << (obj->packet->end - obj->getPayloadOffset()) << " bytes]";
+	out << ", body: " << (obj->packet->end - obj->getBodyOffset()) << " bytes]";
 
 	return out;
 }
