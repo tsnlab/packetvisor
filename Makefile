@@ -1,4 +1,4 @@
-.PHONY: all setup enter run off clean libpv/libpv.so xdp_user/pv xdp_kern/pv.o
+.PHONY: all setup teardown enter run off clean libpv/libpv.so xdp_user/pv xdp_kern/pv.o
 
 RELEASE ?= 0
 ENV ?= veth
@@ -8,6 +8,9 @@ all: libbpf.so libpv.so pv.o pv
 
 setup:
 	sudo testenv/testenv.sh setup --name $(ENV)
+
+teardown:
+	sudo testenv/testenv.sh teardown
 
 enter:
 	sudo testenv/testenv.sh enter --name $(ENV)
