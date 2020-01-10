@@ -14,12 +14,14 @@ struct pv_Driver {
 };
 
 struct pv_Callback {
+	uint64_t mac;
 	bool (*alloc)(uint64_t* addr, uint8_t** payload, uint32_t size);
 	void (*free)(uint64_t addr);
 	bool (*send)(uint32_t queueId, uint64_t addr, uint8_t* payload, uint32_t start, uint32_t end, uint32_t size);
 };
 
 typedef struct pv_Driver* (*pv_Init)(struct pv_Callback* callback);
+typedef void (*pv_Destroy)(struct pv_Driver* driver);
 typedef void (*pv_Received)(uint32_t queueId, uint64_t addr, uint8_t* payload, uint32_t start, uint32_t end, uint32_t size);
 
 #ifdef __cplusplus

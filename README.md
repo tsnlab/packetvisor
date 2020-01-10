@@ -13,15 +13,27 @@ sudo apt install clang llvm libelf-dev gcc-multilib linux-tools-$(uname -r)
 sudo apt install linux-headers-$(uname -r)
 
 # Compile
-make			# for debug
+make		# for debug
 make RELEASE=1	# for release
 
 # Run
-make run
+There must be need 2 terminals. Terminal #1 will be client, Terminal #2 will be server.
+Terminal #1 will have veth0 interface which is connected to Terminal #2's veth interface.
+Terminal #2 will have veth interface which is connected to terminal #1's veth0 interface.
+pv.o module will installed in veth interface.
 
-When "ERROR: Can't setup AF_XDP socket "Device or resource busy" occurs
+## Terminal #2 (ping server)
+make setup		-> This create veth interface
+make run		-> Install xdp module to kernel, and launch user space application
 
-make off
+make off		-> Uninstall xdp moudle forcely 
+				   when "ERROR: Can't setup AF_XDP socket "Device or resource busy" occurs
+make teardown	-> destroy veth interface
+
+## Terminal #1 (ping client)
+make etner								-> enter virtual environment
+ip addr add 192.168.0.10/24 dev veth0	-> set veth0's IPv4 address
+ping 192.168.0.1						-> ping to XDP's user application
 
 # License
  * packetngin (xdp_user) is licensed under dual license GPLv3 or MIT
@@ -31,8 +43,8 @@ make off
  * xdp_user/include/common is copied from xdp-tutorial
 
 # TODO list
-- [ ] ARP ping use case
-- [ ] ICMP ping use case
+- [X] ARP ping use case
+- [X] ICMP ping use case
 - [ ] xdp_user need to compiled with g++ not gcc -> This is why exception is not working now
 - [ ] all of the xdp-tutorial code must be removed
 - [ ] multiple queue, interfaces

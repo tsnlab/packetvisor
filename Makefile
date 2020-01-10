@@ -1,14 +1,22 @@
-.PHONY: all run off clean libpv/libpv.so xdp_user/pv xdp_kern/pv.o
+.PHONY: all setup enter run off clean libpv/libpv.so xdp_user/pv xdp_kern/pv.o
 
 RELEASE ?= 0
+ENV ?= veth
+MAC ?= ${shell ip addr | sed -n '/$(ENV)/{N; p}' | grep ether | awk '{print $$2}'}
 
 all: libbpf.so libpv.so pv.o pv
 
+setup:
+	sudo testenv/testenv.sh setup --name $(ENV)
+
+enter:
+	sudo testenv/testenv.sh enter --name $(ENV)
+
 run: all
-	sudo LD_LIBRARY_PATH=. ./pv -d lo --filename pv.o
+	sudo LD_LIBRARY_PATH=. ./pv -d $(ENV) -m $(MAC) --filename pv.o
 
 off:
-	sudo ip link set dev lo xdpgeneric off
+	sudo ip link set dev $(ENV) xdpgeneric off
 
 clean:
 	rm -f libbpf.so*

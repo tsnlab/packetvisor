@@ -72,6 +72,7 @@ struct xsk_socket_info {
 struct xsk_socket_info* current_xsk;
 
 struct pv_Driver* driver;
+uint64_t mymac;
 
 static uint64_t xsk_alloc_umem_frame(struct xsk_socket_info *xsk);
 static void xsk_free_umem_frame(struct xsk_socket_info *xsk, uint64_t frame);
@@ -100,6 +101,12 @@ bool pv_send(uint32_t queueId, uint64_t addr, uint8_t* payload, uint32_t start, 
 		return false;
 	}
 
+	printf("pv_send: addr: %lx, payload: %p, len: %d\n", addr, payload + start, end - start);
+	for(uint32_t i = start; i < end; i++) {
+		printf("%02x ", payload[i]);
+	}
+	printf("\n");
+
 	xsk_ring_prod__tx_desc(&xsk->tx, tx_idx)->addr = addr;
 	xsk_ring_prod__tx_desc(&xsk->tx, tx_idx)->len = end - start;
 	xsk_ring_prod__submit(&xsk->tx, 1);
@@ -107,7 +114,6 @@ bool pv_send(uint32_t queueId, uint64_t addr, uint8_t* payload, uint32_t start, 
 
 	xsk->stats.tx_bytes += end - start;
 	xsk->stats.tx_packets++;
-	printf("pv_send: addr: %p, payload: %p, len: %d\n", addr, payload + start, end - start);
 
 	return true;
 }
@@ -133,6 +139,9 @@ static const struct option_wrapper long_options[] = {
 
 	{{"dev",	 required_argument,	NULL, 'd' },
 	 "Operate on device <ifname>", "<ifname>", true},
+
+	{{"mac",	 required_argument,	NULL, 'm' },
+	 "MAC address", "<mac>", true},
 
 	{{"skb-mode",	 no_argument,		NULL, 'S' },
 	 "Install XDP program in SKB (AKA generic) mode"},
@@ -326,7 +335,7 @@ static bool process_packet(struct xsk_socket_info *xsk,
 			   uint64_t addr, uint32_t len)
 {
 	uint8_t *pkt = xsk_umem__get_data(xsk->umem->buffer, addr);
-	printf("addr: %p, pkt: %p, len: %d\n", addr, pkt, len);
+	printf("addr: %lx, pkt: %p, len: %d\n", addr, pkt, len);
 
 	if(driver->received(0, addr, pkt, 0, len, len)) {
 		return true;
@@ -342,6 +351,7 @@ static bool process_packet(struct xsk_socket_info *xsk,
 	 * - Recalculate the icmp checksum */
 
 	if (true) {
+		printf("In xdp-tutorial icmpv6 ping\n");
 		for(int i = 0; i < 64; i++) {
 			printf("%02x ", pkt[i]);
 			if((i + 1) % 8 == 0)
@@ -349,8 +359,6 @@ static bool process_packet(struct xsk_socket_info *xsk,
 		}
 		printf("\n");
 
-		int ret;
-		uint32_t tx_idx = 0;
 		uint8_t tmp_mac[ETH_ALEN];
 		struct in6_addr tmp_ip;
 		struct ethhdr *eth = (struct ethhdr *) pkt;
@@ -383,6 +391,8 @@ static bool process_packet(struct xsk_socket_info *xsk,
 		 * we allocate one entry and schedule it. Your design would be
 		 * faster if you do batch processing/transmission */
 
+//		int ret;
+//		uint32_t tx_idx = 0;
 // 		ret = xsk_ring_prod__reserve(&xsk->tx, 1, &tx_idx);
 // 		if (ret != 1) {
 // 			/* No more transmit slots, drop the packet */
@@ -540,19 +550,21 @@ static void stats_print(struct stats_record *stats_rec,
 static void *stats_poll(void *arg)
 {
 	unsigned int interval = 2;
-	struct xsk_socket_info *xsk = arg;
-	static struct stats_record previous_stats = { 0 };
+	//struct xsk_socket_info *xsk = arg;
+	//static struct stats_record previous_stats = { 0 };
 
-	previous_stats.timestamp = gettime();
+	//previous_stats.timestamp = gettime();
 
 	/* Trick to pretty printf with thousands separators use %' */
-	setlocale(LC_NUMERIC, "en_US");
+	//setlocale(LC_NUMERIC, "en_US");
 
 	while (!global_exit) {
 		sleep(interval);
+		/*
 		xsk->stats.timestamp = gettime();
 		stats_print(&xsk->stats, &previous_stats);
 		previous_stats = xsk->stats;
+		*/
 	}
 	return NULL;
 }
@@ -594,12 +606,6 @@ int main(int argc, char **argv)
         fprintf(stderr, "%s\n", error);
         exit(1);
     }
-
-	driver = init(&callback);
-	if(driver == NULL) {
-		fprintf(stderr, "packetvisor init is failed\n");
-		exit(1);
-	}
 
 	/* Global shutdown handler */
 	signal(SIGINT, exit_application);
@@ -686,8 +692,25 @@ int main(int argc, char **argv)
 
 	current_xsk = xsk_socket;
 
+	callback.mac = mymac;
+	printf("MAC address: %012lx\n", mymac);
+
+	driver = init(&callback);
+	if(driver == NULL) {
+		fprintf(stderr, "packetvisor init is failed\n");
+		exit(1);
+	}
+
 	/* Receive and count packets than drop them */
+	printf("Packetvisor started...\n");
 	rx_and_process(&cfg, xsk_socket);
+
+	pv_Destroy destroy = dlsym(handle, "pv_destroy");
+    if((error = dlerror()) != NULL) {
+        fprintf(stderr, "%s\n", error);
+        exit(1);
+    }
+	destroy(driver);
 
 	/* Cleanup */
 	xsk_socket__delete(xsk_socket->xsk);

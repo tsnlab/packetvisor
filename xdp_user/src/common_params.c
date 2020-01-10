@@ -76,6 +76,17 @@ int option_wrappers_to_options(const struct option_wrapper *wrapper,
 	return 0;
 }
 
+static uint64_t hex(char ch) {
+	if(ch >= '0' && ch <= '9')
+		return ch - '0';
+	else if(ch >= 'a' && ch <= 'f')
+		return ch - 'a' + 10;
+	else if(ch >= 'A' && ch <= 'F')
+		return ch - 'A' + 10;
+	else
+		return 0;
+}
+
 void parse_cmdline_args(int argc, char **argv,
 			const struct option_wrapper *options_wrapper,
                         struct config *cfg, const char *doc)
@@ -92,7 +103,7 @@ void parse_cmdline_args(int argc, char **argv,
 	}
 
 	/* Parse commands line args */
-	while ((opt = getopt_long(argc, argv, "hd:r:L:R:ASNFUMQ:czpq",
+	while ((opt = getopt_long(argc, argv, "hd:m:r:L:R:ASNFUMQ:czpq",
 				  long_options, &longindex)) != -1) {
 		switch (opt) {
 		case 'd':
@@ -109,6 +120,26 @@ void parse_cmdline_args(int argc, char **argv,
 					errno, strerror(errno));
 				goto error;
 			}
+			break;
+		case 'm':
+			if (strlen(optarg) != 17) {
+				fprintf(stderr, "ERR: --mac mac address is not 17 like 00:11:22:33:44:55\n");
+				goto error;
+			}
+			extern uint64_t mymac;
+			mymac = 0;
+			mymac |= hex(optarg[0]) << 44;
+			mymac |= hex(optarg[1]) << 40;
+			mymac |= hex(optarg[3]) << 36;
+			mymac |= hex(optarg[4]) << 32;
+			mymac |= hex(optarg[6]) << 28;
+			mymac |= hex(optarg[7]) << 24;
+			mymac |= hex(optarg[9]) << 20;
+			mymac |= hex(optarg[10]) << 16;
+			mymac |= hex(optarg[12]) << 12;
+			mymac |= hex(optarg[13]) << 8;
+			mymac |= hex(optarg[15]) << 4;
+			mymac |= hex(optarg[16]) << 0;
 			break;
 		case 'r':
 			if (strlen(optarg) >= IF_NAMESIZE) {

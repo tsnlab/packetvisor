@@ -5,6 +5,7 @@
 #include <pv/driver.h>
 
 #include <pv/ethernet.h>
+#include <pv/arp.h>
 #include <pv/ipv4.h>
 #include <pv/icmp.h>
 
@@ -70,34 +71,65 @@ uint8_t pl[] = {
 	memcpy(packet->payload, pl, sizeof(pl));
 */
 
+	uint32_t myip = 0xc0a80001;
+
 	Ethernet* ether = new Ethernet(packet);
 	std::cout << ether << std::endl;
 
-	if(ether->getType() == ETHER_TYPE_IPv4) {
+	if(ether->getType() == ETHER_TYPE_ARP) {
+		ARP* arp = new ARP(packet, ether->getPayloadOffset());
+		std::cout << arp << std::endl;
+
+		if(arp->getOpcode() == 1 && arp->getDstProto() == myip) {
+			printf("Sending ARP...\n");
+			ether->setDst(ether->getSrc())
+			     ->setSrc(callback->mac);
+			
+			arp->setOpcode(2)
+			   ->setDstHw(arp->getSrcHw())
+			   ->setDstProto(arp->getSrcProto())
+			   ->setSrcHw(callback->mac)
+			   ->setSrcProto(myip);
+
+			delete arp;
+			delete ether;
+
+			if(!send(packet)) {
+				fprintf(stderr, "Cannot reply arp\n");
+				return false;
+			} else {
+				return true;
+			}
+		}
+
+		delete arp;
+		delete ether;
+
+		return false;
+	} else if(ether->getType() == ETHER_TYPE_IPv4) {
 		IPv4* ipv4 = new IPv4(packet, ether->getPayloadOffset());
 		std::cout << ipv4 << std::endl;
 
-		if(ipv4->getProto() == IP_PROTOCOL_ICMP && ipv4->getDst() == 0x7f000001) { // 127.0.0.1
+		if(ipv4->getProto() == IP_PROTOCOL_ICMP && ipv4->getDst() == myip) {
 			ICMP* icmp = new ICMP(packet, ipv4->getBodyOffset());
 			std::cout << icmp << std::endl;
 
 			if(icmp->getType() == 8) {
+				printf("Sending ICMP...\n");
 				icmp->setType(0) // ICMP reply
 					->setChecksum(0)
 					->setChecksum(icmp->checksum(0, icmp->getEnd() - icmp->getOffset()));
 				
-				uint32_t addr = ipv4->getSrc();
 				ipv4->setDst(ipv4->getSrc())
-				    ->setSrc(addr)
+				    ->setSrc(myip)
 				    ->setTtl(64)
 				    ->setDf(false)
 				    ->setId(ipv4->getId() + 1)
 				    ->setChecksum(0)
 				    ->setChecksum(ipv4->checksum(0, ipv4->getHdrLen() * 4));
 
-				uint64_t mac = ether->getDst();
 				ether->setDst(ether->getSrc())
-				     ->setSrc(mac);
+				     ->setSrc(callback->mac);
 
 				for(uint32_t i = packet->start; i < packet->end; i++) {
 					printf("%02x ", packet->payload[i]);
@@ -127,12 +159,18 @@ uint8_t pl[] = {
 	return false;
 }
 
+static MyPacketlet* myPacketlet;
+
 struct pv_Driver* pv_init(struct pv_Callback* cb) {
 	callback = cb;
 
-	new MyPacketlet();
+	myPacketlet = new MyPacketlet();
 
 	return &driver;
+}
+
+void pv_destroy(struct pv_Driver* driver) {
+	delete myPacketlet;
 }
 
 } // extern "C"
