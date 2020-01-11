@@ -13,7 +13,7 @@ struct pv_pcap* pv_pcap_create(const char* path) {
 		return NULL;
 	}
 
-	int fd = open(path, O_WRONLY);
+	int fd = open(path, O_WRONLY | O_NONBLOCK);
 	if(fd < 0) {
 		fprintf(stderr, "Cannot open FIFO: %s\n", path);
 		unlink(path);
@@ -53,12 +53,17 @@ struct pv_pcap* pv_pcap_create(const char* path) {
 }
 
 void pv_pcap_delete(struct pv_pcap* pcap) {
-	close(pcap->fd);
-	unlink(pcap->path);
-	free(pcap);
+	if(pcap != NULL) {
+		close(pcap->fd);
+		unlink(pcap->path);
+		free(pcap);
+	}
 }
 
 int32_t pv_pcap_received(struct pv_pcap* pcap, uint8_t* payload, uint32_t len) {
+	if(pcap == NULL)
+		return -1;
+
 	struct timeval tv;
 	gettimeofday(&tv,NULL);
 
@@ -70,7 +75,8 @@ int32_t pv_pcap_received(struct pv_pcap* pcap, uint8_t* payload, uint32_t len) {
 	};
 
 	int32_t len2 = write(pcap->fd, &rec, sizeof(struct pv_pcap_rec));
-	len2 += write(pcap->fd, payload, len);
+	if(len2 > 0)
+		len2 += write(pcap->fd, payload, len);
 
 	return len2;
 }
