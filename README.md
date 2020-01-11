@@ -35,6 +35,9 @@ make etner								-> enter virtual environment
 ip addr add 192.168.0.10/24 dev veth0	-> set veth0's IPv4 address
 ping 192.168.0.1						-> ping to XDP's user application
 
+## Debugging
+sudo wireshark -k -i /tmp/pv			-> Capture packets
+
 # License
  * packetngin (xdp_user) is licensed under dual license GPLv3 or MIT
  * pv.so (pv) is licensed under dual license LGPLv3 or MIT
