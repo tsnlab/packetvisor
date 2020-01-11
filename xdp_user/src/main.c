@@ -12,6 +12,7 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+#include <pcap.h>
 
 #include <sys/resource.h>
 
@@ -73,6 +74,7 @@ struct xsk_socket_info* current_xsk;
 
 struct pv_Driver* driver;
 uint64_t mymac;
+struct pv_pcap* pcap;
 
 static uint64_t xsk_alloc_umem_frame(struct xsk_socket_info *xsk);
 static void xsk_free_umem_frame(struct xsk_socket_info *xsk, uint64_t frame);
@@ -93,6 +95,8 @@ void pv_free(uint64_t addr) {
 
 bool pv_send(uint32_t queueId, uint64_t addr, uint8_t* payload, uint32_t start, uint32_t end, uint32_t size) {
 	struct xsk_socket_info* xsk = current_xsk;
+
+	pv_pcap_send(pcap, payload + start, end - start);
 
 	uint32_t tx_idx = 0;
 	int ret = xsk_ring_prod__reserve(&xsk->tx, 1, &tx_idx);
@@ -336,6 +340,8 @@ static bool process_packet(struct xsk_socket_info *xsk,
 {
 	uint8_t *pkt = xsk_umem__get_data(xsk->umem->buffer, addr);
 	printf("addr: %lx, pkt: %p, len: %d\n", addr, pkt, len);
+
+	pv_pcap_received(pcap, pkt + 0, len);
 
 	if(driver->received(0, addr, pkt, 0, len, len)) {
 		return true;
@@ -695,6 +701,8 @@ int main(int argc, char **argv)
 	callback.mac = mymac;
 	printf("MAC address: %012lx\n", mymac);
 
+	pcap = pv_pcap_create("/tmp/pv");
+
 	driver = init(&callback);
 	if(driver == NULL) {
 		fprintf(stderr, "packetvisor init is failed\n");
@@ -704,6 +712,8 @@ int main(int argc, char **argv)
 	/* Receive and count packets than drop them */
 	printf("Packetvisor started...\n");
 	rx_and_process(&cfg, xsk_socket);
+
+	pv_pcap_delete(pcap);
 
 	pv_Destroy destroy = dlsym(handle, "pv_destroy");
     if((error = dlerror()) != NULL) {
