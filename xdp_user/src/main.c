@@ -91,6 +91,7 @@ bool pv_alloc(uint64_t* addr, uint8_t** payload, uint32_t size) {
 
 void pv_free(uint64_t addr) {
 	xsk_free_umem_frame(current_xsk, addr);
+	abort();
 }
 
 bool pv_send(uint32_t queueId, uint64_t addr, uint8_t* payload, uint32_t start, uint32_t end, uint32_t size) {
@@ -104,12 +105,6 @@ bool pv_send(uint32_t queueId, uint64_t addr, uint8_t* payload, uint32_t start, 
 		/* No more transmit slots, drop the packet */
 		return false;
 	}
-
-	printf("pv_send: addr: %lx, payload: %p, len: %d\n", addr, payload + start, end - start);
-	for(uint32_t i = start; i < end; i++) {
-		printf("%02x ", payload[i]);
-	}
-	printf("\n");
 
 	xsk_ring_prod__tx_desc(&xsk->tx, tx_idx)->addr = addr;
 	xsk_ring_prod__tx_desc(&xsk->tx, tx_idx)->len = end - start;
@@ -339,7 +334,6 @@ static bool process_packet(struct xsk_socket_info *xsk,
 			   uint64_t addr, uint32_t len)
 {
 	uint8_t *pkt = xsk_umem__get_data(xsk->umem->buffer, addr);
-	printf("addr: %lx, pkt: %p, len: %d\n", addr, pkt, len);
 
 	pv_pcap_received(pcap, pkt + 0, len);
 
@@ -356,7 +350,7 @@ static bool process_packet(struct xsk_socket_info *xsk,
 	 *   ICMPV6_ECHO_REPLY
 	 * - Recalculate the icmp checksum */
 
-	if (true) {
+	if (false) {
 		printf("In xdp-tutorial icmpv6 ping\n");
 		for(int i = 0; i < 64; i++) {
 			printf("%02x ", pkt[i]);

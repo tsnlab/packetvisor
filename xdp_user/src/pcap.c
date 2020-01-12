@@ -8,17 +8,20 @@
 #include <pcap.h>
 
 struct pv_pcap* pv_pcap_create(const char* path) {
-	if(mkfifo(path, 0664) == -1) {
+	if(mkfifo(path, 0644) != 0) {
 		fprintf(stderr, "Cannot create FIFO: %s\n", path);
 		return NULL;
 	}
 
-	int fd = open(path, O_WRONLY | O_NONBLOCK);
+	int fd = open(path, O_RDWR);
 	if(fd < 0) {
 		fprintf(stderr, "Cannot open FIFO: %s\n", path);
 		unlink(path);
 		return NULL;
 	}
+
+	int flags = fcntl(fd, F_GETFL, 0);
+	fcntl(fd, F_SETFL, flags | O_NONBLOCK);
 
 	struct pv_pcap_header header = {
 		.magic_number = 0xa1b2c3d4,
@@ -74,9 +77,12 @@ int32_t pv_pcap_received(struct pv_pcap* pcap, uint8_t* payload, uint32_t len) {
 		.orig_len = len
 	};
 
+	// TODO: atomic write must be implemented
+	// TODO: write unwritten payload next time
 	int32_t len2 = write(pcap->fd, &rec, sizeof(struct pv_pcap_rec));
-	if(len2 > 0)
+	if(len2 > 0) {
 		len2 += write(pcap->fd, payload, len);
+	}
 
 	return len2;
 }

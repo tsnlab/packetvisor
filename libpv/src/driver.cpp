@@ -8,6 +8,7 @@
 #include <pv/arp.h>
 #include <pv/ipv4.h>
 #include <pv/icmp.h>
+#include <pv/udp.h>
 
 namespace pv {
 
@@ -32,6 +33,7 @@ static bool received(uint32_t queueId, uint64_t addr, uint8_t* payload, uint32_t
 		}
 	}
 
+	packet->payload = nullptr;
 	delete packet;
 
 	return false;
@@ -132,6 +134,26 @@ uint8_t pl[] = {
 
 				if(!send(packet)) {
 					fprintf(stderr, "Cannot reply icmp\n");
+					return false;
+				} else {
+					return true;
+				}
+			}
+		} else if(ipv4->getProto() == IP_PROTOCOL_UDP && ipv4->getDst() == myip) {
+			UDP* udp = new UDP(ipv4);
+			std::cout << udp << std::endl;
+
+			if(udp->getDstport() == 7) {
+				printf("UDP echo...\n");
+				udp->setDstport(udp->getSrcport())
+				   ->setSrcport(7)
+				   ->checksum();
+
+				ether->setDst(ether->getSrc())
+				     ->setSrc(callback->mac);
+
+				if(!send(packet)) {
+					fprintf(stderr, "Cannot reply udp echo\n");
 					return false;
 				} else {
 					return true;
