@@ -41,7 +41,7 @@ struct pv_pcap* pv_pcap_create(const char* path) {
 		return NULL;
 	}
 
-	struct pv_pcap* pcap = malloc(sizeof(struct pv_pcap));
+	struct pv_pcap* pcap = calloc(1, sizeof(struct pv_pcap));
 	if(pcap == NULL) {
 		fprintf(stderr, "Cannot allocate memory: %s\n", path);
 		close(fd);
@@ -67,6 +67,16 @@ int32_t pv_pcap_received(struct pv_pcap* pcap, uint8_t* payload, uint32_t len) {
 	if(pcap == NULL)
 		return -1;
 
+	if(pcap->start < pcap->end) {
+		int32_t len2 = write(pcap->fd, pcap->buf + pcap->start, pcap->end - pcap->start);
+		if(len2 > 0) {
+			pcap->start += len2;
+		}
+
+		if(pcap->start < pcap->end)
+			return -2;
+	}
+
 	struct timeval tv;
 	gettimeofday(&tv,NULL);
 
@@ -80,9 +90,32 @@ int32_t pv_pcap_received(struct pv_pcap* pcap, uint8_t* payload, uint32_t len) {
 	// TODO: atomic write must be implemented
 	// TODO: write unwritten payload next time
 	int32_t len2 = write(pcap->fd, &rec, sizeof(struct pv_pcap_rec));
-	if(len2 > 0) {
-		len2 += write(pcap->fd, payload, len);
+	if(len2 < sizeof(struct pv_pcap_rec)) {
+		if(len2 > 0) {
+			pcap->start = 0;
+			pcap->end = sizeof(struct pv_pcap_rec) - len2;
+			memcpy(pcap->buf, (uint8_t*)&rec + len2, pcap->end);
+			memcpy(pcap->buf + pcap->end, payload, len);
+			pcap->end += len;
+		}
+
+		return len2;
+	} else {
+		return len2;
 	}
+
+	int32_t len3 = write(pcap->fd, payload, len);
+	if(len3 < len) {
+		if(len3 > 0) {
+			pcap->start = 0;
+			pcap->end = len - len3;
+			memcpy(pcap->buf, payload + len3, pcap->end);
+		}
+
+		return len3;
+	}
+
+	len2 += len3;
 
 	return len2;
 }

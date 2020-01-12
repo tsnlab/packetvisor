@@ -25,6 +25,9 @@ struct pv_pcap_rec {
 struct pv_pcap {
 	int			fd;
 	char		path[256];
+	uint8_t		buf[2048];
+	uint32_t	start;
+	uint32_t	end;
 };
 
 struct pv_pcap* pv_pcap_create(const char* path);
