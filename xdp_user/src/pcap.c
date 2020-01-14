@@ -69,12 +69,15 @@ int32_t pv_pcap_received(struct pv_pcap* pcap, uint8_t* payload, uint32_t len) {
 
 	if(pcap->start < pcap->end) {
 		int32_t len2 = write(pcap->fd, pcap->buf + pcap->start, pcap->end - pcap->start);
-		if(len2 > 0) {
-			pcap->start += len2;
-		}
 
-		if(pcap->start < pcap->end)
-			return -2;
+		if(len2 < 0) {
+			return len2;
+		} else {
+			pcap->start += len2;
+
+			if(pcap->start < pcap->end)
+				return -2;
+		}
 	}
 
 	struct timeval tv;
@@ -87,37 +90,35 @@ int32_t pv_pcap_received(struct pv_pcap* pcap, uint8_t* payload, uint32_t len) {
 		.orig_len = len
 	};
 
-	// TODO: atomic write must be implemented
-	// TODO: write unwritten payload next time
 	int32_t len2 = write(pcap->fd, &rec, sizeof(struct pv_pcap_rec));
-	if(len2 < sizeof(struct pv_pcap_rec)) {
-		if(len2 > 0) {
-			pcap->start = 0;
-			pcap->end = sizeof(struct pv_pcap_rec) - len2;
-			memcpy(pcap->buf, (uint8_t*)&rec + len2, pcap->end);
-			memcpy(pcap->buf + pcap->end, payload, len);
-			pcap->end += len;
-		}
+	if(len2 < 0) {
+		return len2;
+	} else if(len2 < sizeof(struct pv_pcap_rec)) {
+		pcap->start = 0;
+		pcap->end = sizeof(struct pv_pcap_rec) - len2;
+		memcpy(pcap->buf, (uint8_t*)&rec + len2, pcap->end);
+		memcpy(pcap->buf + pcap->end, payload, len);
+		pcap->end += len;
 
-		return len2;
-	} else {
-		return len2;
+		return sizeof(struct pv_pcap_rec) + len;
 	}
 
-	int32_t len3 = write(pcap->fd, payload, len);
-	if(len3 < len) {
-		if(len3 > 0) {
-			pcap->start = 0;
-			pcap->end = len - len3;
-			memcpy(pcap->buf, payload + len3, pcap->end);
-		}
+	len2 = write(pcap->fd, payload, len);
+	if(len2 < 0) {
+		pcap->start = 0;
+		pcap->end = len;
+		memcpy(pcap->buf, payload, pcap->end);
 
-		return len3;
+		return sizeof(struct pv_pcap_rec) + len;
+	} else if(len2 < len) {
+		pcap->start = 0;
+		pcap->end = len - len2;
+		memcpy(pcap->buf, payload + len2, pcap->end);
+
+		return sizeof(struct pv_pcap_rec) + len;
 	}
 
-	len2 += len3;
-
-	return len2;
+	return sizeof(struct pv_pcap_rec) + len;
 }
 
 int32_t pv_pcap_send(struct pv_pcap* pcap, uint8_t* payload, uint32_t len) {

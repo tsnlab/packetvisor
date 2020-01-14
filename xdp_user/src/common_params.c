@@ -103,7 +103,7 @@ void parse_cmdline_args(int argc, char **argv,
 	}
 
 	/* Parse commands line args */
-	while ((opt = getopt_long(argc, argv, "hd:m:r:L:R:ASNFUMQ:czpq",
+	while ((opt = getopt_long(argc, argv, "hd:m:C:r:L:R:ASNFUMQ:czpq",
 				  long_options, &longindex)) != -1) {
 		switch (opt) {
 		case 'd':
@@ -140,6 +140,11 @@ void parse_cmdline_args(int argc, char **argv,
 			mymac |= hex(optarg[13]) << 8;
 			mymac |= hex(optarg[15]) << 4;
 			mymac |= hex(optarg[16]) << 0;
+			break;
+		case 'C':
+			;
+			extern char pcap_path[256];
+			strncpy(pcap_path, optarg, 256);
 			break;
 		case 'r':
 			if (strlen(optarg) >= IF_NAMESIZE) {

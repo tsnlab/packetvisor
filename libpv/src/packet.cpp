@@ -65,13 +65,7 @@ std::ostream& operator<<(std::ostream& out, const Packet& obj) {
 }
 
 std::ostream& operator<<(std::ostream& out, const Packet* obj) {
-	out << "Packet[len: " << (obj->end - obj->start) << ", ";
-	for(uint32_t i = obj->start; i < obj->end; i++) {
-		char buf[4];
-		sprintf(buf, "%02x ", obj->payload[i]);
-		out << buf;
-	}
-	out << "]";
+	out << "Packet[payload: " << std::to_string((obj->end - obj->start)) << " bytes]";
 
 	return out;
 }

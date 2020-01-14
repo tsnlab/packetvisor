@@ -74,6 +74,7 @@ struct xsk_socket_info* current_xsk;
 
 struct pv_Driver* driver;
 uint64_t mymac;
+char pcap_path[256];
 struct pv_pcap* pcap;
 
 static uint64_t xsk_alloc_umem_frame(struct xsk_socket_info *xsk);
@@ -97,7 +98,8 @@ void pv_free(uint64_t addr) {
 bool pv_send(uint32_t queueId, uint64_t addr, uint8_t* payload, uint32_t start, uint32_t end, uint32_t size) {
 	struct xsk_socket_info* xsk = current_xsk;
 
-	pv_pcap_send(pcap, payload + start, end - start);
+	if(pcap != NULL)
+		pv_pcap_send(pcap, payload + start, end - start);
 
 	uint32_t tx_idx = 0;
 	int ret = xsk_ring_prod__reserve(&xsk->tx, 1, &tx_idx);
@@ -141,6 +143,9 @@ static const struct option_wrapper long_options[] = {
 
 	{{"mac",	 required_argument,	NULL, 'm' },
 	 "MAC address", "<mac>", true},
+
+	{{"capture",	 required_argument,	NULL, 'C' },
+	 "Pcap to <file>", "<file", true},
 
 	{{"skb-mode",	 no_argument,		NULL, 'S' },
 	 "Install XDP program in SKB (AKA generic) mode"},
@@ -335,7 +340,8 @@ static bool process_packet(struct xsk_socket_info *xsk,
 {
 	uint8_t *pkt = xsk_umem__get_data(xsk->umem->buffer, addr);
 
-	pv_pcap_received(pcap, pkt + 0, len);
+	if(pcap != NULL)
+		pv_pcap_received(pcap, pkt + 0, len);
 
 	if(driver->received(0, addr, pkt, 0, len, len)) {
 		return true;
@@ -482,70 +488,70 @@ static void rx_and_process(struct config *cfg,
 	}
 }
 
-#define NANOSEC_PER_SEC 1000000000 /* 10^9 */
-static uint64_t gettime(void)
-{
-	struct timespec t;
-	int res;
+// #define NANOSEC_PER_SEC 1000000000 /* 10^9 */
+// static uint64_t gettime(void)
+// {
+// 	struct timespec t;
+// 	int res;
+// 
+// 	res = clock_gettime(CLOCK_MONOTONIC, &t);
+// 	if (res < 0) {
+// 		fprintf(stderr, "Error with gettimeofday! (%i)\n", res);
+// 		exit(EXIT_FAIL);
+// 	}
+// 	return (uint64_t) t.tv_sec * NANOSEC_PER_SEC + t.tv_nsec;
+// }
 
-	res = clock_gettime(CLOCK_MONOTONIC, &t);
-	if (res < 0) {
-		fprintf(stderr, "Error with gettimeofday! (%i)\n", res);
-		exit(EXIT_FAIL);
-	}
-	return (uint64_t) t.tv_sec * NANOSEC_PER_SEC + t.tv_nsec;
-}
+// static double calc_period(struct stats_record *r, struct stats_record *p)
+// {
+// 	double period_ = 0;
+// 	__u64 period = 0;
+// 
+// 	period = r->timestamp - p->timestamp;
+// 	if (period > 0)
+// 		period_ = ((double) period / NANOSEC_PER_SEC);
+// 
+// 	return period_;
+// }
 
-static double calc_period(struct stats_record *r, struct stats_record *p)
-{
-	double period_ = 0;
-	__u64 period = 0;
-
-	period = r->timestamp - p->timestamp;
-	if (period > 0)
-		period_ = ((double) period / NANOSEC_PER_SEC);
-
-	return period_;
-}
-
-static void stats_print(struct stats_record *stats_rec,
-			struct stats_record *stats_prev)
-{
-	uint64_t packets, bytes;
-	double period;
-	double pps; /* packets per sec */
-	double bps; /* bits per sec */
-
-	char *fmt = "%-12s %'11lld pkts (%'10.0f pps)"
-		" %'11lld Kbytes (%'6.0f Mbits/s)"
-		" period:%f\n";
-
-	period = calc_period(stats_rec, stats_prev);
-	if (period == 0)
-		period = 1;
-
-	packets = stats_rec->rx_packets - stats_prev->rx_packets;
-	pps     = packets / period;
-
-	bytes   = stats_rec->rx_bytes   - stats_prev->rx_bytes;
-	bps     = (bytes * 8) / period / 1000000;
-
-	printf(fmt, "AF_XDP RX:", stats_rec->rx_packets, pps,
-	       stats_rec->rx_bytes / 1000 , bps,
-	       period);
-
-	packets = stats_rec->tx_packets - stats_prev->tx_packets;
-	pps     = packets / period;
-
-	bytes   = stats_rec->tx_bytes   - stats_prev->tx_bytes;
-	bps     = (bytes * 8) / period / 1000000;
-
-	printf(fmt, "       TX:", stats_rec->tx_packets, pps,
-	       stats_rec->tx_bytes / 1000 , bps,
-	       period);
-
-	printf("\n");
-}
+// static void stats_print(struct stats_record *stats_rec,
+// 			struct stats_record *stats_prev)
+// {
+// 	uint64_t packets, bytes;
+// 	double period;
+// 	double pps; /* packets per sec */
+// 	double bps; /* bits per sec */
+// 
+// 	char *fmt = "%-12s %'11lld pkts (%'10.0f pps)"
+// 		" %'11lld Kbytes (%'6.0f Mbits/s)"
+// 		" period:%f\n";
+// 
+// 	period = calc_period(stats_rec, stats_prev);
+// 	if (period == 0)
+// 		period = 1;
+// 
+// 	packets = stats_rec->rx_packets - stats_prev->rx_packets;
+// 	pps     = packets / period;
+// 
+// 	bytes   = stats_rec->rx_bytes   - stats_prev->rx_bytes;
+// 	bps     = (bytes * 8) / period / 1000000;
+// 
+// 	printf(fmt, "AF_XDP RX:", stats_rec->rx_packets, pps,
+// 	       stats_rec->rx_bytes / 1000 , bps,
+// 	       period);
+// 
+// 	packets = stats_rec->tx_packets - stats_prev->tx_packets;
+// 	pps     = packets / period;
+// 
+// 	bytes   = stats_rec->tx_bytes   - stats_prev->tx_bytes;
+// 	bps     = (bytes * 8) / period / 1000000;
+// 
+// 	printf(fmt, "       TX:", stats_rec->tx_packets, pps,
+// 	       stats_rec->tx_bytes / 1000 , bps,
+// 	       period);
+// 
+// 	printf("\n");
+// }
 
 static void *stats_poll(void *arg)
 {
@@ -695,7 +701,8 @@ int main(int argc, char **argv)
 	callback.mac = mymac;
 	printf("MAC address: %012lx\n", mymac);
 
-	pcap = pv_pcap_create("/tmp/pv");
+	if(pcap_path[0] != '\0')
+		pcap = pv_pcap_create(pcap_path);
 
 	driver = init(&callback);
 	if(driver == NULL) {
@@ -707,7 +714,8 @@ int main(int argc, char **argv)
 	printf("Packetvisor started...\n");
 	rx_and_process(&cfg, xsk_socket);
 
-	pv_pcap_delete(pcap);
+	if(pcap_path[0] != '\0')
+		pv_pcap_delete(pcap);
 
 	pv_Destroy destroy = dlsym(handle, "pv_destroy");
     if((error = dlerror()) != NULL) {

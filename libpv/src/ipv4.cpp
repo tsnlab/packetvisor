@@ -226,7 +226,7 @@ std::ostream& operator<<(std::ostream& out, const IPv4* obj) {
 	out << ", dst: " << ((addr >> 24) & 0xff) << "." << ((addr >> 16) & 0xff) << ".";
 	out << ((addr >> 8) & 0xff) << "." << ((addr >> 0) & 0xff);
 	out << ", body_offset: " << obj->getBodyOffset();
-	out << "]";
+	out << ", body: " << std::to_string(obj->getEnd() - obj->getBodyOffset()) << " bytes]";
 
 	return out;
 }

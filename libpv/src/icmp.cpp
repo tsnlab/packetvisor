@@ -60,12 +60,7 @@ std::ostream& operator<<(std::ostream& out, const ICMP* obj) {
 	out << ", code: " << std::to_string(obj->getCode());
 	sprintf(buf, "%04x", obj->getChecksum());
 	out << ", checksum: " << buf;
-	out << ", rest: " << std::to_string(obj->packet->end - obj->getBodyOffset()) << " bytes, ";
-	for(uint32_t i = obj->getBodyOffset(); i < obj->packet->end; i++) {
-		sprintf(buf, "%02x ", obj->getPacket()->payload[i]);
-		out << buf;
-	}
-	out << "]";
+	out << ", rest: " << std::to_string(obj->packet->end - obj->getBodyOffset()) << " bytes]";
 
 	return out;
 }
