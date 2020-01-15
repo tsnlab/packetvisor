@@ -41,7 +41,7 @@ struct pv_pcap* pv_pcap_create(const char* path) {
 		return NULL;
 	}
 
-	struct pv_pcap* pcap = calloc(1, sizeof(struct pv_pcap));
+	struct pv_pcap* pcap = (struct pv_pcap*)calloc(1, sizeof(struct pv_pcap));
 	if(pcap == NULL) {
 		fprintf(stderr, "Cannot allocate memory: %s\n", path);
 		close(fd);

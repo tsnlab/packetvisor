@@ -65,7 +65,7 @@ int option_wrappers_to_options(const struct option_wrapper *wrapper,
 	for (i = 0; wrapper[i].option.name != 0; i++) {}
 	num = i;
 
-	new_options = malloc(sizeof(struct option) * num);
+	new_options = (struct option*)malloc(sizeof(struct option) * num);
 	if (!new_options)
 		return -1;
 	for (i = 0; i < num; i++) {

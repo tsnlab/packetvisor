@@ -2,11 +2,13 @@
 
 TARGET=pv
 RELEASE ?= 0
-CC=gcc
+CC=g++
 ifeq ($(RELEASE), 1)
-	CFLAGS=-Iinclude -I../libbpf/include -I../libbpf/include/uapi -L../libbpf/src -Wall -std=gnu99 -O3
+	#CFLAGS=-Iinclude -I../libbpf/include -I../libbpf/include/uapi -L../libbpf/src -Wall -std=gnu99 -O3
+	CFLAGS=-Iinclude -I../libbpf/include -I../libbpf/include/uapi -L../libbpf/src -Wall -std=c++11 -O3
 else
-	CFLAGS=-Iinclude -I../libbpf/include -I../libbpf/include/uapi -L../libbpf/src -Wall -std=gnu99 -O0 -g -fsanitize=address
+	#CFLAGS=-Iinclude -I../libbpf/include -I../libbpf/include/uapi -L../libbpf/src -Wall -std=gnu99 -O0 -g -fsanitize=address
+	CFLAGS=-Iinclude -I../libbpf/include -I../libbpf/include/uapi -L../libbpf/src -Wall -std=c++11 -O0 -g -fsanitize=address
 endif
 
 LIBS=-Wl,-Bstatic -Wl,-Bdynamic -lbpf -lz -lelf -lpthread -ldl -Wl,--as-needed

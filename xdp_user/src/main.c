@@ -83,7 +83,7 @@ static void xsk_free_umem_frame(struct xsk_socket_info *xsk, uint64_t frame);
 bool pv_alloc(uint64_t* addr, uint8_t** payload, uint32_t size) {
 	*addr = xsk_alloc_umem_frame(current_xsk);
 	if(*addr != 0) {
-		*payload = xsk_umem__get_data(current_xsk->umem->buffer, *addr);
+		*payload = (uint8_t*)xsk_umem__get_data(current_xsk->umem->buffer, *addr);
 		return true;
 	} else {
 		return false;
@@ -136,7 +136,7 @@ static const char *__doc__ = "AF_XDP kernel bypass example\n";
 static const struct option_wrapper long_options[] = {
 
 	{{"help",	 no_argument,		NULL, 'h' },
-	 "Show help", false},
+	 "Show help", NULL, false},
 
 	{{"dev",	 required_argument,	NULL, 'd' },
 	 "Operate on device <ifname>", "<ifname>", true},
@@ -145,45 +145,45 @@ static const struct option_wrapper long_options[] = {
 	 "MAC address", "<mac>", true},
 
 	{{"capture",	 required_argument,	NULL, 'C' },
-	 "Pcap to <file>", "<file", true},
+	 "Pcap to <file>", "<file>", true},
 
 	{{"skb-mode",	 no_argument,		NULL, 'S' },
-	 "Install XDP program in SKB (AKA generic) mode"},
+	 "Install XDP program in SKB (AKA generic) mode", NULL, false },
 
 	{{"native-mode", no_argument,		NULL, 'N' },
-	 "Install XDP program in native mode"},
+	 "Install XDP program in native mode", NULL, false },
 
 	{{"auto-mode",	 no_argument,		NULL, 'A' },
-	 "Auto-detect SKB or native mode"},
+	 "Auto-detect SKB or native mode", NULL, false },
 
 	{{"force",	 no_argument,		NULL, 'F' },
-	 "Force install, replacing existing program on interface"},
+	 "Force install, replacing existing program on interface", NULL, false },
 
 	{{"copy",        no_argument,		NULL, 'c' },
-	 "Force copy mode"},
+	 "Force copy mode", NULL, false },
 
 	{{"zero-copy",	 no_argument,		NULL, 'z' },
-	 "Force zero-copy mode"},
+	 "Force zero-copy mode", NULL, false },
 
 	{{"queue",	 required_argument,	NULL, 'Q' },
-	 "Configure interface receive queue for AF_XDP, default=0"},
+	 "Configure interface receive queue for AF_XDP, default=0", NULL, false },
 
 	{{"poll-mode",	 no_argument,		NULL, 'p' },
-	 "Use the poll() API waiting for packets to arrive"},
+	 "Use the poll() API waiting for packets to arrive", NULL, false },
 
 	{{"unload",      no_argument,		NULL, 'U' },
-	 "Unload XDP program instead of loading"},
+	 "Unload XDP program instead of loading", NULL, false },
 
 	{{"quiet",	 no_argument,		NULL, 'q' },
-	 "Quiet mode (no output)"},
+	 "Quiet mode (no output)", NULL, false },
 
 	{{"filename",    required_argument,	NULL,  1  },
-	 "Load program from <file>", "<file>"},
+	 "Load program from <file>", "<file>", false },
 
 	{{"progsec",	 required_argument,	NULL,  2  },
-	 "Load program in <section> of the ELF file", "<section>"},
+	 "Load program in <section> of the ELF file", "<section>", false },
 
-	{{0, 0, NULL,  0 }, NULL, false}
+	{{ NULL, 0, NULL, 0 }, NULL, NULL, false }
 };
 
 static bool global_exit;
@@ -193,7 +193,7 @@ static struct xsk_umem_info *configure_xsk_umem(void *buffer, uint64_t size)
 	struct xsk_umem_info *umem;
 	int ret;
 
-	umem = calloc(1, sizeof(*umem));
+	umem = (struct xsk_umem_info*)calloc(1, sizeof(*umem));
 	if (!umem)
 		return NULL;
 
@@ -241,7 +241,7 @@ static struct xsk_socket_info *xsk_configure_socket(struct config *cfg,
 	int i;
 	int ret;
 
-	xsk_info = calloc(1, sizeof(*xsk_info));
+	xsk_info = (struct xsk_socket_info*)calloc(1, sizeof(*xsk_info));
 	if (!xsk_info)
 		return NULL;
 
@@ -307,8 +307,8 @@ static void complete_tx(struct xsk_socket_info *xsk)
 					XSK_RING_CONS__DEFAULT_NUM_DESCS,
 					&idx_cq);
 
-	if (completed > 0) {
-		for (int i = 0; i < completed; i++)
+	if(completed > 0) {
+		for(unsigned int i = 0; i < completed; i++)
 			xsk_free_umem_frame(xsk,
 					    *xsk_ring_cons__comp_addr(&xsk->umem->cq,
 								      idx_cq++));
@@ -330,15 +330,15 @@ static inline __sum16 csum16_sub(__sum16 csum, __be16 addend)
 	return csum16_add(csum, ~addend);
 }
 
-static inline void csum_replace2(__sum16 *sum, __be16 old, __be16 new)
+static inline void csum_replace2(__sum16 *sum, __be16 old, __be16 newOne)
 {
-	*sum = ~csum16_add(csum16_sub(~(*sum), old), new);
+	*sum = ~csum16_add(csum16_sub(~(*sum), old), newOne);
 }
 
 static bool process_packet(struct xsk_socket_info *xsk,
 			   uint64_t addr, uint32_t len)
 {
-	uint8_t *pkt = xsk_umem__get_data(xsk->umem->buffer, addr);
+	uint8_t *pkt = (uint8_t*)xsk_umem__get_data(xsk->umem->buffer, addr);
 
 	if(pcap != NULL)
 		pv_pcap_received(pcap, pkt + 0, len);
@@ -423,7 +423,7 @@ static void handle_receive_packets(struct xsk_socket_info *xsk)
 {
 	unsigned int rcvd, stock_frames, i;
 	uint32_t idx_rx = 0, idx_fq = 0;
-	int ret;
+	size_t ret;
 
 	rcvd = xsk_ring_cons__peek(&xsk->rx, RX_BATCH_SIZE, &idx_rx);
 	if (!rcvd)
@@ -439,7 +439,7 @@ static void handle_receive_packets(struct xsk_socket_info *xsk)
 					     &idx_fq);
 
 		/* This should not happen, but just in case */
-		while (ret != stock_frames)
+		while(ret != stock_frames)
 			ret = xsk_ring_prod__reserve(&xsk->umem->fq, rcvd,
 						     &idx_fq);
 
@@ -590,9 +590,8 @@ int main(int argc, char **argv)
 	struct config cfg = {
 		.ifindex   = -1,
 		.do_unload = false,
-		.filename = "",
-		.progsec = "xdp_sock"
 	};
+	strncpy(cfg.progsec, "xdp_sock", 32);
 	struct xsk_umem_info *umem;
 	struct xsk_socket_info *xsk_socket;
 	struct bpf_object *bpf_obj = NULL;
@@ -606,7 +605,7 @@ int main(int argc, char **argv)
     }
     dlerror();    /* Clear any existing error */
 
-	pv_Init init = dlsym(handle, "pv_init");
+	pv_Init init = (pv_Init)dlsym(handle, "pv_init");
 	char* error;
     if((error = dlerror()) != NULL) {
         fprintf(stderr, "%s\n", error);
@@ -717,7 +716,7 @@ int main(int argc, char **argv)
 	if(pcap_path[0] != '\0')
 		pv_pcap_delete(pcap);
 
-	pv_Destroy destroy = dlsym(handle, "pv_destroy");
+	pv_Destroy destroy = (pv_Destroy)dlsym(handle, "pv_destroy");
     if((error = dlerror()) != NULL) {
         fprintf(stderr, "%s\n", error);
         exit(1);

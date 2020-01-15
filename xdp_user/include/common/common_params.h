@@ -7,8 +7,8 @@
 
 struct option_wrapper {
   struct option option;
-  char *help;
-  char *metavar;
+  const char *help;
+  const char *metavar;
   bool required;
 };
 
