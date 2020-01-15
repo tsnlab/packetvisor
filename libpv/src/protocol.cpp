@@ -72,8 +72,7 @@ void Protocol::CHECK(uint32_t pos, uint32_t size) const {
 	if(packet->start + offset + pos + size > packet->end) {
 		char buf[160];
 		sprintf(buf, "Buffer overflow start(%d) + offset(%d) + pos(%d) + size(%d) > end(%d)", packet->start, offset, pos, size, packet->end);
-		fprintf(stderr, "Exception occurred: %s\n", buf);
-		throw new std::overflow_error(buf);
+		throw std::overflow_error(buf);
 	}
 }
 

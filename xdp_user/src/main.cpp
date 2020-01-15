@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 
+#include <iostream>
+
 #include <assert.h>
 #include <errno.h>
 #include <getopt.h>
@@ -75,7 +77,7 @@ struct xsk_socket_info* current_xsk;
 struct pv_Driver* driver;
 uint64_t mymac;
 char pcap_path[256];
-struct pv_pcap* pcap;
+class pv::Pcap* pcap;
 
 static uint64_t xsk_alloc_umem_frame(struct xsk_socket_info *xsk);
 static void xsk_free_umem_frame(struct xsk_socket_info *xsk, uint64_t frame);
@@ -99,7 +101,7 @@ bool pv_send(uint32_t queueId, uint64_t addr, uint8_t* payload, uint32_t start, 
 	struct xsk_socket_info* xsk = current_xsk;
 
 	if(pcap != NULL)
-		pv_pcap_send(pcap, payload + start, end - start);
+		pcap->send(payload + start, end - start);
 
 	uint32_t tx_idx = 0;
 	int ret = xsk_ring_prod__reserve(&xsk->tx, 1, &tx_idx);
@@ -317,103 +319,20 @@ static void complete_tx(struct xsk_socket_info *xsk)
 	}
 }
 
-static inline __sum16 csum16_add(__sum16 csum, __be16 addend)
-{
-	uint16_t res = (uint16_t)csum;
-
-	res += (__u16)addend;
-	return (__sum16)(res + (res < (__u16)addend));
-}
-
-static inline __sum16 csum16_sub(__sum16 csum, __be16 addend)
-{
-	return csum16_add(csum, ~addend);
-}
-
-static inline void csum_replace2(__sum16 *sum, __be16 old, __be16 newOne)
-{
-	*sum = ~csum16_add(csum16_sub(~(*sum), old), newOne);
-}
-
 static bool process_packet(struct xsk_socket_info *xsk,
 			   uint64_t addr, uint32_t len)
 {
 	uint8_t *pkt = (uint8_t*)xsk_umem__get_data(xsk->umem->buffer, addr);
 
 	if(pcap != NULL)
-		pv_pcap_received(pcap, pkt + 0, len);
+		pcap->received(pkt + 0, len);
 
-	if(driver->received(0, addr, pkt, 0, len, len)) {
-		return true;
-	}
-
-        /* Lesson#3: Write an IPv6 ICMP ECHO parser to send responses
-	 *
-	 * Some assumptions to make it easier:
-	 * - No VLAN handling
-	 * - Only if nexthdr is ICMP
-	 * - Just return all data with MAC/IP swapped, and type set to
-	 *   ICMPV6_ECHO_REPLY
-	 * - Recalculate the icmp checksum */
-
-	if (false) {
-		printf("In xdp-tutorial icmpv6 ping\n");
-		for(int i = 0; i < 64; i++) {
-			printf("%02x ", pkt[i]);
-			if((i + 1) % 8 == 0)
-				printf("\n");
+	try {
+		if(driver->received(0, addr, pkt, 0, len, len)) {
+			return true;
 		}
-		printf("\n");
-
-		uint8_t tmp_mac[ETH_ALEN];
-		struct in6_addr tmp_ip;
-		struct ethhdr *eth = (struct ethhdr *) pkt;
-		struct ipv6hdr *ipv6 = (struct ipv6hdr *) (eth + 1);
-		struct icmp6hdr *icmp = (struct icmp6hdr *) (ipv6 + 1);
-
-		if (ntohs(eth->h_proto) != ETH_P_IPV6 ||
-		    len < (sizeof(*eth) + sizeof(*ipv6) + sizeof(*icmp)) ||
-		    ipv6->nexthdr != IPPROTO_ICMPV6 ||
-		    icmp->icmp6_type != ICMPV6_ECHO_REQUEST)
-			return false;
-
-		memcpy(tmp_mac, eth->h_dest, ETH_ALEN);
-		memcpy(eth->h_dest, eth->h_source, ETH_ALEN);
-		memcpy(eth->h_source, tmp_mac, ETH_ALEN);
-
-		memcpy(&tmp_ip, &ipv6->saddr, sizeof(tmp_ip));
-		memcpy(&ipv6->saddr, &ipv6->daddr, sizeof(tmp_ip));
-		memcpy(&ipv6->daddr, &tmp_ip, sizeof(tmp_ip));
-
-		icmp->icmp6_type = ICMPV6_ECHO_REPLY;
-
-		csum_replace2(&icmp->icmp6_cksum,
-			      htons(ICMPV6_ECHO_REQUEST << 8),
-			      htons(ICMPV6_ECHO_REPLY << 8));
-
-		return pv_send(0, addr, pkt, 0, len, len);
-
-		/* Here we sent the packet out of the receive port. Note that
-		 * we allocate one entry and schedule it. Your design would be
-		 * faster if you do batch processing/transmission */
-
-//		int ret;
-//		uint32_t tx_idx = 0;
-// 		ret = xsk_ring_prod__reserve(&xsk->tx, 1, &tx_idx);
-// 		if (ret != 1) {
-// 			/* No more transmit slots, drop the packet */
-// 			return false;
-// 		}
-// 
-// 		xsk_ring_prod__tx_desc(&xsk->tx, tx_idx)->addr = addr;
-// 		xsk_ring_prod__tx_desc(&xsk->tx, tx_idx)->len = len;
-// 		xsk_ring_prod__submit(&xsk->tx, 1);
-// 		xsk->outstanding_tx++;
-// 
-// 		xsk->stats.tx_bytes += len;
-// 		xsk->stats.tx_packets++;
-// 		printf("Replying...\n");
-// 		return true;
+	} catch(...) {
+		fprintf(stderr, "Unexpected exception occurred while processing packet\n");
 	}
 
 	return false;
@@ -700,8 +619,13 @@ int main(int argc, char **argv)
 	callback.mac = mymac;
 	printf("MAC address: %012lx\n", mymac);
 
-	if(pcap_path[0] != '\0')
-		pcap = pv_pcap_create(pcap_path);
+	if(pcap_path[0] != '\0') {
+		try {
+			pcap = new pv::Pcap(pcap_path);
+		} catch(const std::string& msg) {
+			fprintf(stderr, "WARN: %s\n", msg.c_str());
+		}
+	}
 
 	driver = init(&callback);
 	if(driver == NULL) {
@@ -713,8 +637,8 @@ int main(int argc, char **argv)
 	printf("Packetvisor started...\n");
 	rx_and_process(&cfg, xsk_socket);
 
-	if(pcap_path[0] != '\0')
-		pv_pcap_delete(pcap);
+	if(pcap != nullptr)
+		delete pcap;
 
 	pv_Destroy destroy = (pv_Destroy)dlsym(handle, "pv_destroy");
     if((error = dlerror()) != NULL) {

@@ -26,10 +26,6 @@ static bool received(uint32_t queueId, uint64_t addr, uint8_t* payload, uint32_t
 				return true;
 		} catch(const std::exception& e) {
 			fprintf(stderr, "Exception occurred: Packetlet[%u] - %s\n", i, e.what());
-			printf("Exception occurred: Packetlet[%u] - %s\n", i, e.what());
-		} catch(...) {
-			fprintf(stderr, "Unexpected exception occurred: Packetlet[%u]\n", i);
-			printf("Unexpected exception occurred: Packetlet[%u]\n", i);
 		}
 	}
 
