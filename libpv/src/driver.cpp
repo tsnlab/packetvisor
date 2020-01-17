@@ -3,6 +3,7 @@
 #include <iostream>
 #include <pv/packet.h>
 #include <pv/driver.h>
+#include "container.h"
 
 #include <pv/ethernet.h>
 #include <pv/arp.h>
@@ -12,12 +13,48 @@
 
 namespace pv {
 
-#define MAX_PACKETLETS	8
+Callback::Callback() {
+}
 
-uint32_t packetlet_count;
-class Packetlet* packetlets[MAX_PACKETLETS];
+Callback::~Callback() {
+}
 
-static bool received(uint32_t queueId, uint64_t addr, uint8_t* payload, uint32_t start, uint32_t end, uint32_t size) {
+bool Callback::received(uint32_t queueId, uint64_t addr, uint8_t* payload, uint32_t start, uint32_t end, uint32_t size) {
+	return false;
+}
+
+Driver::Driver() {
+	mac = 0;
+}
+
+Driver::~Driver() {
+}
+
+bool Driver::alloc(uint64_t* addr, uint8_t** payload, uint32_t size) {
+	return false;
+}
+
+void Driver::free(uint64_t addr) {
+}
+
+bool Driver::send(uint32_t queueId, uint64_t addr, uint8_t* payload, uint32_t start, uint32_t end, uint32_t size) {
+	return false;
+}
+
+Container::Container(Driver* driver) {
+	this->driver = driver;
+	packetlet_count = 0;
+	bzero(packetlets, sizeof(Packetlet*) * MAX_PACKETLETS);
+}
+
+Container::~Container() {
+	for(uint32_t i = 0; i < packetlet_count; i++) {
+		if(packetlets[i] != nullptr)
+			delete packetlets[i];
+	}
+}
+
+bool Container::received(uint32_t queueId, uint64_t addr, uint8_t* payload, uint32_t start, uint32_t end, uint32_t size) {
 	Packet* packet = new Packet(queueId, addr, payload, start, end, size);
 
 	for(uint32_t i = 0; i < packetlet_count; i++) {
@@ -35,13 +72,29 @@ static bool received(uint32_t queueId, uint64_t addr, uint8_t* payload, uint32_t
 	return false;
 }
 
-static struct pv_Callback* callback;
+bool Container::addPacketlet(Packetlet* packetlet) {
+	packetlet->setDriver(driver);
 
-static struct pv_Driver driver = {
-	.received = pv::received
-};
+	if(packetlet_count < MAX_PACKETLETS) {
+		packetlets[packetlet_count++] = (Packetlet*)packetlet;
+		return true;
+	}
 
-extern "C" {
+	return false;
+}
+
+bool Container::removePacketlet(Packetlet* packetlet) {
+	for(uint32_t i = 0; i < packetlet_count; i++) {
+		if(packetlets[i] != nullptr) {
+			if((void*)packetlets[i] == packetlet) {
+				packetlets[i] = nullptr;
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
 
 class MyPacketlet: public Packetlet {
 public:
@@ -53,21 +106,7 @@ MyPacketlet::MyPacketlet() : Packetlet() {
 }
 
 bool MyPacketlet::received(Packet* packet) {
-	printf("received in packetlet\n");
 	std::cout << packet << std::endl;
-
-/*
-uint8_t pl[] = { 
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x08, 0x00, 0x45, 0x00, 
-0x00, 0x54, 0x3e, 0x01, 0x40, 0x00, 0x40, 0x01, 0xfe, 0xa5, 0x7f, 0x00, 0x00, 0x01, 0x7f, 0x00, 
-0x00, 0x01, 0x08, 0x00, 0xbb, 0xe6, 0x0d, 0xd2, 0x00, 0x01, 0x60, 0x36, 0x17, 0x5e, 0x00, 0x00, 
-0x00, 0x00, 0xf4, 0xde, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 
-0x16, 0x17, 0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f, 0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 
-0x26, 0x27, 0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d, 0x2e, 0x2f, 0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 
-0x36, 0x37, 
-};
-	memcpy(packet->payload, pl, sizeof(pl));
-*/
 
 	uint32_t myip = 0xc0a80001;
 
@@ -81,12 +120,12 @@ uint8_t pl[] = {
 		if(arp->getOpcode() == 1 && arp->getDstProto() == myip) {
 			printf("Sending ARP...\n");
 			ether->setDst(ether->getSrc())
-			     ->setSrc(callback->mac);
+			     ->setSrc(driver->mac);
 			
 			arp->setOpcode(2)
 			   ->setDstHw(arp->getSrcHw())
 			   ->setDstProto(arp->getSrcProto())
-			   ->setSrcHw(callback->mac)
+			   ->setSrcHw(driver->mac)
 			   ->setSrcProto(myip);
 
 			if(!send(packet)) {
@@ -121,7 +160,7 @@ uint8_t pl[] = {
 				    ->setChecksum(ipv4->checksum(0, ipv4->getHdrLen() * 4));
 
 				ether->setDst(ether->getSrc())
-				     ->setSrc(callback->mac);
+				     ->setSrc(driver->mac);
 
 				for(uint32_t i = packet->start; i < packet->end; i++) {
 					printf("%02x ", packet->payload[i]);
@@ -146,7 +185,7 @@ uint8_t pl[] = {
 				   ->checksum();
 
 				ether->setDst(ether->getSrc())
-				     ->setSrc(callback->mac);
+				     ->setSrc(driver->mac);
 
 				if(!send(packet)) {
 					fprintf(stderr, "Cannot reply udp echo\n");
@@ -161,69 +200,19 @@ uint8_t pl[] = {
 	return false;
 }
 
-static MyPacketlet* myPacketlet;
+extern "C" {
 
-struct pv_Driver* pv_init(struct pv_Callback* cb) {
-	callback = cb;
+Callback* pv_init(Driver* driver) {
+	Container* container = new Container(driver);
+	container->addPacketlet(new MyPacketlet());
 
-	myPacketlet = new MyPacketlet();
-
-	return &driver;
+	return container;
 }
 
-void pv_destroy(struct pv_Driver* driver) {
-	delete myPacketlet;
+void pv_destroy(Callback* callback) {
+	delete callback;
 }
 
 } // extern "C"
-
-int32_t pv_driver_add_packetlet(void* packetlet) {
-	if(packetlet_count < MAX_PACKETLETS) {
-		packetlets[packetlet_count++] = (Packetlet*)packetlet;
-		return packetlet_count - 1;
-	}
-
-	return -1;
-}
-
-bool pv_driver_remove_packetlet(void* packetlet) {
-	for(uint32_t i = 0; i < packetlet_count; i++) {
-		if(packetlets[i] != nullptr) {
-			if((void*)packetlets[i] == packetlet) {
-				packetlets[i] = nullptr;
-				return true;
-			}
-		}
-	}
-
-	return false;
-}
-
-bool pv_driver_alloc(uint64_t* addr, uint8_t** payload, uint32_t size) {
-	if(callback == nullptr) {
-		fprintf(stderr, "Packetvisor driver is not inited yet\n");
-		return false;
-	}
-
-	return callback->alloc(addr, payload, size);
-}
-
-void pv_driver_free(uint64_t addr) {
-	if(callback == nullptr) {
-		fprintf(stderr, "Packetvisor driver is not inited yet\n");
-		return;
-	}
-
-	return callback->free(addr);
-}
-
-bool pv_driver_send(uint32_t queueId, uint64_t addr, uint8_t* payload, uint32_t start, uint32_t end, uint32_t size) {
-	if(callback == nullptr) {
-		fprintf(stderr, "Packetvisor driver is not inited yet\n");
-		return false;
-	}
-
-	return callback->send(queueId, addr, payload, start, end, size);
-}
 
 }; // namespace pv

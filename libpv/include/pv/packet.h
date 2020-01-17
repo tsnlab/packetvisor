@@ -3,6 +3,7 @@
 #include <iostream>
 #include <stdbool.h>
 #include <stdint.h>
+#include <pv/driver.h>
 
 namespace pv {
 
@@ -10,11 +11,16 @@ class Packet;
 
 class Packetlet {
 protected:
-	int32_t id;
+	Driver*	driver;
 
 public:
 	Packetlet();
 	virtual ~Packetlet();
+
+	void setDriver(Driver* driver);
+
+	Packet* alloc(uint32_t size);
+	void drop(Packet* packet);
 
 	virtual bool received(Packet* packet);
 	bool send(Packet* packet);
@@ -32,7 +38,6 @@ public:
 	uint32_t	size;
 	Protocol*	protocol;
 
-	Packet(uint64_t addr, uint32_t size);
 	Packet(int32_t queueId, uint64_t addr, uint8_t* payload, uint32_t start, uint32_t end, uint32_t size);
 	virtual ~Packet();
 

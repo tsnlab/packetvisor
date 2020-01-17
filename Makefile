@@ -40,7 +40,7 @@ libpv/libpv.so:
 libpv.so: libpv/libpv.so
 	cp $^ $@
 
-xdp_user/pv:
+xdp_user/pv: libpv/libpv.so libbpf/src/libbpf.so
 	make -C xdp_user RELEASE=$(RELEASE)
 
 pv: xdp_user/pv

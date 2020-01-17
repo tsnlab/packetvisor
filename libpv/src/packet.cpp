@@ -7,11 +7,30 @@
 namespace pv {
 
 Packetlet::Packetlet() {
-	id = pv_driver_add_packetlet((void*)this);
 }
 
 Packetlet::~Packetlet() {
-	pv_driver_remove_packetlet((void*)this);
+}
+
+void Packetlet::setDriver(Driver* driver) {
+	printf("packetlet %p set driver %p\n", this, driver);
+	this->driver = driver;
+}
+
+Packet* Packetlet::alloc(uint32_t size) {
+	uint64_t addr;
+	uint8_t* payload;
+
+	if(!driver->alloc(&addr, &payload, size)) {
+		return nullptr;
+	}
+
+	return new Packet(-1, addr, payload, 0, size, size);
+}
+
+void Packetlet::drop(Packet* packet) {
+	driver->free(packet->addr);
+	delete packet;
 }
 
 bool Packetlet::received(Packet* packet) {
@@ -19,25 +38,11 @@ bool Packetlet::received(Packet* packet) {
 }
 
 bool Packetlet::send(Packet* packet) {
-	bool result = pv_driver_send(packet->queueId, packet->addr, packet->payload, packet->start, packet->end, packet->size);
+	bool result = driver->send(packet->queueId, packet->addr, packet->payload, packet->start, packet->end, packet->size);
 
-	packet->payload = nullptr;
 	delete packet;
 
 	return result;
-}
-
-Packet::Packet(uint64_t addr, uint32_t size) {
-	if(!pv_driver_alloc(&addr, &payload, size)) {
-		throw "cannot allocate payload"; // TODO: change it to exception
-	}
-
-	queueId = -1;
-	addr = addr;
-	start = 0;
-	end = size;
-	this->size = size;
-	protocol = nullptr;
 }
 
 Packet::Packet(int32_t queueId, uint64_t addr, uint8_t* payload, uint32_t start, uint32_t end, uint32_t size) {
@@ -53,9 +58,6 @@ Packet::Packet(int32_t queueId, uint64_t addr, uint8_t* payload, uint32_t start,
 Packet::~Packet() {
 	if(protocol != nullptr)
 		delete protocol;
-
-	if(payload != nullptr)
-		pv_driver_free(addr);
 }
 
 std::ostream& operator<<(std::ostream& out, const Packet& obj) {

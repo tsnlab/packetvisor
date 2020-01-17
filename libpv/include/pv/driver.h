@@ -4,41 +4,34 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-// APIs for XDP
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-struct pv_Driver {
-	bool (*received)(uint32_t queueId, uint64_t addr, uint8_t* payload, uint32_t start, uint32_t end, uint32_t size);
-};
-
-struct pv_Callback {
-	uint64_t mac;
-	bool (*alloc)(uint64_t* addr, uint8_t** payload, uint32_t size);
-	void (*free)(uint64_t addr);
-	bool (*send)(uint32_t queueId, uint64_t addr, uint8_t* payload, uint32_t start, uint32_t end, uint32_t size);
-};
-
-typedef struct pv_Driver* (*pv_Init)(struct pv_Callback* callback);
-typedef void (*pv_Destroy)(struct pv_Driver* driver);
-typedef void (*pv_Received)(uint32_t queueId, uint64_t addr, uint8_t* payload, uint32_t start, uint32_t end, uint32_t size);
-
-#ifdef __cplusplus
-} // extern "C"
-#endif
-
 // APIs for libpv
 #ifdef __cplusplus
 namespace pv {
 #endif
 
-int32_t pv_driver_add_packetlet(void* packetlet);
-bool pv_driver_remove_packetlet(void* packetlet);
+class Callback {
+public:
+	Callback();
+	virtual ~Callback();
 
-bool pv_driver_alloc(uint64_t* addr, uint8_t** payload, uint32_t size);
-void pv_driver_free(uint64_t addr);
-bool pv_driver_send(uint32_t queueId, uint64_t addr, uint8_t* payload, uint32_t start, uint32_t end, uint32_t size);
+	virtual bool received(uint32_t queueId, uint64_t addr, uint8_t* payload, uint32_t start, uint32_t end, uint32_t size);
+};
+
+class Driver {
+public:
+	uint64_t	mac;
+
+	Driver();
+	virtual ~Driver();
+
+	virtual bool alloc(uint64_t* addr, uint8_t** payload, uint32_t size);
+	virtual void free(uint64_t addr);
+
+	virtual bool send(uint32_t queueId, uint64_t addr, uint8_t* payload, uint32_t start, uint32_t end, uint32_t size);
+};
+
+typedef Callback* (*Init)(Driver* driver);
+typedef void (*Destroy)(Callback* callback);
 
 #ifdef __cplusplus
 }; // namespace pv

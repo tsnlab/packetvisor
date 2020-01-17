@@ -4,12 +4,12 @@ TARGET=pv
 RELEASE ?= 0
 CC=g++
 ifeq ($(RELEASE), 1)
-	CFLAGS=-Iinclude -I../libbpf/include -I../libbpf/include/uapi -L../libbpf/src -Wall -std=c++11 -O3
+	CFLAGS=-Iinclude -I../libbpf/include -I../libbpf/include/uapi -L../libbpf/src -L../libpv -Wall -std=c++11 -O3
 else
-	CFLAGS=-Iinclude -I../libbpf/include -I../libbpf/include/uapi -L../libbpf/src -Wall -std=c++11 -O0 -g -fsanitize=address
+	CFLAGS=-Iinclude -I../libbpf/include -I../libbpf/include/uapi -L../libbpf/src -L../libpv -Wall -std=c++11 -O0 -g -fsanitize=address
 endif
 
-LIBS=-lbpf -lz -lelf -lpthread -ldl#-Wl,-Bstatic -Wl,-Bdynamic -lbpf -lz -lelf -lpthread -ldl -Wl,--as-needed
+LIBS=-lbpf -lz -lelf -lpthread -ldl -lpv #-Wl,-Bstatic -Wl,-Bdynamic -lbpf -lz -lelf -lpthread -ldl -Wl,--as-needed
 
 OBJS=$(patsubst src/%.cpp, obj/%.o,$(wildcard src/*.cpp))
 

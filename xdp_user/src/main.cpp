@@ -7,7 +7,6 @@
 #include <getopt.h>
 #include <locale.h>
 #include <poll.h>
-#include <pthread.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -49,14 +48,6 @@ struct xsk_umem_info {
 	void *buffer;
 };
 
-struct stats_record {
-	uint64_t timestamp;
-	uint64_t rx_packets;
-	uint64_t rx_bytes;
-	uint64_t tx_packets;
-	uint64_t tx_bytes;
-};
-
 struct xsk_socket_info {
 	struct xsk_ring_cons rx;
 	struct xsk_ring_prod tx;
@@ -67,64 +58,65 @@ struct xsk_socket_info {
 	uint32_t umem_frame_free;
 
 	uint32_t outstanding_tx;
-
-	struct stats_record stats;
-	struct stats_record prev_stats;
 };
 
-struct xsk_socket_info* current_xsk;
-
-struct pv_Driver* driver;
 uint64_t mymac;
 char pcap_path[256];
-class pv::Pcap* pcap;
 
 static uint64_t xsk_alloc_umem_frame(struct xsk_socket_info *xsk);
 static void xsk_free_umem_frame(struct xsk_socket_info *xsk, uint64_t frame);
 
-bool pv_alloc(uint64_t* addr, uint8_t** payload, uint32_t size) {
-	*addr = xsk_alloc_umem_frame(current_xsk);
-	if(*addr != 0) {
-		*payload = (uint8_t*)xsk_umem__get_data(current_xsk->umem->buffer, *addr);
+pv::Callback* callback;
+
+class MyDriver : public pv::Driver {
+protected:
+	struct xsk_socket_info*	xsk;
+	pv::Pcap* pcap;
+
+public:
+	MyDriver(struct xsk_socket_info* xsk, pv::Pcap* pcap) {
+		this->xsk = xsk;
+		this->pcap = pcap;
+	}
+
+	virtual ~MyDriver() {
+	}
+
+	bool alloc(uint64_t* addr, uint8_t** payload, uint32_t size) {
+		*addr = xsk_alloc_umem_frame(xsk);
+		if(*addr != 0) {
+			*payload = (uint8_t*)xsk_umem__get_data(xsk->umem->buffer, *addr);
+			return true;
+		} else {
+			return false;
+		}
+	}
+
+	void free(uint64_t addr) {
+		xsk_free_umem_frame(xsk, addr);
+	}
+
+	bool send(uint32_t queueId, uint64_t addr, uint8_t* payload, uint32_t start, uint32_t end, uint32_t size) {
+		if(pcap != NULL)
+			pcap->send(payload + start, end - start);
+
+		uint32_t tx_idx = 0;
+		int ret = xsk_ring_prod__reserve(&xsk->tx, 1, &tx_idx);
+		if (ret != 1) {
+			/* No more transmit slots, drop the packet */
+			return false;
+		}
+
+		xsk_ring_prod__tx_desc(&xsk->tx, tx_idx)->addr = addr;
+		xsk_ring_prod__tx_desc(&xsk->tx, tx_idx)->len = end - start;
+		xsk_ring_prod__submit(&xsk->tx, 1);
+		xsk->outstanding_tx++;
+
+		// tx_byees += end - start;
+		// tx_packets += 1
+
 		return true;
-	} else {
-		return false;
 	}
-}
-
-void pv_free(uint64_t addr) {
-	xsk_free_umem_frame(current_xsk, addr);
-	abort();
-}
-
-bool pv_send(uint32_t queueId, uint64_t addr, uint8_t* payload, uint32_t start, uint32_t end, uint32_t size) {
-	struct xsk_socket_info* xsk = current_xsk;
-
-	if(pcap != NULL)
-		pcap->send(payload + start, end - start);
-
-	uint32_t tx_idx = 0;
-	int ret = xsk_ring_prod__reserve(&xsk->tx, 1, &tx_idx);
-	if (ret != 1) {
-		/* No more transmit slots, drop the packet */
-		return false;
-	}
-
-	xsk_ring_prod__tx_desc(&xsk->tx, tx_idx)->addr = addr;
-	xsk_ring_prod__tx_desc(&xsk->tx, tx_idx)->len = end - start;
-	xsk_ring_prod__submit(&xsk->tx, 1);
-	xsk->outstanding_tx++;
-
-	xsk->stats.tx_bytes += end - start;
-	xsk->stats.tx_packets++;
-
-	return true;
-}
-
-struct pv_Callback callback = {
-	.alloc = pv_alloc,
-	.free = pv_free,
-	.send = pv_send
 };
 
 static inline __u32 xsk_ring_prod__free(struct xsk_ring_prod *r)
@@ -289,6 +281,8 @@ static struct xsk_socket_info *xsk_configure_socket(struct config *cfg,
 	return xsk_info;
 
 error_exit:
+	if(xsk_info != nullptr)
+		free(xsk_info);
 	errno = -ret;
 	return NULL;
 }
@@ -324,11 +318,8 @@ static bool process_packet(struct xsk_socket_info *xsk,
 {
 	uint8_t *pkt = (uint8_t*)xsk_umem__get_data(xsk->umem->buffer, addr);
 
-	if(pcap != NULL)
-		pcap->received(pkt + 0, len);
-
 	try {
-		if(driver->received(0, addr, pkt, 0, len, len)) {
+		if(callback != nullptr && callback->received(0, addr, pkt, 0, len, len)) {
 			return true;
 		}
 	} catch(...) {
@@ -374,14 +365,13 @@ static void handle_receive_packets(struct xsk_socket_info *xsk)
 		uint64_t addr = xsk_ring_cons__rx_desc(&xsk->rx, idx_rx)->addr;
 		uint32_t len = xsk_ring_cons__rx_desc(&xsk->rx, idx_rx++)->len;
 
+		// rx_bytes += len
 		if (!process_packet(xsk, addr, len))
 			xsk_free_umem_frame(xsk, addr);
-
-		xsk->stats.rx_bytes += len;
 	}
+	// rx_packets += recvd
 
 	xsk_ring_cons__release(&xsk->rx, rcvd);
-	xsk->stats.rx_packets += rcvd;
 
 	/* Do we need to wake up the kernel for transmission */
 	complete_tx(xsk);
@@ -407,101 +397,12 @@ static void rx_and_process(struct config *cfg,
 	}
 }
 
-// #define NANOSEC_PER_SEC 1000000000 /* 10^9 */
-// static uint64_t gettime(void)
-// {
-// 	struct timespec t;
-// 	int res;
-// 
-// 	res = clock_gettime(CLOCK_MONOTONIC, &t);
-// 	if (res < 0) {
-// 		fprintf(stderr, "Error with gettimeofday! (%i)\n", res);
-// 		exit(EXIT_FAIL);
-// 	}
-// 	return (uint64_t) t.tv_sec * NANOSEC_PER_SEC + t.tv_nsec;
-// }
-
-// static double calc_period(struct stats_record *r, struct stats_record *p)
-// {
-// 	double period_ = 0;
-// 	__u64 period = 0;
-// 
-// 	period = r->timestamp - p->timestamp;
-// 	if (period > 0)
-// 		period_ = ((double) period / NANOSEC_PER_SEC);
-// 
-// 	return period_;
-// }
-
-// static void stats_print(struct stats_record *stats_rec,
-// 			struct stats_record *stats_prev)
-// {
-// 	uint64_t packets, bytes;
-// 	double period;
-// 	double pps; /* packets per sec */
-// 	double bps; /* bits per sec */
-// 
-// 	char *fmt = "%-12s %'11lld pkts (%'10.0f pps)"
-// 		" %'11lld Kbytes (%'6.0f Mbits/s)"
-// 		" period:%f\n";
-// 
-// 	period = calc_period(stats_rec, stats_prev);
-// 	if (period == 0)
-// 		period = 1;
-// 
-// 	packets = stats_rec->rx_packets - stats_prev->rx_packets;
-// 	pps     = packets / period;
-// 
-// 	bytes   = stats_rec->rx_bytes   - stats_prev->rx_bytes;
-// 	bps     = (bytes * 8) / period / 1000000;
-// 
-// 	printf(fmt, "AF_XDP RX:", stats_rec->rx_packets, pps,
-// 	       stats_rec->rx_bytes / 1000 , bps,
-// 	       period);
-// 
-// 	packets = stats_rec->tx_packets - stats_prev->tx_packets;
-// 	pps     = packets / period;
-// 
-// 	bytes   = stats_rec->tx_bytes   - stats_prev->tx_bytes;
-// 	bps     = (bytes * 8) / period / 1000000;
-// 
-// 	printf(fmt, "       TX:", stats_rec->tx_packets, pps,
-// 	       stats_rec->tx_bytes / 1000 , bps,
-// 	       period);
-// 
-// 	printf("\n");
-// }
-
-static void *stats_poll(void *arg)
-{
-	unsigned int interval = 2;
-	//struct xsk_socket_info *xsk = arg;
-	//static struct stats_record previous_stats = { 0 };
-
-	//previous_stats.timestamp = gettime();
-
-	/* Trick to pretty printf with thousands separators use %' */
-	//setlocale(LC_NUMERIC, "en_US");
-
-	while (!global_exit) {
-		sleep(interval);
-		/*
-		xsk->stats.timestamp = gettime();
-		stats_print(&xsk->stats, &previous_stats);
-		previous_stats = xsk->stats;
-		*/
-	}
-	return NULL;
-}
-
 static void exit_application(__attribute__((unused)) int signal)
 {
 	global_exit = true;
 }
 
-int main(int argc, char **argv)
-{
-	int ret;
+int main(int argc, char** argv) {
 	int xsks_map_fd;
 	void *packet_buffer;
 	uint64_t packet_buffer_size;
@@ -514,7 +415,6 @@ int main(int argc, char **argv)
 	struct xsk_umem_info *umem;
 	struct xsk_socket_info *xsk_socket;
 	struct bpf_object *bpf_obj = NULL;
-	pthread_t stats_poll_thread;
 
 	// Load packetvisor
 	void* handle = dlopen ("libpv.so", RTLD_LAZY);
@@ -524,8 +424,8 @@ int main(int argc, char **argv)
     }
     dlerror();    /* Clear any existing error */
 
-	pv_Init init = (pv_Init)dlsym(handle, "pv_init");
 	char* error;
+	pv::Init init = (pv::Init)dlsym(handle, "pv_init");
     if((error = dlerror()) != NULL) {
         fprintf(stderr, "%s\n", error);
         exit(1);
@@ -603,22 +503,9 @@ int main(int argc, char **argv)
 		exit(EXIT_FAILURE);
 	}
 
-	/* Start thread to do statistics display */
-	if (verbose) {
-		ret = pthread_create(&stats_poll_thread, NULL, stats_poll,
-				     xsk_socket);
-		if (ret) {
-			fprintf(stderr, "ERROR: Failed creating statistics thread "
-				"\"%s\"\n", strerror(errno));
-			exit(EXIT_FAILURE);
-		}
-	}
-
-	current_xsk = xsk_socket;
-
-	callback.mac = mymac;
 	printf("MAC address: %012lx\n", mymac);
 
+	pv::Pcap* pcap = nullptr;
 	if(pcap_path[0] != '\0') {
 		try {
 			pcap = new pv::Pcap(pcap_path);
@@ -627,8 +514,10 @@ int main(int argc, char **argv)
 		}
 	}
 
-	driver = init(&callback);
-	if(driver == NULL) {
+	MyDriver* myDriver = new MyDriver(xsk_socket, pcap);
+	myDriver->mac = mymac;
+	callback = init(myDriver);
+	if(callback == NULL) {
 		fprintf(stderr, "packetvisor init is failed\n");
 		exit(1);
 	}
@@ -640,16 +529,20 @@ int main(int argc, char **argv)
 	if(pcap != nullptr)
 		delete pcap;
 
-	pv_Destroy destroy = (pv_Destroy)dlsym(handle, "pv_destroy");
+	pv::Destroy destroy = (pv::Destroy)dlsym(handle, "pv_destroy");
     if((error = dlerror()) != NULL) {
         fprintf(stderr, "%s\n", error);
         exit(1);
     }
-	destroy(driver);
+	destroy(callback);
+	delete myDriver;
 
 	/* Cleanup */
 	xsk_socket__delete(xsk_socket->xsk);
+	free(xsk_socket);
 	xsk_umem__delete(umem->umem);
+	free(umem->buffer);
+	free(umem);
 	xdp_link_detach(cfg.ifindex, cfg.xdp_flags, 0);
 
     dlclose(handle);
