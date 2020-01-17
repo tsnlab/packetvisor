@@ -1,3 +1,5 @@
+#include "config.h"
+
 /* SPDX-License-Identifier: GPL-2.0 */
 
 #include <iostream>
@@ -24,12 +26,8 @@
 #include <net/if.h>
 #include <linux/if_link.h>
 #include <linux/if_ether.h>
-#include <linux/ipv6.h>
-typedef __u16 __bitwise __sum16;
-#include <linux/icmpv6.h>
 
-
-#include <common/common_params.h>
+#include <common/common_defines.h>
 #include <common/common_user_bpf_xdp.h>
 #include <common/common_libbpf.h>
 
@@ -59,9 +57,6 @@ struct xsk_socket_info {
 
 	uint32_t outstanding_tx;
 };
-
-uint64_t mymac;
-char pcap_path[256];
 
 static uint64_t xsk_alloc_umem_frame(struct xsk_socket_info *xsk);
 static void xsk_free_umem_frame(struct xsk_socket_info *xsk, uint64_t frame);
@@ -125,65 +120,9 @@ static inline __u32 xsk_ring_prod__free(struct xsk_ring_prod *r)
 	return r->cached_cons - r->cached_prod;
 }
 
-static const char *__doc__ = "AF_XDP kernel bypass example\n";
-
-static const struct option_wrapper long_options[] = {
-
-	{{"help",	 no_argument,		NULL, 'h' },
-	 "Show help", NULL, false},
-
-	{{"dev",	 required_argument,	NULL, 'd' },
-	 "Operate on device <ifname>", "<ifname>", true},
-
-	{{"mac",	 required_argument,	NULL, 'm' },
-	 "MAC address", "<mac>", true},
-
-	{{"capture",	 required_argument,	NULL, 'C' },
-	 "Pcap to <file>", "<file>", true},
-
-	{{"skb-mode",	 no_argument,		NULL, 'S' },
-	 "Install XDP program in SKB (AKA generic) mode", NULL, false },
-
-	{{"native-mode", no_argument,		NULL, 'N' },
-	 "Install XDP program in native mode", NULL, false },
-
-	{{"auto-mode",	 no_argument,		NULL, 'A' },
-	 "Auto-detect SKB or native mode", NULL, false },
-
-	{{"force",	 no_argument,		NULL, 'F' },
-	 "Force install, replacing existing program on interface", NULL, false },
-
-	{{"copy",        no_argument,		NULL, 'c' },
-	 "Force copy mode", NULL, false },
-
-	{{"zero-copy",	 no_argument,		NULL, 'z' },
-	 "Force zero-copy mode", NULL, false },
-
-	{{"queue",	 required_argument,	NULL, 'Q' },
-	 "Configure interface receive queue for AF_XDP, default=0", NULL, false },
-
-	{{"poll-mode",	 no_argument,		NULL, 'p' },
-	 "Use the poll() API waiting for packets to arrive", NULL, false },
-
-	{{"unload",      no_argument,		NULL, 'U' },
-	 "Unload XDP program instead of loading", NULL, false },
-
-	{{"quiet",	 no_argument,		NULL, 'q' },
-	 "Quiet mode (no output)", NULL, false },
-
-	{{"filename",    required_argument,	NULL,  1  },
-	 "Load program from <file>", "<file>", false },
-
-	{{"progsec",	 required_argument,	NULL,  2  },
-	 "Load program in <section> of the ELF file", "<section>", false },
-
-	{{ NULL, 0, NULL, 0 }, NULL, NULL, false }
-};
-
 static bool global_exit;
 
-static struct xsk_umem_info *configure_xsk_umem(void *buffer, uint64_t size)
-{
+static struct xsk_umem_info *configure_xsk_umem(void *buffer, uint64_t size) {
 	struct xsk_umem_info *umem;
 	int ret;
 
@@ -202,8 +141,7 @@ static struct xsk_umem_info *configure_xsk_umem(void *buffer, uint64_t size)
 	return umem;
 }
 
-static uint64_t xsk_alloc_umem_frame(struct xsk_socket_info *xsk)
-{
+static uint64_t xsk_alloc_umem_frame(struct xsk_socket_info *xsk) {
 	uint64_t frame;
 	if (xsk->umem_frame_free == 0)
 		return INVALID_UMEM_FRAME;
@@ -213,21 +151,17 @@ static uint64_t xsk_alloc_umem_frame(struct xsk_socket_info *xsk)
 	return frame;
 }
 
-static void xsk_free_umem_frame(struct xsk_socket_info *xsk, uint64_t frame)
-{
+static void xsk_free_umem_frame(struct xsk_socket_info *xsk, uint64_t frame) {
 	assert(xsk->umem_frame_free < NUM_FRAMES);
 
 	xsk->umem_frame_addr[xsk->umem_frame_free++] = frame;
 }
 
-static uint64_t xsk_umem_free_frames(struct xsk_socket_info *xsk)
-{
+static uint64_t xsk_umem_free_frames(struct xsk_socket_info *xsk) {
 	return xsk->umem_frame_free;
 }
 
-static struct xsk_socket_info *xsk_configure_socket(struct config *cfg,
-						    struct xsk_umem_info *umem)
-{
+static struct xsk_socket_info *xsk_configure_socket(struct xsk_umem_info *umem) {
 	struct xsk_socket_config xsk_cfg;
 	struct xsk_socket_info *xsk_info;
 	uint32_t idx;
@@ -243,16 +177,16 @@ static struct xsk_socket_info *xsk_configure_socket(struct config *cfg,
 	xsk_cfg.rx_size = XSK_RING_CONS__DEFAULT_NUM_DESCS;
 	xsk_cfg.tx_size = XSK_RING_PROD__DEFAULT_NUM_DESCS;
 	xsk_cfg.libbpf_flags = 0;
-	xsk_cfg.xdp_flags = cfg->xdp_flags;
-	xsk_cfg.bind_flags = cfg->xsk_bind_flags;
-	ret = xsk_socket__create(&xsk_info->xsk, cfg->ifname,
-				 cfg->xsk_if_queue, umem->umem, &xsk_info->rx,
+	xsk_cfg.xdp_flags = pv::Config::xdp_flags;
+	xsk_cfg.bind_flags = pv::Config::xsk_flags;
+	ret = xsk_socket__create(&xsk_info->xsk, pv::Config::ifname,
+				 pv::Config::queue, umem->umem, &xsk_info->rx,
 				 &xsk_info->tx, &xsk_cfg);
 
 	if (ret)
 		goto error_exit;
 
-	ret = bpf_get_link_xdp_id(cfg->ifindex, &prog_id, cfg->xdp_flags);
+	ret = bpf_get_link_xdp_id(pv::Config::ifindex, &prog_id, pv::Config::xdp_flags);
 	if (ret)
 		goto error_exit;
 
@@ -287,8 +221,7 @@ error_exit:
 	return NULL;
 }
 
-static void complete_tx(struct xsk_socket_info *xsk)
-{
+static void complete_tx(struct xsk_socket_info *xsk) {
 	unsigned int completed;
 	uint32_t idx_cq;
 
@@ -313,9 +246,7 @@ static void complete_tx(struct xsk_socket_info *xsk)
 	}
 }
 
-static bool process_packet(struct xsk_socket_info *xsk,
-			   uint64_t addr, uint32_t len)
-{
+static bool process_packet(struct xsk_socket_info *xsk, uint64_t addr, uint32_t len) {
 	uint8_t *pkt = (uint8_t*)xsk_umem__get_data(xsk->umem->buffer, addr);
 
 	try {
@@ -329,8 +260,7 @@ static bool process_packet(struct xsk_socket_info *xsk,
 	return false;
 }
 
-static void handle_receive_packets(struct xsk_socket_info *xsk)
-{
+static void handle_receive_packets(struct xsk_socket_info *xsk) {
 	unsigned int rcvd, stock_frames, i;
 	uint32_t idx_rx = 0, idx_fq = 0;
 	size_t ret;
@@ -377,9 +307,7 @@ static void handle_receive_packets(struct xsk_socket_info *xsk)
 	complete_tx(xsk);
   }
 
-static void rx_and_process(struct config *cfg,
-			   struct xsk_socket_info *xsk_socket)
-{
+static void rx_and_process(struct xsk_socket_info *xsk_socket) {
 	struct pollfd fds[2];
 	int ret, nfds = 1;
 
@@ -388,7 +316,7 @@ static void rx_and_process(struct config *cfg,
 	fds[0].events = POLLIN;
 
 	while(!global_exit) {
-		if (cfg->xsk_poll_mode) {
+		if (pv::Config::is_xsk_polling) {
 			ret = poll(fds, nfds, -1);
 			if (ret <= 0 || ret > 1)
 				continue;
@@ -397,27 +325,28 @@ static void rx_and_process(struct config *cfg,
 	}
 }
 
-static void exit_application(__attribute__((unused)) int signal)
-{
+static void exit_application(__attribute__((unused)) int signal) {
 	global_exit = true;
 }
 
 int main(int argc, char** argv) {
+	strncpy(pv::Config::xdp_section, "xdp_sock", 32);
+
+	if(pv::Config::parse(argc, argv) < 0) {
+		pv::Config::usage();
+		return 0;
+	}
+
 	int xsks_map_fd;
 	void *packet_buffer;
 	uint64_t packet_buffer_size;
 	struct rlimit rlim = {RLIM_INFINITY, RLIM_INFINITY};
-	struct config cfg = {
-		.ifindex   = -1,
-		.do_unload = false,
-	};
-	strncpy(cfg.progsec, "xdp_sock", 32);
 	struct xsk_umem_info *umem;
 	struct xsk_socket_info *xsk_socket;
 	struct bpf_object *bpf_obj = NULL;
 
 	// Load packetvisor
-	void* handle = dlopen ("libpv.so", RTLD_LAZY);
+	void* handle = dlopen("libpv.so", RTLD_LAZY);
     if(!handle) {
         fprintf(stderr, "%s\n", dlerror());
         exit(1);
@@ -434,25 +363,11 @@ int main(int argc, char** argv) {
 	/* Global shutdown handler */
 	signal(SIGINT, exit_application);
 
-	/* Cmdline options can change progsec */
-	parse_cmdline_args(argc, argv, long_options, &cfg, __doc__);
-
-	/* Required option */
-	if (cfg.ifindex == -1) {
-		fprintf(stderr, "ERROR: Required option --dev missing\n\n");
-		usage(argv[0], __doc__, long_options, (argc == 1));
-		return EXIT_FAIL_OPTION;
-	}
-
-	/* Unload XDP program if requested */
-	if (cfg.do_unload)
-		return xdp_link_detach(cfg.ifindex, cfg.xdp_flags, 0);
-
 	/* Load custom program if configured */
-	if (cfg.filename[0] != 0) {
+	if(pv::Config::xdp_file[0] != 0) {
 		struct bpf_map *map;
 
-		bpf_obj = load_bpf_and_xdp_attach(&cfg);
+		bpf_obj = load_bpf_and_xdp_attach(pv::Config::xdp_flags, pv::Config::ifindex, pv::Config::xdp_file, sizeof(pv::Config::xdp_file), pv::Config::xdp_section, sizeof(pv::Config::xdp_section));
 		if (!bpf_obj) {
 			/* Error handling done in load_bpf_and_xdp_attach() */
 			exit(EXIT_FAILURE);
@@ -496,26 +411,26 @@ int main(int argc, char** argv) {
 	}
 
 	/* Open and configure the AF_XDP (xsk) socket */
-	xsk_socket = xsk_configure_socket(&cfg, umem);
+	xsk_socket = xsk_configure_socket(umem);
 	if (xsk_socket == NULL) {
 		fprintf(stderr, "ERROR: Can't setup AF_XDP socket \"%s\"\n",
 			strerror(errno));
 		exit(EXIT_FAILURE);
 	}
 
-	printf("MAC address: %012lx\n", mymac);
+	printf("MAC address: %012lx\n", pv::Config::mac);
 
 	pv::Pcap* pcap = nullptr;
-	if(pcap_path[0] != '\0') {
+	if(pv::Config::pcap_path[0] != '\0') {
 		try {
-			pcap = new pv::Pcap(pcap_path);
+			pcap = new pv::Pcap(pv::Config::pcap_path);
 		} catch(const std::string& msg) {
 			fprintf(stderr, "WARN: %s\n", msg.c_str());
 		}
 	}
 
 	MyDriver* myDriver = new MyDriver(xsk_socket, pcap);
-	myDriver->mac = mymac;
+	myDriver->mac = pv::Config::mac;
 	callback = init(myDriver);
 	if(callback == NULL) {
 		fprintf(stderr, "packetvisor init is failed\n");
@@ -524,7 +439,7 @@ int main(int argc, char** argv) {
 
 	/* Receive and count packets than drop them */
 	printf("Packetvisor started...\n");
-	rx_and_process(&cfg, xsk_socket);
+	rx_and_process(xsk_socket);
 
 	if(pcap != nullptr)
 		delete pcap;
@@ -543,7 +458,7 @@ int main(int argc, char** argv) {
 	xsk_umem__delete(umem->umem);
 	free(umem->buffer);
 	free(umem);
-	xdp_link_detach(cfg.ifindex, cfg.xdp_flags, 0);
+	xdp_link_detach(pv::Config::ifindex, pv::Config::xdp_flags, 0);
 
     dlclose(handle);
 

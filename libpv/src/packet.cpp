@@ -13,7 +13,6 @@ Packetlet::~Packetlet() {
 }
 
 void Packetlet::setDriver(Driver* driver) {
-	printf("packetlet %p set driver %p\n", this, driver);
 	this->driver = driver;
 }
 

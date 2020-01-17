@@ -11,6 +11,7 @@
 #include <linux/err.h>
 
 #include <common/common_defines.h>
+#include "config.h"
 
 #ifndef PATH_MAX
 #define PATH_MAX	4096
@@ -73,7 +74,7 @@ int xdp_link_detach(int ifindex, __u32 xdp_flags, __u32 expected_prog_id)
 	}
 
 	if (!curr_prog_id) {
-		if (verbose)
+		//if (verbose)
 			printf("INFO: %s() no curr XDP prog on ifindex:%d\n",
 			       __func__, ifindex);
 		return EXIT_OK;
@@ -92,7 +93,7 @@ int xdp_link_detach(int ifindex, __u32 xdp_flags, __u32 expected_prog_id)
 		return EXIT_FAIL_XDP;
 	}
 
-	if (verbose)
+	//if (verbose)
 		printf("INFO: %s() removed XDP prog ID:%d on ifindex:%d\n",
 		       __func__, curr_prog_id, ifindex);
 
@@ -233,8 +234,7 @@ struct bpf_object *load_bpf_object_file_reuse_maps(const char *file,
 	return obj;
 }
 
-struct bpf_object *load_bpf_and_xdp_attach(struct config *cfg)
-{
+struct bpf_object *load_bpf_and_xdp_attach(uint32_t xdp_flags, int ifindex, const char* xdp_file, int xdp_file_size, char* xdp_section, int xdp_section_size) {
 	struct bpf_program *bpf_prog;
 	struct bpf_object *bpf_obj;
 	int offload_ifindex = 0;
@@ -242,18 +242,13 @@ struct bpf_object *load_bpf_and_xdp_attach(struct config *cfg)
 	int err;
 
 	/* If flags indicate hardware offload, supply ifindex */
-	if (cfg->xdp_flags & XDP_FLAGS_HW_MODE)
-		offload_ifindex = cfg->ifindex;
+	if (xdp_flags & XDP_FLAGS_HW_MODE)
+		offload_ifindex = ifindex;
 
 	/* Load the BPF-ELF object file and get back libbpf bpf_object */
-	if (cfg->reuse_maps)
-		bpf_obj = load_bpf_object_file_reuse_maps(cfg->filename,
-							  offload_ifindex,
-							  cfg->pin_dir);
-	else
-		bpf_obj = load_bpf_object_file(cfg->filename, offload_ifindex);
+	bpf_obj = load_bpf_object_file(xdp_file, offload_ifindex);
 	if (!bpf_obj) {
-		fprintf(stderr, "ERR: loading file: %s\n", cfg->filename);
+		fprintf(stderr, "ERR: loading file: %s\n", xdp_file);
 		exit(EXIT_FAIL_BPF);
 	}
 	/* At this point: All XDP/BPF programs from the cfg->filename have been
@@ -262,19 +257,19 @@ struct bpf_object *load_bpf_and_xdp_attach(struct config *cfg)
 	 * process exit.
 	 */
 
-	if (cfg->progsec[0])
+	if(xdp_section[0] != 0)
 		/* Find a matching BPF prog section name */
-		bpf_prog = bpf_object__find_program_by_title(bpf_obj, cfg->progsec);
+		bpf_prog = bpf_object__find_program_by_title(bpf_obj, xdp_section);
 	else
 		/* Find the first program */
 		bpf_prog = bpf_program__next(NULL, bpf_obj);
 
 	if (!bpf_prog) {
-		fprintf(stderr, "ERR: couldn't find a program in ELF section '%s'\n", cfg->progsec);
+		fprintf(stderr, "ERR: couldn't find a program in ELF section '%s'\n", xdp_section);
 		exit(EXIT_FAIL_BPF);
 	}
 
-	strncpy(cfg->progsec, bpf_program__title(bpf_prog, false), sizeof(cfg->progsec));
+	strncpy(xdp_section, bpf_program__title(bpf_prog, false), xdp_section_size);
 
 	prog_fd = bpf_program__fd(bpf_prog);
 	if (prog_fd <= 0) {
@@ -286,7 +281,7 @@ struct bpf_object *load_bpf_and_xdp_attach(struct config *cfg)
 	 * is our select file-descriptor handle. Next step is attaching this FD
 	 * to a kernel hook point, in this case XDP net_device link-level hook.
 	 */
-	err = xdp_link_attach(cfg->ifindex, cfg->xdp_flags, prog_fd);
+	err = xdp_link_attach(ifindex, xdp_flags, prog_fd);
 	if (err)
 		exit(err);
 
