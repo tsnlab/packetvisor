@@ -19,7 +19,7 @@ public:
 
 	void setDriver(Driver* driver);
 
-	Packet* alloc(uint32_t size);
+	Packet* alloc();
 	void drop(Packet* packet);
 
 	virtual bool received(Packet* packet);
@@ -31,14 +31,13 @@ class Protocol;
 class Packet {
 public:
 	int32_t		queueId;
-	uint64_t	addr;
 	uint8_t*	payload;
 	uint32_t	start;
 	uint32_t	end;
 	uint32_t	size;
 	Protocol*	protocol;
 
-	Packet(int32_t queueId, uint64_t addr, uint8_t* payload, uint32_t start, uint32_t end, uint32_t size);
+	Packet(int32_t queueId, uint8_t* payload, uint32_t start, uint32_t end, uint32_t size);
 	virtual ~Packet();
 
 	friend std::ostream& operator<<(std::ostream& out, const Packet& obj);

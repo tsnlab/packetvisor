@@ -49,7 +49,7 @@ sudo wireshark -k -i /tmp/pv			-> Capture packets
 - [X] ARP ping use case
 - [X] ICMP ping use case
 - [X] xdp_user need to be compiled with g++ not gcc -> This is why exception is not working now
-- [ ] C code to OOP
+- [X] C code to OOP
 - [ ] all of the xdp-tutorial code must be removed
 - [ ] multiple queue, interfaces
 - [ ] acceleration

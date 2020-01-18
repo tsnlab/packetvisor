@@ -16,19 +16,16 @@ void Packetlet::setDriver(Driver* driver) {
 	this->driver = driver;
 }
 
-Packet* Packetlet::alloc(uint32_t size) {
-	uint64_t addr;
-	uint8_t* payload;
-
-	if(!driver->alloc(&addr, &payload, size)) {
+Packet* Packetlet::alloc() {
+	uint8_t* payload = driver->alloc();
+	if(payload == nullptr)
 		return nullptr;
-	}
 
-	return new Packet(-1, addr, payload, 0, size, size);
+	return new Packet(-1, payload, 0, driver->payload_size, driver->payload_size);
 }
 
 void Packetlet::drop(Packet* packet) {
-	driver->free(packet->addr);
+	driver->free(packet->payload);
 	delete packet;
 }
 
@@ -37,16 +34,15 @@ bool Packetlet::received(Packet* packet) {
 }
 
 bool Packetlet::send(Packet* packet) {
-	bool result = driver->send(packet->queueId, packet->addr, packet->payload, packet->start, packet->end, packet->size);
+	bool result = driver->send(packet->queueId, packet->payload, packet->start, packet->end, packet->size);
 
 	delete packet;
 
 	return result;
 }
 
-Packet::Packet(int32_t queueId, uint64_t addr, uint8_t* payload, uint32_t start, uint32_t end, uint32_t size) {
+Packet::Packet(int32_t queueId, uint8_t* payload, uint32_t start, uint32_t end, uint32_t size) {
 	this->queueId = queueId;
-	this->addr = addr;
 	this->payload = payload;
 	this->start = start;
 	this->end = end;

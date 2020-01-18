@@ -19,7 +19,7 @@ Callback::Callback() {
 Callback::~Callback() {
 }
 
-bool Callback::received(uint32_t queueId, uint64_t addr, uint8_t* payload, uint32_t start, uint32_t end, uint32_t size) {
+bool Callback::received(uint32_t queueId, uint8_t* payload, uint32_t start, uint32_t end, uint32_t size) {
 	return false;
 }
 
@@ -30,14 +30,14 @@ Driver::Driver() {
 Driver::~Driver() {
 }
 
-bool Driver::alloc(uint64_t* addr, uint8_t** payload, uint32_t size) {
-	return false;
+uint8_t* Driver::alloc() {
+	return nullptr;
 }
 
-void Driver::free(uint64_t addr) {
+void Driver::free(uint8_t* payload) {
 }
 
-bool Driver::send(uint32_t queueId, uint64_t addr, uint8_t* payload, uint32_t start, uint32_t end, uint32_t size) {
+bool Driver::send(uint32_t queueId, uint8_t* payload, uint32_t start, uint32_t end, uint32_t size) {
 	return false;
 }
 
@@ -54,8 +54,8 @@ Container::~Container() {
 	}
 }
 
-bool Container::received(uint32_t queueId, uint64_t addr, uint8_t* payload, uint32_t start, uint32_t end, uint32_t size) {
-	Packet* packet = new Packet(queueId, addr, payload, start, end, size);
+bool Container::received(uint32_t queueId, uint8_t* payload, uint32_t start, uint32_t end, uint32_t size) {
+	Packet* packet = new Packet(queueId, payload, start, end, size);
 
 	for(uint32_t i = 0; i < packetlet_count; i++) {
 		try {
