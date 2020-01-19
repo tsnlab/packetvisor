@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <getopt.h>
+#include <time.h>
 #include <errno.h>
 #include <linux/if_link.h>
 #include <linux/if_xdp.h>
@@ -34,18 +35,18 @@ struct desc {
 
 static struct desc descs[] = {
 	{ nullptr, "Print this message" },
-	{ "<ifname>", "interface name" },
-	{ "<mac>", "MAC address in 00:11:22:33:44:55 format" },
+	{ "<ifname>", "interface name, default is 'veth'" },
+	{ "<mac>", "MAC address in 00:11:22:33:44:55 format, default is random number" },
 	{ "<pcap>", "PCAP FIFO path to capture" },
-	{ nullptr, "Auto detects SKB or native mode" },
+	{ nullptr, "Auto detects SKB or native mode, default is selected" },
 	{ nullptr, "Run XDP in SKB(generic) mode" },
 	{ nullptr, "Run XDP in native mode" },
 	{ nullptr, "Run XDP in offloading mode" },
-	{ nullptr, "Use poll() API to wait for packets" },
+	{ nullptr, "Use poll() API to wait for packets, default is not selected" },
 	{ nullptr, "Force copy mode" },
 	{ nullptr, "Force zero copy mode" },
-	{ "<file_name>", "XDP file name" },
-	{ "<section_name>", "XDP section name" },
+	{ "<file_name>", "XDP file name, default is 'pv.o'" },
+	{ "<section_name>", "XDP section name, default is 'xdp_sock'" },
 	{ "<queue_number>", "Specify receive queue, default is 0" },
 	{ nullptr, nullptr }
 };
@@ -89,9 +90,9 @@ int Config::xsk_if_queue = 0;
 bool Config::is_xsk_polling = false;
 int Config::queue = 0;
 int Config::ifindex = -1;
-char Config::ifname[IF_NAMESIZE] = { 0, };
-char Config::xdp_file[256] = { 0, };
-char Config::xdp_section[32] = { 0, };
+char Config::ifname[IF_NAMESIZE] = { 'v', 'e', 't', 'h', 0, };
+char Config::xdp_file[256] = { 'p', 'v', '.', 'o', 0, };
+char Config::xdp_section[32] = { 'x', 'd', 'p', '_', 's', 'o', 'c', 'k', 0, };
 char Config::pcap_path[256] = { 0, };
 
 int Config::parse(int argc, char** argv) {
@@ -182,8 +183,18 @@ int Config::parse(int argc, char** argv) {
 	}
 
 	if(ifindex < 0) {
-		fprintf(stderr, "ERROR: --dev option must be specified\n");
-		return -1;
+		// ifindex
+		ifindex = if_nametoindex(ifname);
+		if(ifindex == 0) {
+			fprintf(stderr, "ERROR: Unknown ifname: %s, errno: %d.\n", ifname, errno);
+			return -1;
+		}
+	}
+
+	if(mac == 0) {
+		time_t t;
+		srand((unsigned) time(&t));
+		mac = (((uint64_t)0x2) << 40) | (((uint64_t)random() & 0xff) << 32) | ((uint64_t)random() & 0xffffffff);
 	}
 
 	return optind;

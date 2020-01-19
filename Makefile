@@ -16,7 +16,7 @@ enter:
 	sudo testenv/testenv.sh enter --name $(ENV)
 
 run: all
-	sudo LD_LIBRARY_PATH=. ./pv -d $(ENV) -m $(MAC) -P /tmp/pv -f pv.o
+	sudo LD_LIBRARY_PATH=. ./pv -m $(MAC) -P /tmp/pv
 
 off:
 	sudo ip link set dev $(ENV) xdpgeneric off

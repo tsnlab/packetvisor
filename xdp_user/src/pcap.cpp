@@ -29,6 +29,9 @@ struct pv_pcap_rec {
 };
 
 Pcap::Pcap(const char* path) {
+	// Delete FIFO if exists
+	unlink(path);
+
 	if(mkfifo(path, 0644) != 0) {
 		throw "Cannot create FIFO: " + std::string(path);
 	}

@@ -17,8 +17,6 @@ static void on_interrupt(__attribute__((unused)) int signal) {
 }
 
 int main(int argc, char** argv) {
-	strncpy(pv::Config::xdp_section, "xdp_sock", 32);
-
 	if(pv::Config::parse(argc, argv) < 0) {
 		pv::Config::usage();
 		return 0;
@@ -86,7 +84,14 @@ int main(int argc, char** argv) {
 	driver->setCallback(callback);
 
 	/* Receive and count packets than drop them */
-	printf("Packetvisor started on device %s, address is %012lx\n", pv::Config::ifname, pv::Config::mac);
+	printf("Packetvisor started on device %s, address is %02lx:%02lx:%02lx:%02lx:%02lx:%02lx\n", 
+			pv::Config::ifname, 
+			(pv::Config::mac >> 40) & 0xff,
+			(pv::Config::mac >> 32) & 0xff,
+			(pv::Config::mac >> 24) & 0xff,
+			(pv::Config::mac >> 16) & 0xff,
+			(pv::Config::mac >> 8) & 0xff,
+			(pv::Config::mac >> 0) & 0xff);
 	while(is_running) {
 		if(!driver->loop())
 			usleep(10);
