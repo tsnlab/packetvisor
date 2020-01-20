@@ -11,13 +11,21 @@ class Packet;
 
 class Packetlet {
 protected:
-	Driver*	driver;
+	Driver*		driver;
+	int32_t		id;
+	void*		handle;
 
 public:
 	Packetlet();
 	virtual ~Packetlet();
 
 	void setDriver(Driver* driver);
+
+	void setId(int32_t id);
+	int32_t getId();
+
+	void setHandle(void* handle);
+	void* getHandle();
 
 	Packet* alloc();
 	void drop(Packet* packet);
@@ -43,5 +51,7 @@ public:
 	friend std::ostream& operator<<(std::ostream& out, const Packet& obj);
 	friend std::ostream& operator<<(std::ostream& out, const Packet* obj);
 };
+
+typedef Packetlet* (*packetlet)(void);	// Packetlet* pv_packetlet();
 
 }; // namespace pv

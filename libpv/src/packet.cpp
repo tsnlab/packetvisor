@@ -16,6 +16,22 @@ void Packetlet::setDriver(Driver* driver) {
 	this->driver = driver;
 }
 
+void Packetlet::setId(int32_t id) {
+	this->id = id;
+}
+
+int32_t Packetlet::getId() {
+	return id;
+}
+
+void Packetlet::setHandle(void* handle) {
+	this->handle = handle;
+}
+
+void* Packetlet::getHandle() {
+	return handle;
+}
+
 Packet* Packetlet::alloc() {
 	uint8_t* payload = driver->alloc();
 	if(payload == nullptr)

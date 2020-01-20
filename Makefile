@@ -1,10 +1,10 @@
-.PHONY: all setup teardown enter run off clean libpv/libpv.so xdp_user/pv xdp_kern/pv.o
+.PHONY: all setup teardown enter run off clean examples libpv/libpv.so libpv/libpv.a xdp_user/pv xdp_kern/pv.o
 
 RELEASE ?= 0
 ENV ?= veth
 MAC ?= ${shell ip addr | sed -n '/$(ENV)/{N; p}' | grep ether | awk '{print $$2}'}
 
-all: libbpf.so libpv.so pv.o pv
+all: libbpf.so libpv.so libpv.a pv.o pv examples
 
 setup:
 	sudo testenv/testenv.sh setup --name $(ENV)
@@ -16,14 +16,14 @@ enter:
 	sudo testenv/testenv.sh enter --name $(ENV)
 
 run: all
-	sudo LD_LIBRARY_PATH=. ./pv -m $(MAC) -P /tmp/pv
+	sudo LD_LIBRARY_PATH=. ./pv -m $(MAC) -P /tmp/pv examples/echo/echo.so
 
 off:
 	sudo ip link set dev $(ENV) xdpgeneric off
 
 clean:
 	rm -f libbpf.so*
-	rm -f libpv.so pv.o pv
+	rm -f libpv.so libpv.a pv.o pv
 	make -C libpv clean
 	make -C xdp_user clean
 	make -C xdp_kern clean
@@ -38,6 +38,12 @@ libpv/libpv.so:
 	make -C libpv RELEASE=$(RELEASE)
 
 libpv.so: libpv/libpv.so
+	cp $^ $@
+
+libpv/libpv.a:
+	make -C libpv RELEASE=$(RELEASE)
+
+libpv.a: libpv/libpv.a
 	cp $^ $@
 
 xdp_user/pv: libpv/libpv.so libbpf/src/libbpf.so

@@ -19,8 +19,11 @@ public:
 
 	virtual bool received(uint32_t queueId, uint8_t* payload, uint32_t start, uint32_t end, uint32_t size);
 
-	bool addPacketlet(Packetlet* packetlet);
-	bool removePacketlet(Packetlet* packetlet);
+	virtual int32_t load(const char* path);
+	virtual bool unload(int32_t id);
+
+	int32_t addPacketlet(Packetlet* packetlet);
+	bool removePacketlet(int32_t id);
 };
 
 };

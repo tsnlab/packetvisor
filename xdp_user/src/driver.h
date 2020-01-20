@@ -56,7 +56,7 @@ public:
 	void free(uint8_t* payload);
 
 	bool process(uint8_t* payload, uint32_t len);
-	void received();
+	bool received();
 	bool send(uint32_t queueId, uint8_t* payload, uint32_t start, uint32_t end, uint32_t size);
 	void flush();
 

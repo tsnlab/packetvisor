@@ -15,6 +15,9 @@ public:
 	virtual ~Callback();
 
 	virtual bool received(uint32_t queueId, uint8_t* payload, uint32_t start, uint32_t end, uint32_t size);
+
+	virtual int32_t load(const char* path);
+	virtual bool unload(int32_t id);
 };
 
 class Driver {

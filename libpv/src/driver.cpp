@@ -1,15 +1,10 @@
 #include <stdio.h>
 #include <string.h>
+#include <dlfcn.h>
 #include <iostream>
 #include <pv/packet.h>
 #include <pv/driver.h>
 #include "container.h"
-
-#include <pv/ethernet.h>
-#include <pv/arp.h>
-#include <pv/ipv4.h>
-#include <pv/icmp.h>
-#include <pv/udp.h>
 
 namespace pv {
 
@@ -20,6 +15,14 @@ Callback::~Callback() {
 }
 
 bool Callback::received(uint32_t queueId, uint8_t* payload, uint32_t start, uint32_t end, uint32_t size) {
+	return false;
+}
+
+int32_t Callback::load(const char* path) {
+	return -1;
+}
+
+bool Callback::unload(int32_t id) {
 	return false;
 }
 
@@ -72,141 +75,81 @@ bool Container::received(uint32_t queueId, uint8_t* payload, uint32_t start, uin
 	return false;
 }
 
-bool Container::addPacketlet(Packetlet* packetlet) {
+int32_t Container::load(const char* path) {
+	void* handle = dlopen(path, RTLD_LAZY);
+    if(!handle) {
+        fprintf(stderr, "%s\n", dlerror());
+        return -1;
+    }
+
+    dlerror();
+    char* error;
+    pv::packetlet pv_packetlet = (pv::packetlet)dlsym(handle, "pv_packetlet");
+    if((error = dlerror()) != NULL) {
+        fprintf(stderr, "%s\n", error);
+		dlclose(handle);
+        return -2;
+    }
+
+	Packetlet* packetlet = pv_packetlet();
+	if(packetlet == nullptr) {
+		fprintf(stderr, "Cannot create packetlet\n");
+		dlclose(handle);
+		return -3;
+	}
+
+	int32_t id = addPacketlet(packetlet);
+	if(id < 0) {
+		fprintf(stderr, "Cannot register packetlet to the container: errno: %d\n", id);
+		delete packetlet;
+		dlclose(handle);
+		return -4;
+	}
+
+	packetlet->setId(id);
+	packetlet->setHandle(handle);
+
+	return id;
+}
+
+bool Container::unload(int32_t id) {
+	Packetlet* packetlet = packetlets[id];
+	if(removePacketlet(id)) {
+		dlclose(packetlet->getHandle());
+		delete packetlet;
+		return true;
+	} else {
+		return false;
+	}
+}
+
+int32_t Container::addPacketlet(Packetlet* packetlet) {
 	packetlet->setDriver(driver);
 
 	if(packetlet_count < MAX_PACKETLETS) {
 		packetlets[packetlet_count++] = (Packetlet*)packetlet;
-		return true;
+		return packetlet_count - 1;
 	}
 
-	return false;
+	return -1;
 }
 
-bool Container::removePacketlet(Packetlet* packetlet) {
-	for(uint32_t i = 0; i < packetlet_count; i++) {
-		if(packetlets[i] != nullptr) {
-			if((void*)packetlets[i] == packetlet) {
-				packetlets[i] = nullptr;
-				return true;
-			}
-		}
-	}
-
-	return false;
-}
-
-class MyPacketlet: public Packetlet {
-public:
-	MyPacketlet();
-	bool received(Packet* packet);
-};
-
-MyPacketlet::MyPacketlet() : Packetlet() {
-}
-
-bool MyPacketlet::received(Packet* packet) {
-	std::cout << packet << std::endl;
-
-	uint32_t myip = 0xc0a80001;
-
-	Ethernet* ether = new Ethernet(packet);
-	std::cout << ether << std::endl;
-
-	if(ether->getType() == ETHER_TYPE_ARP) {
-		ARP* arp = new ARP(ether);
-		std::cout << arp << std::endl;
-
-		if(arp->getOpcode() == 1 && arp->getDstProto() == myip) {
-			printf("Sending ARP...\n");
-			ether->setDst(ether->getSrc())
-			     ->setSrc(driver->mac);
-			
-			arp->setOpcode(2)
-			   ->setDstHw(arp->getSrcHw())
-			   ->setDstProto(arp->getSrcProto())
-			   ->setSrcHw(driver->mac)
-			   ->setSrcProto(myip);
-
-			if(!send(packet)) {
-				fprintf(stderr, "Cannot reply arp\n");
-				return false;
-			} else {
-				return true;
-			}
-		}
-
+bool Container::removePacketlet(int32_t id) {
+	if(id < 0 || id >= (int32_t)packetlet_count)
 		return false;
-	} else if(ether->getType() == ETHER_TYPE_IPv4) {
-		IPv4* ipv4 = new IPv4(ether);
-		std::cout << ipv4 << std::endl;
-
-		if(ipv4->getProto() == IP_PROTOCOL_ICMP && ipv4->getDst() == myip) {
-			ICMP* icmp = new ICMP(ipv4);
-			std::cout << icmp << std::endl;
-
-			if(icmp->getType() == 8) {
-				printf("Sending ICMP...\n");
-				icmp->setType(0) // ICMP reply
-					->setChecksum(0)
-					->setChecksum(icmp->checksum(0, icmp->getEnd() - icmp->getOffset()));
-				
-				ipv4->setDst(ipv4->getSrc())
-				    ->setSrc(myip)
-				    ->setTtl(64)
-				    ->setDf(false)
-				    ->setId(ipv4->getId() + 1)
-				    ->setChecksum(0)
-				    ->setChecksum(ipv4->checksum(0, ipv4->getHdrLen() * 4));
-
-				ether->setDst(ether->getSrc())
-				     ->setSrc(driver->mac);
-
-				for(uint32_t i = packet->start; i < packet->end; i++) {
-					printf("%02x ", packet->payload[i]);
-				}
-				printf("\n");
-
-				if(!send(packet)) {
-					fprintf(stderr, "Cannot reply icmp\n");
-					return false;
-				} else {
-					return true;
-				}
-			}
-		} else if(ipv4->getProto() == IP_PROTOCOL_UDP && ipv4->getDst() == myip) {
-			UDP* udp = new UDP(ipv4);
-			std::cout << udp << std::endl;
-
-			if(udp->getDstport() == 7) {
-				printf("UDP echo...\n");
-				udp->setDstport(udp->getSrcport())
-				   ->setSrcport(7)
-				   ->checksum();
-
-				ether->setDst(ether->getSrc())
-				     ->setSrc(driver->mac);
-
-				if(!send(packet)) {
-					fprintf(stderr, "Cannot reply udp echo\n");
-					return false;
-				} else {
-					return true;
-				}
-			}
-		}
+	
+	if(packetlets[id] != nullptr) {
+		packetlets[id] = nullptr;
+		return true;
+	} else {
+		return false;
 	}
-
-	return false;
 }
 
 extern "C" {
 
 Callback* pv_init(Driver* driver) {
-	Container* container = new Container(driver);
-	container->addPacketlet(new MyPacketlet());
-
-	return container;
+	return new Container(driver);
 }
 
 void pv_destroy(Callback* callback) {

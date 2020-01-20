@@ -146,14 +146,14 @@ bool XDPDriver::process(uint8_t* payload, uint32_t len) {
 	return false;
 }
 
-void XDPDriver::received() {
+bool XDPDriver::received() {
 	unsigned int rcvd, stock_frames, i;
 	uint32_t idx_rx = 0, idx_fq = 0;
 	size_t ret;
 
 	rcvd = xsk_ring_cons__peek(&xsk.rx, RX_BATCH_SIZE, &idx_rx);
 	if (!rcvd)
-		return;
+		return false;
 
 	/* Stuff the ring with as much frames as possible */
 	stock_frames = xsk_prod_nb_free(&xsk.umem->fq, xsk.umem_frame_free);
@@ -189,6 +189,8 @@ void XDPDriver::received() {
 	if(xsk.outstanding_tx > 0) {
 		flush();
 	}
+
+	return true;
 }
 
 bool XDPDriver::send(uint32_t queueId, uint8_t* payload, uint32_t start, uint32_t end, uint32_t size) {
@@ -243,9 +245,7 @@ bool XDPDriver::loop() {
 		}
 	}
 
-	received();
-
-	return true;
+	return received();
 }
 
 }; // namespace pv

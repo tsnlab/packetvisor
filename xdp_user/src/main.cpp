@@ -1,8 +1,9 @@
+#include <iostream>
 #include <stdio.h>
 #include <unistd.h>
-#include <iostream>
 #include <signal.h>
 #include <dlfcn.h>
+#include <time.h>
 #include <sys/resource.h>
 #include <pv/driver.h>
 #include "config.h"
@@ -10,17 +11,33 @@
 
 #include <common/common_user_bpf_xdp.h>
 
+uint64_t sleep_delay = 2000000;	// 2 secs
+uint64_t sleep_steps[] = { 0, 10, 50, 100, 500 };	// 0 ~ 500us
+int sleep_step_count = sizeof(sleep_steps) / sizeof(uint64_t);
+int sleep_step = 0;
+
 static bool is_running = true;
 
 static void on_interrupt(__attribute__((unused)) int signal) {
 	is_running = false;
 }
 
+static uint64_t get_us() {
+	struct timespec ts;
+	clock_gettime(0, &ts);
+
+	return 1000000 * ts.tv_sec  + ts.tv_nsec / 1000;
+}
+
 int main(int argc, char** argv) {
-	if(pv::Config::parse(argc, argv) < 0) {
+	int count = pv::Config::parse(argc, argv);
+	if(count < 0) {
 		pv::Config::usage();
 		return 0;
 	}
+
+	argc -= count;
+	argv += count;
 
 	// Load packetvisor
 	void* handle = dlopen("libpv.so", RTLD_LAZY);
@@ -28,8 +45,8 @@ int main(int argc, char** argv) {
         fprintf(stderr, "%s\n", dlerror());
         exit(1);
     }
-    dlerror();    /* Clear any existing error */
 
+    dlerror();
 	char* error;
 	pv::Init init = (pv::Init)dlsym(handle, "pv_init");
     if((error = dlerror()) != NULL) {
@@ -83,6 +100,12 @@ int main(int argc, char** argv) {
 
 	driver->setCallback(callback);
 
+	// Load packetets
+	for(int i = 0; i < argc; i++) {
+		printf("Loading packetlet: %s\n", argv[i]);
+		callback->load(argv[i]);
+	}
+
 	/* Receive and count packets than drop them */
 	printf("Packetvisor started on device %s, address is %02lx:%02lx:%02lx:%02lx:%02lx:%02lx\n", 
 			pv::Config::ifname, 
@@ -92,9 +115,39 @@ int main(int argc, char** argv) {
 			(pv::Config::mac >> 16) & 0xff,
 			(pv::Config::mac >> 8) & 0xff,
 			(pv::Config::mac >> 0) & 0xff);
+
+	uint64_t base = get_us();
+	bool isInSleep = false;
 	while(is_running) {
-		if(!driver->loop())
-			usleep(10);
+		if(driver->loop()) {
+			isInSleep = false;
+		} else {
+			if(!isInSleep) {
+				isInSleep = true;
+				base = get_us();
+				sleep_step = 0;
+			} else if(isInSleep) {
+				uint64_t current = get_us();
+
+				// change sleep step
+				if(current - base > sleep_delay) {
+					base = current;
+
+					if(++sleep_step >= sleep_step_count)
+						sleep_step--;
+				}
+
+				if(sleep_step == 0) {
+					asm volatile ("nop"::);
+					asm volatile ("nop"::);
+					asm volatile ("nop"::);
+					asm volatile ("nop"::);
+					asm volatile ("nop"::);
+				} else {
+					usleep(sleep_steps[sleep_step]);
+				}
+			}
+		}
 	}
 
 	delete driver;
