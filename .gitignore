@@ -6,3 +6,4 @@ libpv.a
 xdp_user/pv
 pv.o
 *.swp
+*.so

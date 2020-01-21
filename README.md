@@ -7,10 +7,16 @@ git submodule init
 git submodule update
 
 ## clang, llvm, etc
-sudo apt install clang llvm libelf-dev gcc-multilib linux-tools-$(uname -r)
+sudo apt install clang llvm libelf-dev gcc-multilib 
 
-## Linux kernel header
-sudo apt install linux-headers-$(uname -r)
+On Debian 10(stable release)
+sudo apt install ethtool
+
+On Debian 11(testing release)
+sudo apt install linux-tools-$(uname -r)
+
+## Linux header
+linux-headers-$(uname -r)
 
 # Compile
 make		# for debug
