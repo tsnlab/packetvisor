@@ -13,7 +13,7 @@ obj/pv.ll: src/pv.c
 	clang -S \
 		-target bpf \
 		-D __BPF_TRACING__ \
-		-Ilibbpf/include/uapi \
+		-I../libbpf/include/uapi \
 		-Iinclude \
 		-Wall \
 		-Wno-unused-value \
