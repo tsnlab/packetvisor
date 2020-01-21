@@ -27,7 +27,7 @@ uint64_t XDPDriver::alloc_frame() {
 }
 
 void XDPDriver::free_frame(uint64_t frame) {
-	assert(xsk.umem_frame_free < NUM_FRAMES);
+	assert(xsk.umem_frame_free < Config::num_frames);
 
 	xsk.umem_frame_addr[xsk.umem_frame_free++] = frame;
 }
@@ -40,7 +40,7 @@ XDPDriver::XDPDriver() {
 	bzero(&xsk, sizeof(struct xsk_socket_info));
 
 	// Allocate packet buffer
-	packet_buffer_size = NUM_FRAMES * FRAME_SIZE;
+	packet_buffer_size = Config::num_frames * FRAME_SIZE;
 	if(posix_memalign(&packet_buffer, getpagesize(), packet_buffer_size)) { // page size aligned alloc
 		throw "ERROR: Cannot allocate packet buffer" + std::to_string(packet_buffer_size) + " bytes.";
 	}
@@ -48,7 +48,7 @@ XDPDriver::XDPDriver() {
 	// Initialize user memory packet buffer
 	int ret = xsk_umem__create(&umem.umem, packet_buffer, packet_buffer_size, &umem.fq, &umem.cq, NULL);
 	if(ret != 0) {
-		throw "ERROR: Cannot crate umem object: errno: " + std::to_string(ret) + ".";
+		throw "ERROR: Cannot create umem object: errno: " + std::to_string(ret) + ".";
 	}
 
 	umem.buffer = packet_buffer;
@@ -73,10 +73,12 @@ XDPDriver::XDPDriver() {
 		throw "ERROR: Cannot get xdp id: errno: " + std::to_string(ret) + ".";
 	}
 
-	for(int i = 0; i < NUM_FRAMES; i++)
+	xsk.umem_frame_addr = (uint64_t*)calloc(sizeof(uint64_t), Config::num_frames);
+
+	for(uint32_t i = 0; i < Config::num_frames; i++)
 		xsk.umem_frame_addr[i] = i * FRAME_SIZE;
 
-	xsk.umem_frame_free = NUM_FRAMES;
+	xsk.umem_frame_free = Config::num_frames;
 
 	uint32_t idx;
 	ret = xsk_ring_prod__reserve(&xsk.umem->fq, XSK_RING_PROD__DEFAULT_NUM_DESCS, &idx);
@@ -111,6 +113,7 @@ XDPDriver::~XDPDriver() {
 		delete pcap;
 
 	xsk_socket__delete(xsk.xsk);
+	_free(xsk.umem_frame_addr);
 	xsk_umem__delete(umem.umem);
 	_free(packet_buffer);
 	xdp_link_detach(pv::Config::ifindex, pv::Config::xdp_flags, 0);

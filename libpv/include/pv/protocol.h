@@ -43,6 +43,7 @@ public:
 
 	virtual uint32_t getBodyOffset() const;
 
+	static uint16_t checksum(uint8_t* payload, uint32_t offset, uint32_t size);
 	uint16_t checksum(uint32_t offset, uint32_t size);
 };
 

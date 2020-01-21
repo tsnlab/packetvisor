@@ -8,6 +8,8 @@ namespace pv {
 
 class Config {
 public:
+	static uint32_t	num_frames;
+
 	static uint64_t	mac;
 
 	static uint32_t	xdp_flags;

@@ -12,6 +12,7 @@ namespace pv {
 
 static struct option opts[] = {
 	{ "help", no_argument, nullptr, 'h' },
+	{ "num", required_argument, nullptr, 'N' },
 	{ "dev", required_argument, nullptr, 'd' },
 	{ "mac", required_argument, nullptr, 'm' },
 	{ "pcap", required_argument, nullptr, 'P' },
@@ -35,6 +36,7 @@ struct desc {
 
 static struct desc descs[] = {
 	{ nullptr, "Print this message" },
+	{ "<num>", "number of frame of user memory, default is 4096" },
 	{ "<ifname>", "interface name, default is 'veth'" },
 	{ "<mac>", "MAC address in 00:11:22:33:44:55 format, default is random number" },
 	{ "<pcap>", "PCAP FIFO path to capture" },
@@ -83,6 +85,7 @@ static bool str2mac(char* str, uint64_t* mac) {
 	return true;
 };
 
+uint32_t Config::num_frames = 4096;
 uint64_t Config::mac = 0;
 uint32_t Config::xdp_flags = 0;
 uint16_t Config::xsk_flags = 0;

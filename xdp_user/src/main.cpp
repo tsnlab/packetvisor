@@ -91,7 +91,14 @@ int main(int argc, char** argv) {
 		exit(EXIT_FAILURE);
 	}
 
-	pv::XDPDriver* driver = new pv::XDPDriver();
+	pv::XDPDriver* driver;
+	try {
+		driver = new pv::XDPDriver();
+	} catch(const std::string& msg) {
+		fprintf(stderr, "ERROR: Cannot create XDPDriver: %s\n", msg.c_str());
+		exit(1);
+	}
+
 	pv::Callback* callback = init(driver);
 	if(callback == NULL) {
 		fprintf(stderr, "packetvisor init is failed\n");

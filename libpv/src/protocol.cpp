@@ -80,11 +80,9 @@ uint8_t* Protocol::OFFSET(uint32_t pos) const {
 	return packet->payload + packet->start + offset + pos;
 }
 
-uint16_t Protocol::checksum(uint32_t offset, uint32_t size) {
-	CHECK(offset, size);
-
+uint16_t Protocol::checksum(uint8_t* payload, uint32_t offset, uint32_t size) {
 	uint32_t sum = 0;
-	uint16_t* p = (uint16_t*)OFFSET(offset);
+	uint16_t* p = (uint16_t*)(payload + offset);
 	
 	while(size > 1) {
 		sum += *p++;
@@ -101,6 +99,12 @@ uint16_t Protocol::checksum(uint32_t offset, uint32_t size) {
 		sum = (sum & 0xffff) + (sum >> 16);
 	
 	return endian16((uint16_t)~sum);
+}
+
+uint16_t Protocol::checksum(uint32_t offset, uint32_t size) {
+	CHECK(offset, size);
+
+	return Protocol::checksum(OFFSET(offset), 0, size);
 }
 
 }; // namespace pv

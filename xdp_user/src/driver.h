@@ -7,7 +7,6 @@
 
 namespace pv {
 
-#define NUM_FRAMES         4096
 #define FRAME_SIZE         XSK_UMEM__DEFAULT_FRAME_SIZE
 #define RX_BATCH_SIZE      64
 #define INVALID_UMEM_FRAME UINT64_MAX
@@ -25,7 +24,7 @@ struct xsk_socket_info {
 	struct xsk_umem_info *umem;
 	struct xsk_socket *xsk;
 
-	uint64_t umem_frame_addr[NUM_FRAMES];
+	uint64_t* umem_frame_addr;
 	uint32_t umem_frame_free;
 
 	uint32_t outstanding_tx;
