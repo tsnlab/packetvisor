@@ -24,9 +24,13 @@ off:
 clean:
 	rm -f libbpf.so*
 	rm -f libpv.so libpv.a pv.o pv
+	make -C examples clean
 	make -C libpv clean
 	make -C xdp_user clean
 	make -C xdp_kern clean
+
+examples:
+	make -C examples
 
 libbpf/src/libbpf.so:
 	make -C libbpf/src
