@@ -102,8 +102,11 @@ int Config::parse(int argc, char** argv) {
 	xdp_flags &= ~XDP_FLAGS_UPDATE_IF_NOEXIST;	// force update
 
 	int ch;
-	while((ch = getopt_long(argc, argv, "d:m:P:asnopczf:S:", opts, NULL)) != -1) {
+	while((ch = getopt_long(argc, argv, "N:d:m:P:asnopczf:S:", opts, NULL)) != -1) {
 		switch (ch) {
+			case 'N':
+				num_frames = atoi(optarg);
+				break;
 			case 'd':
 				// ifname
 				if(strlen(optarg) >= IF_NAMESIZE) {
