@@ -33,7 +33,7 @@ sudo reboot
 sudo apt install vim git
 
 ## Prepare dependent libraries
-sudo apt install clang llvm libelf-dev gcc-multilib
+sudo apt install clang llvm gcc-multilib libelf-dev libpugixml-dev
 sudo apt install ethtool
 
 ## git clone
@@ -51,8 +51,13 @@ make enter
 ip addr add 192.168.0.10/24 dev veth0
 ping 192.18.0.1 -c 3
 
-# git options
+# Other configurations
+## git options
 git config --global user.email "[your email]"
 git config --global user.name "[your name]"
 git config --global core.editor "vim"
 
+## .vimrc options
+:set ts=4
+:set sw=4
+:set ai
