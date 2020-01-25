@@ -2,32 +2,59 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#undef max
+#undef min 
+#include <map>
+#include <vector>
 #include <net/if.h>
 
 namespace pv {
 
-class Config {
+class UmemConfig {
 public:
-	static uint32_t	num_frames;
+	UmemConfig();
+	virtual ~UmemConfig();
 
-	static uint64_t	mac;
+	uint32_t num_frames;
+};
 
-	static uint32_t	xdp_flags;
-	static uint16_t	xsk_flags;
+struct PacketletInfo {
+	std::string					path;
+	std::vector<std::string>	args;
+};
 
-	static int		xsk_if_queue;
-	static bool		is_xsk_polling;
-	static int		queue;
+class XDPConfig {
+public:
+	XDPConfig(const std::string& dev);
+	virtual ~XDPConfig();
 
-	static int		ifindex;
-	static char		ifname[IF_NAMESIZE];
+	uint64_t	mac;
 
-	static char		xdp_file[256];
-	static char		xdp_section[32];
-	static char		pcap_path[256];
+	uint32_t	xdp_flags;
+	uint16_t	xsk_flags;
 
-	static int parse(int argc, char** argv);
-	static void usage();
+	int			xsk_if_queue;
+	bool		is_xsk_polling;
+	int			queue;
+
+	int			ifindex;
+	std::string	ifname;			// max size: IF_NAME_SIZE in net/if.h
+
+	std::string	xdp_file;		// max size: 256
+	std::string	xdp_section;	// max size: 32
+	std::string	pcap_path;		// max size: 256
+
+	std::vector<PacketletInfo*>	packetlets;
+};
+
+class Config {
+private:
+public:
+	static UmemConfig* umem;
+	static std::map<std::string, XDPConfig*> xdp;
+
+	static bool parse();
+	static void destroy();
 };
 
 }; // namespace pv

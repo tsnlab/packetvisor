@@ -234,7 +234,7 @@ struct bpf_object *load_bpf_object_file_reuse_maps(const char *file,
 	return obj;
 }
 
-struct bpf_object *load_bpf_and_xdp_attach(uint32_t xdp_flags, int ifindex, const char* xdp_file, int xdp_file_size, char* xdp_section, int xdp_section_size) {
+struct bpf_object *load_bpf_and_xdp_attach(uint32_t xdp_flags, int ifindex, const char* xdp_file, char* xdp_section, int xdp_section_size) {
 	struct bpf_program *bpf_prog;
 	struct bpf_object *bpf_obj;
 	int offload_ifindex = 0;

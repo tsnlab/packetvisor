@@ -52,6 +52,6 @@ public:
 	friend std::ostream& operator<<(std::ostream& out, const Packet* obj);
 };
 
-typedef Packetlet* (*packetlet)(void);	// Packetlet* pv_packetlet();
+typedef Packetlet* (*packetlet)(int argc, char** argv);	// Packetlet* pv_packetlet();
 
 }; // namespace pv

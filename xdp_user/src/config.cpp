@@ -7,51 +7,46 @@
 #include <linux/if_link.h>
 #include <linux/if_xdp.h>
 #include "config.h"
+#undef min
+#undef max
+#include <iostream>
+#include <pugixml.hpp>
 
 namespace pv {
 
-static struct option opts[] = {
-	{ "help", no_argument, nullptr, 'h' },
-	{ "num", required_argument, nullptr, 'N' },
-	{ "dev", required_argument, nullptr, 'd' },
-	{ "mac", required_argument, nullptr, 'm' },
-	{ "pcap", required_argument, nullptr, 'P' },
-	{ "auto-mode", no_argument, nullptr, 'a' },
-	{ "skb-mode", no_argument, nullptr, 's' },
-	{ "native-mode", no_argument, nullptr, 'n' },
-	{ "offload-mode", no_argument, nullptr, 'o' },
-	{ "polling", no_argument, nullptr, 'p' },
-	{ "copy", no_argument, nullptr, 'c' },
-	{ "zero-copy", no_argument, nullptr, 'z' },
-	{ "xdp-file", required_argument, nullptr, 'f' },
-	{ "xdp-section", required_argument, nullptr, 'S' },
-	{ "queue", required_argument, nullptr, 'q' },
-	{ nullptr, 0, nullptr, 0 }
-};
+UmemConfig::UmemConfig() {
+	num_frames = 4096;
+}
 
-struct desc {
-	const char* param;
-	const char* desc;
-};
+UmemConfig::~UmemConfig() {
+}
 
-static struct desc descs[] = {
-	{ nullptr, "Print this message" },
-	{ "<num>", "number of frame of user memory, default is 4096" },
-	{ "<ifname>", "interface name, default is 'veth'" },
-	{ "<mac>", "MAC address in 00:11:22:33:44:55 format, default is random number" },
-	{ "<pcap>", "PCAP FIFO path to capture" },
-	{ nullptr, "Auto detects SKB or native mode, default is selected" },
-	{ nullptr, "Run XDP in SKB(generic) mode" },
-	{ nullptr, "Run XDP in native mode" },
-	{ nullptr, "Run XDP in offloading mode" },
-	{ nullptr, "Use poll() API to wait for packets, default is not selected" },
-	{ nullptr, "Force copy mode" },
-	{ nullptr, "Force zero copy mode" },
-	{ "<file_name>", "XDP file name, default is 'pv.o'" },
-	{ "<section_name>", "XDP section name, default is 'xdp_sock'" },
-	{ "<queue_number>", "Specify receive queue, default is 0" },
-	{ nullptr, nullptr }
-};
+XDPConfig::XDPConfig(const std::string& dev) {
+	time_t t;
+	srand((unsigned) time(&t));
+	mac = (((uint64_t)0x2) << 40) | (((uint64_t)random() & 0xff) << 32) | ((uint64_t)random() & 0xffffffff);
+
+	xdp_flags = 0;
+	xdp_flags &= ~XDP_FLAGS_UPDATE_IF_NOEXIST;	// force update
+
+	xsk_flags = 0;
+	xsk_if_queue = 0;
+	is_xsk_polling = false;
+	queue = 0;
+	ifindex = -1;
+	ifname = "veth";
+	xdp_file = "pv.o";
+	xdp_section = "xdp_sock";
+	pcap_path = "";
+
+	if(dev != "")
+		ifname = dev;
+}
+
+XDPConfig::~XDPConfig() {
+	for(PacketletInfo* info: packetlets)
+		delete info;
+}
 
 static uint64_t hex(char ch) {
 	if(ch >= '0' && ch <= '9')
@@ -64,7 +59,7 @@ static uint64_t hex(char ch) {
 		return 0;
 }
 
-static bool str2mac(char* str, uint64_t* mac) {
+static bool str2mac(const char* str, uint64_t* mac) {
 	if(strlen(str) != 17)
 		return false;
 
@@ -85,139 +80,147 @@ static bool str2mac(char* str, uint64_t* mac) {
 	return true;
 };
 
-uint32_t Config::num_frames = 4096;
-uint64_t Config::mac = 0;
-uint32_t Config::xdp_flags = 0;
-uint16_t Config::xsk_flags = 0;
-int Config::xsk_if_queue = 0;
-bool Config::is_xsk_polling = false;
-int Config::queue = 0;
-int Config::ifindex = -1;
-char Config::ifname[IF_NAMESIZE] = { 'v', 'e', 't', 'h', 0, };
-char Config::xdp_file[256] = { 'p', 'v', '.', 'o', 0, };
-char Config::xdp_section[32] = { 'x', 'd', 'p', '_', 's', 'o', 'c', 'k', 0, };
-char Config::pcap_path[256] = { 0, };
+UmemConfig* Config::umem = nullptr;
+std::map<std::string, XDPConfig*> Config::xdp;
 
-int Config::parse(int argc, char** argv) {
-	xdp_flags &= ~XDP_FLAGS_UPDATE_IF_NOEXIST;	// force update
+static bool parse_umem(const pugi::xml_node& node, UmemConfig* config) {
+	config->num_frames = 4096;
 
-	int ch;
-	while((ch = getopt_long(argc, argv, "N:d:m:P:asnopczf:S:", opts, NULL)) != -1) {
-		switch (ch) {
-			case 'N':
-				num_frames = atoi(optarg);
-				break;
-			case 'd':
-				// ifname
-				if(strlen(optarg) >= IF_NAMESIZE) {
-					fprintf(stderr, "ERROR: --dev <ifname> must be less longer than %d.\n", IF_NAMESIZE);
-					return -1;
-				}
-				strncpy(ifname, optarg, IF_NAMESIZE);
+	if(node.child("frames").text())
+		config->num_frames = node.child("frames").text().as_uint();
 
-				// ifindex
-				ifindex = if_nametoindex(ifname);
-				if(ifindex == 0) {
-					fprintf(stderr, "ERROR: Unknown ifname: %s, errno: %d.\n", ifname, errno);
-					return -1;
-				}
-				break;
-			case 'm':
-				if(!str2mac(optarg, &mac)) {
-					fprintf(stderr, "ERROR: --mac <mac> must be 00:11:22:33:44:55 format.\n");
-					return -1;
-				}
-				break;
-			case 'P':
-				if(strlen(optarg) > 255) {
-					fprintf(stderr, "ERROR: Pcap FIFO path is too long, must less than 255 bytes.\n");
-					return -1;
-				}
+	return true;
+}
 
-				strncpy(pcap_path, optarg, 256);
-				break;
-			case 'a':
-				xdp_flags &= ~XDP_FLAGS_MODES;    // clear flags
-				break;
-			case 's':
-				xdp_flags &= ~XDP_FLAGS_MODES;    // clear flags
-				xdp_flags |= XDP_FLAGS_SKB_MODE;
-				xsk_flags &= ~XDP_ZEROCOPY;
-				xsk_flags |= XDP_COPY;
-				break;
-			case 'n':
-				xdp_flags &= ~XDP_FLAGS_MODES;    // clear flags
-				xdp_flags |= XDP_FLAGS_DRV_MODE; 
-				break;
-			case 'o':
-				xdp_flags &= ~XDP_FLAGS_MODES;    // clear flags
-				xdp_flags |= XDP_FLAGS_HW_MODE;
-				break;
-			case 'p':
-				is_xsk_polling = true;
-				break;
-			case 'c':
-				xsk_flags &= ~XDP_ZEROCOPY;
-				xsk_flags |= XDP_COPY;
-				break;
-			case 'z':
-				xsk_flags &= ~XDP_COPY;
-				xsk_flags |= XDP_ZEROCOPY;
-				break;
-			case 'f':
-				if(strlen(optarg) >= 255) {
-					fprintf(stderr, "ERROR: --xdp-file <file> must less than 255 bytes long.\n");
-					return -1;
-				}
-
-				strncpy(xdp_file, optarg, 256);
-				break;
-			case 'S':
-				if(strlen(optarg) >= 31) {
-					fprintf(stderr, "ERROR: --xdp-section <section> must less than 31 bytes long.\n");
-					return -1;
-				}
-
-				strncpy(xdp_section, optarg, 32);
-				break;
-			case 'q':
-				queue = atoi(optarg);
-				break;
-			default:
-				return -1;
-		}
+static bool parse_xdp(const pugi::xml_node& node, XDPConfig* config) {
+	if(config->ifname.length() >= IF_NAMESIZE) {
+		fprintf(stderr, "ERROR: --dev <ifname> must be less longer than %d.\n", IF_NAMESIZE);
+		return false;
 	}
 
-	if(ifindex < 0) {
-		// ifindex
-		ifindex = if_nametoindex(ifname);
-		if(ifindex == 0) {
-			fprintf(stderr, "ERROR: Unknown ifname: %s, errno: %d.\n", ifname, errno);
+	config->ifindex = if_nametoindex(config->ifname.c_str());
+	if(config->ifindex == 0) {
+		fprintf(stderr, "ERROR: Unknown ifname: %s, errno: %d.\n", config->ifname.c_str(), errno);
+		return false;
+	}
+
+	if(node.child("mac")) {
+		std::string str = node.child("mac").text().as_string();
+		if(!str2mac(str.c_str(), &config->mac)) {
+			fprintf(stderr, "ERROR: --mac <mac> must be 00:11:22:33:44:55 format.\n");
 			return -1;
 		}
 	}
 
-	if(mac == 0) {
-		time_t t;
-		srand((unsigned) time(&t));
-		mac = (((uint64_t)0x2) << 40) | (((uint64_t)random() & 0xff) << 32) | ((uint64_t)random() & 0xffffffff);
+	if(node.child("pcap")) {
+		std::string str = node.child("pcap").text().as_string();
+		if(str.length() > 255) {
+			fprintf(stderr, "ERROR: Pcap FIFO path is too long, must less than 255 bytes.\n");
+			return -1;
+		}
+
+		config->pcap_path = str;
 	}
 
-	return optind;
+	if(node.child("mode")) {
+		std::string str = node.child("mode").text().as_string();
+		if(str == "skb") {
+			config->xdp_flags &= ~XDP_FLAGS_MODES;    // clear flags
+			config->xdp_flags |= XDP_FLAGS_SKB_MODE;
+			config->xsk_flags &= ~XDP_ZEROCOPY;
+			config->xsk_flags |= XDP_COPY;
+		} else if(str == "native") {
+			config->xdp_flags &= ~XDP_FLAGS_MODES;    // clear flags
+			config->xdp_flags |= XDP_FLAGS_DRV_MODE; 
+		} else if(str == "offload") {
+			config->xdp_flags &= ~XDP_FLAGS_MODES;    // clear flags
+			config->xdp_flags |= XDP_FLAGS_HW_MODE;
+		} else {
+			config->xdp_flags &= ~XDP_FLAGS_MODES;    // clear flags
+		}
+	}
+
+	if(node.child("polling")) {
+		std::string str = node.child("polling").text().as_string();
+		config->is_xsk_polling = str == "true";
+	}
+
+	if(node.child("copy")) {
+		std::string str = node.child("copy").text().as_string();
+		if(str == "copy") {
+			config->xsk_flags &= ~XDP_ZEROCOPY;
+			config->xsk_flags |= XDP_COPY;
+		} else if(str == "zero") {
+			config->xsk_flags &= ~XDP_COPY;
+			config->xsk_flags |= XDP_ZEROCOPY;
+		}
+	}
+
+	if(node.child("program")) {
+		std::string str = node.child("program").text().as_string();
+		if(str.length() > 255) {
+			fprintf(stderr, "ERROR: --xdp-file <file> must less than 255 bytes long.\n");
+			return -1;
+		}
+
+		config->xdp_file = str;
+	}
+
+	if(node.child("section")) {
+		std::string str = node.child("section").text().as_string();
+		if(str.length() > 31) {
+			fprintf(stderr, "ERROR: --xdp-section <section> must less than 31 bytes long.\n");
+			return -1;
+		}
+
+		config->xdp_section = str;
+	}
+
+	if(node.child("queue")) {
+		config->queue = node.child("queue").text().as_int();
+	}
+
+	for(pugi::xml_node p = node.child("packetlet"); p; p = p.next_sibling("packetlet")) {
+		PacketletInfo* info = new PacketletInfo();
+		info->path = p.child("path").text().as_string();
+		for(pugi::xml_node a = p.child("arg"); a; a = a.next_sibling("arg")) {
+			info->args.push_back(a.text().as_string());
+		}
+
+		config->packetlets.push_back(info);
+	}
+
+	return true;
 }
 
-void Config::usage() {
-	char buf[32];
+bool Config::parse() {
+	pugi::xml_document doc;
+	pugi::xml_parse_result result = doc.load_file("config.xml");
+	if(result) {
+		Config::umem = new UmemConfig();
+		if(!parse_umem(doc.child("packetvisor").child("umem"), Config::umem))
+			return false;
 
-	printf("Usage: pv\n");
-	for(int i = 0; opts[i].name != nullptr; i++) {
-		if(descs[i].param != nullptr)
-			snprintf(buf, 32, "%s %s", opts[i].name, descs[i].param);
-		else
-			snprintf(buf, 32, "%s", opts[i].name);
-		
-		printf("\t-%c,--%-30s%s\n", opts[i].val, buf, descs[i].desc);
+		for(pugi::xml_node node = doc.child("packetvisor").child("xdp"); node; node = node.next_sibling("xdp")) {
+			std::string dev = node.attribute("dev").as_string();
+			XDPConfig* config = new XDPConfig(dev);
+			Config::xdp[dev] = config;
+			if(!parse_xdp(node, config))
+				return false;
+		}
+	} else {
+		return false;
 	}
+
+	return true;
+}
+
+void Config::destroy() {
+	for(auto pair: Config::xdp) {
+		delete pair.second;
+	}
+
+	delete umem;
 }
 
 }; // namespace pv

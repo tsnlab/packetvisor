@@ -1,5 +1,6 @@
-#include <stdio.h>
+#include <stdlib.h>
 #include <iostream>
+#include <arpa/inet.h>
 #include <pv/packet.h>
 #include <pv/driver.h>
 #include <pv/ethernet.h>
@@ -12,17 +13,22 @@ using namespace pv;
 
 class EchoPacketlet: public Packetlet {
 public:
-	EchoPacketlet();
+	uint32_t addr;
+	EchoPacketlet(uint32_t addr);
 	bool received(Packet* packet);
 };
 
-EchoPacketlet::EchoPacketlet() : Packetlet() {
+EchoPacketlet::EchoPacketlet(uint32_t addr) : Packetlet() {
+	this->addr = addr;
+	std::cout << "EchoPacketlet starting at " << 
+		std::to_string((addr >> 24) & 0xff) << "." <<
+		std::to_string((addr >> 16) & 0xff) << "." <<
+		std::to_string((addr >> 8) & 0xff) << "." <<
+		std::to_string((addr >> 0) & 0xff) << std::endl;
 }
 
 bool EchoPacketlet::received(Packet* packet) {
 	std::cout << packet << std::endl;
-
-	uint32_t myip = 0xc0a80001;
 
 	Ethernet* ether = new Ethernet(packet);
 	std::cout << ether << std::endl;
@@ -31,8 +37,9 @@ bool EchoPacketlet::received(Packet* packet) {
 		ARP* arp = new ARP(ether);
 		std::cout << arp << std::endl;
 
-		if(arp->getOpcode() == 1 && arp->getDstProto() == myip) {
-			printf("Sending ARP...\n");
+		if(arp->getOpcode() == 1 && arp->getDstProto() == addr) {
+			std::cout << "Sending ARP..." << std::endl;
+
 			ether->setDst(ether->getSrc())
 			     ->setSrc(driver->mac);
 			
@@ -40,10 +47,10 @@ bool EchoPacketlet::received(Packet* packet) {
 			   ->setDstHw(arp->getSrcHw())
 			   ->setDstProto(arp->getSrcProto())
 			   ->setSrcHw(driver->mac)
-			   ->setSrcProto(myip);
+			   ->setSrcProto(addr);
 
 			if(!send(packet)) {
-				fprintf(stderr, "Cannot reply arp\n");
+				std::cerr << "Cannot reply arp" << std::endl;
 				return false;
 			} else {
 				return true;
@@ -55,18 +62,19 @@ bool EchoPacketlet::received(Packet* packet) {
 		IPv4* ipv4 = new IPv4(ether);
 		std::cout << ipv4 << std::endl;
 
-		if(ipv4->getProto() == IP_PROTOCOL_ICMP && ipv4->getDst() == myip) {
+		if(ipv4->getProto() == IP_PROTOCOL_ICMP && ipv4->getDst() == addr) {
 			ICMP* icmp = new ICMP(ipv4);
 			std::cout << icmp << std::endl;
 
 			if(icmp->getType() == 8) {
-				printf("Sending ICMP...\n");
+				std::cout << "Sending ICMP..." << std::endl;
+
 				icmp->setType(0) // ICMP reply
 					->setChecksum(0)
 					->setChecksum(icmp->checksum(0, icmp->getEnd() - icmp->getOffset()));
 				
 				ipv4->setDst(ipv4->getSrc())
-				    ->setSrc(myip)
+				    ->setSrc(addr)
 				    ->setTtl(64)
 				    ->setDf(false)
 				    ->setId(ipv4->getId() + 1)
@@ -76,24 +84,20 @@ bool EchoPacketlet::received(Packet* packet) {
 				ether->setDst(ether->getSrc())
 				     ->setSrc(driver->mac);
 
-				for(uint32_t i = packet->start; i < packet->end; i++) {
-					printf("%02x ", packet->payload[i]);
-				}
-				printf("\n");
-
 				if(!send(packet)) {
-					fprintf(stderr, "Cannot reply icmp\n");
+					std::cerr << "Cannot reply icmp" << std::endl;
 					return false;
 				} else {
 					return true;
 				}
 			}
-		} else if(ipv4->getProto() == IP_PROTOCOL_UDP && ipv4->getDst() == myip) {
+		} else if(ipv4->getProto() == IP_PROTOCOL_UDP && ipv4->getDst() == addr) {
 			UDP* udp = new UDP(ipv4);
 			std::cout << udp << std::endl;
 
 			if(udp->getDstport() == 7) {
-				printf("UDP echo...\n");
+				std::cout << "UDP echo..." << std::endl;
+
 				udp->setDstport(udp->getSrcport())
 				   ->setSrcport(7)
 				   ->checksum();
@@ -102,7 +106,7 @@ bool EchoPacketlet::received(Packet* packet) {
 				     ->setSrc(driver->mac);
 
 				if(!send(packet)) {
-					fprintf(stderr, "Cannot reply udp echo\n");
+					std::cerr << "Cannot reply udp echo" << std::endl;
 					return false;
 				} else {
 					return true;
@@ -116,8 +120,15 @@ bool EchoPacketlet::received(Packet* packet) {
 
 extern "C" {
 
-Packetlet* pv_packetlet() {
-	return new EchoPacketlet();
+Packetlet* pv_packetlet(int argc, char** argv) {
+	if(argc < 2) {
+		std::cerr << "argv[1] must be a ip address, argc is " << std::to_string(argc) << std::endl;
+		return nullptr;
+	} else {
+		in_addr addr;
+		inet_pton(AF_INET, argv[1], &addr.s_addr);
+		return new EchoPacketlet(endian32(addr.s_addr));
+	}
 }
 
 } // extern "C"

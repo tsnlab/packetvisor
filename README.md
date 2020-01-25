@@ -7,7 +7,7 @@ git submodule init
 git submodule update
 
 ## clang, llvm, etc
-sudo apt install clang llvm libelf-dev gcc-multilib 
+sudo apt install clang llvm gcc-multilib  libelf-dev libpugixml-dev
 
 On Debian 10(stable release)
 sudo apt install ethtool

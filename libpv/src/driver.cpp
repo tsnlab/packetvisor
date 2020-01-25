@@ -18,7 +18,7 @@ bool Callback::received(uint32_t queueId, uint8_t* payload, uint32_t start, uint
 	return false;
 }
 
-int32_t Callback::load(const char* path) {
+int32_t Callback::load(const char* path, int argc, char** argv) {
 	return -1;
 }
 
@@ -75,7 +75,7 @@ bool Container::received(uint32_t queueId, uint8_t* payload, uint32_t start, uin
 	return false;
 }
 
-int32_t Container::load(const char* path) {
+int32_t Container::load(const char* path, int argc, char** argv) {
 	void* handle = dlopen(path, RTLD_LAZY);
     if(!handle) {
         fprintf(stderr, "%s\n", dlerror());
@@ -91,7 +91,7 @@ int32_t Container::load(const char* path) {
         return -2;
     }
 
-	Packetlet* packetlet = pv_packetlet();
+	Packetlet* packetlet = pv_packetlet(argc, argv);
 	if(packetlet == nullptr) {
 		fprintf(stderr, "Cannot create packetlet\n");
 		dlclose(handle);

@@ -5,7 +5,6 @@
 #include <malloc.h>
 #include <assert.h>
 #include <net/if.h>
-//#include <bpf/bpf.h>
 #include "config.h"
 #include "driver.h"
 
@@ -18,29 +17,31 @@ __free _free = free;
 
 uint64_t XDPDriver::alloc_frame() {
 	uint64_t frame;
-	if (xsk.umem_frame_free == 0)
+	if(umem.umem_frame_free == 0) {
 		return INVALID_UMEM_FRAME;
+	}
 
-	frame = xsk.umem_frame_addr[--xsk.umem_frame_free];
-	xsk.umem_frame_addr[xsk.umem_frame_free] = INVALID_UMEM_FRAME;
+	frame = umem.umem_frame_addr[--umem.umem_frame_free];
+	umem.umem_frame_addr[umem.umem_frame_free] = INVALID_UMEM_FRAME;
+
 	return frame;
 }
 
 void XDPDriver::free_frame(uint64_t frame) {
-	assert(xsk.umem_frame_free < Config::num_frames);
+	assert(umem.umem_frame_free < Config::umem->num_frames);
 
-	xsk.umem_frame_addr[xsk.umem_frame_free++] = frame;
+	umem.umem_frame_addr[umem.umem_frame_free++] = frame;
 }
 
-XDPDriver::XDPDriver() {
-	mac = pv::Config::mac;
+XDPDriver::XDPDriver(XDPConfig* config) {
+	mac = config->mac;
 	payload_size = FRAME_SIZE;
 
 	bzero(&umem, sizeof(struct xsk_umem_info));
 	bzero(&xsk, sizeof(struct xsk_socket_info));
 
 	// Allocate packet buffer
-	packet_buffer_size = Config::num_frames * FRAME_SIZE;
+	packet_buffer_size = Config::umem->num_frames * FRAME_SIZE;
 	if(posix_memalign(&packet_buffer, getpagesize(), packet_buffer_size)) { // page size aligned alloc
 		throw "ERROR: Cannot allocate packet buffer" + std::to_string(packet_buffer_size) + " bytes.";
 	}
@@ -52,6 +53,13 @@ XDPDriver::XDPDriver() {
 	}
 
 	umem.buffer = packet_buffer;
+	
+	umem.umem_frame_addr = (uint64_t*)calloc(sizeof(uint64_t), Config::umem->num_frames);
+
+	for(uint32_t i = 0; i < Config::umem->num_frames; i++)
+		umem.umem_frame_addr[i] = i * FRAME_SIZE;
+
+	umem.umem_frame_free = Config::umem->num_frames;
 
 	// Initialize xsk socket
 	xsk.umem = &umem;
@@ -60,25 +68,19 @@ XDPDriver::XDPDriver() {
 	xsk_cfg.rx_size = XSK_RING_CONS__DEFAULT_NUM_DESCS;
 	xsk_cfg.tx_size = XSK_RING_PROD__DEFAULT_NUM_DESCS;
 	xsk_cfg.libbpf_flags = 0;
-	xsk_cfg.xdp_flags = pv::Config::xdp_flags;
-	xsk_cfg.bind_flags = pv::Config::xsk_flags;
-	ret = xsk_socket__create(&xsk.xsk, pv::Config::ifname, pv::Config::queue, umem.umem, &xsk.rx, &xsk.tx, &xsk_cfg);
+	xsk_cfg.xdp_flags = config->xdp_flags;
+	xsk_cfg.bind_flags = config->xsk_flags;
+
+	ret = xsk_socket__create(&xsk.xsk, config->ifname.c_str(), config->queue, xsk.umem->umem, &xsk.rx, &xsk.tx, &xsk_cfg);
 	if(ret != 0) {
-		throw "ERROR: Cannot crate xsk object: errno: " + std::to_string(ret) + ".";
+		throw "ERROR: Cannot create xsk object: errno: " + std::to_string(ret) + ".";
 	}
 
 	uint32_t prog_id = 0;
-	ret = bpf_get_link_xdp_id(pv::Config::ifindex, &prog_id, pv::Config::xdp_flags);
+	ret = bpf_get_link_xdp_id(config->ifindex, &prog_id, config->xdp_flags);
 	if(ret != 0) {
 		throw "ERROR: Cannot get xdp id: errno: " + std::to_string(ret) + ".";
 	}
-
-	xsk.umem_frame_addr = (uint64_t*)calloc(sizeof(uint64_t), Config::num_frames);
-
-	for(uint32_t i = 0; i < Config::num_frames; i++)
-		xsk.umem_frame_addr[i] = i * FRAME_SIZE;
-
-	xsk.umem_frame_free = Config::num_frames;
 
 	uint32_t idx;
 	ret = xsk_ring_prod__reserve(&xsk.umem->fq, XSK_RING_PROD__DEFAULT_NUM_DESCS, &idx);
@@ -86,15 +88,15 @@ XDPDriver::XDPDriver() {
 		throw "ERROR: Cannot reserve buffer: errno: " + std::to_string(ret) + ".";
 	}
 
-	for(int i = 0; i < XSK_RING_PROD__DEFAULT_NUM_DESCS; i ++)
+	for(int i = 0; i < XSK_RING_PROD__DEFAULT_NUM_DESCS; i++)
 		*xsk_ring_prod__fill_addr(&xsk.umem->fq, idx++) = alloc_frame();
 
 	xsk_ring_prod__submit(&xsk.umem->fq, XSK_RING_PROD__DEFAULT_NUM_DESCS);
 
 	// Initialize pcap
-	if(pv::Config::pcap_path[0] != '\0') {
+	if(config->pcap_path != "") {
 		try {
-			pcap = new pv::Pcap(pv::Config::pcap_path);
+			pcap = new pv::Pcap(config->pcap_path.c_str());
 		} catch(const std::string& msg) {
 			fprintf(stderr, "WARN: %s\n", msg.c_str());
 		}
@@ -106,17 +108,26 @@ XDPDriver::XDPDriver() {
 	bzero(fds, sizeof(struct pollfd) * 2);
 	fds[0].fd = xsk_socket__fd(xsk.xsk);
 	fds[0].events = POLLIN;
+
+	ifindex = config->ifindex;
+	xdp_flags = config->xdp_flags;
+	is_polling = config->is_xsk_polling;
+	ifname = config->ifname;
 }
 
 XDPDriver::~XDPDriver() {
+	// delete pcap
 	if(pcap != nullptr)
 		delete pcap;
 
+	// delete xsk
 	xsk_socket__delete(xsk.xsk);
-	_free(xsk.umem_frame_addr);
+	xdp_link_detach(ifindex, xdp_flags, 0);
+
+	// delete umem
+	_free(umem.umem_frame_addr);
 	xsk_umem__delete(umem.umem);
 	_free(packet_buffer);
-	xdp_link_detach(pv::Config::ifindex, pv::Config::xdp_flags, 0);
 }
 
 void XDPDriver::setCallback(Callback* callback) {
@@ -155,14 +166,13 @@ bool XDPDriver::received() {
 	size_t ret;
 
 	rcvd = xsk_ring_cons__peek(&xsk.rx, RX_BATCH_SIZE, &idx_rx);
-	if (!rcvd)
+	if(!rcvd)
 		return false;
 
 	/* Stuff the ring with as much frames as possible */
-	stock_frames = xsk_prod_nb_free(&xsk.umem->fq, xsk.umem_frame_free);
+	stock_frames = xsk_prod_nb_free(&xsk.umem->fq, umem.umem_frame_free);
 
-	if (stock_frames > 0) {
-
+	if(stock_frames > 0) {
 		ret = xsk_ring_prod__reserve(&xsk.umem->fq, stock_frames, &idx_fq);
 
 		/* This should not happen, but just in case */
@@ -241,7 +251,7 @@ void XDPDriver::flush() {
 bool XDPDriver::loop() {
 	int nfds = 1;
 
-	if(pv::Config::is_xsk_polling) {
+	if(is_polling) {
 		int ret = poll(fds, nfds, -1);
 		if(ret <= 0 || ret > 1) {
 			return false;

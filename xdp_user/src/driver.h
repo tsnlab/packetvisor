@@ -1,8 +1,11 @@
 #pragma once
 
+#include <string>
 #include <poll.h>
 #include <bpf/xsk.h>
 #include <pv/driver.h>
+#include <pthread.h>
+#include "config.h"
 #include "pcap.h"
 
 namespace pv {
@@ -16,6 +19,9 @@ struct xsk_umem_info {
 	struct xsk_ring_cons cq;
 	struct xsk_umem *umem;
 	void *buffer;
+
+	uint64_t* umem_frame_addr;
+	uint32_t umem_frame_free;
 };
 
 struct xsk_socket_info {
@@ -24,20 +30,21 @@ struct xsk_socket_info {
 	struct xsk_umem_info *umem;
 	struct xsk_socket *xsk;
 
-	uint64_t* umem_frame_addr;
-	uint32_t umem_frame_free;
-
 	uint32_t outstanding_tx;
 };
 
 class XDPDriver : public pv::Driver {
 private:
 	struct pollfd				fds[2];
+	int							ifindex;
+	uint32_t					xdp_flags;
+	bool						is_polling;
 
 protected:
+	struct xsk_umem_info		umem;
 	void*						packet_buffer;
 	uint64_t					packet_buffer_size;
-	struct xsk_umem_info		umem;
+
 	struct xsk_socket_info		xsk;
 	Pcap*						pcap;
 	Callback*					callback;
@@ -46,7 +53,9 @@ protected:
 	void free_frame(uint64_t frame);
 	
 public:
-	XDPDriver();
+	std::string		ifname;
+
+	XDPDriver(XDPConfig* config);
 	virtual ~XDPDriver();
 
 	void setCallback(Callback* callback);
