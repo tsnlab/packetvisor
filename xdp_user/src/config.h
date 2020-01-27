@@ -53,7 +53,7 @@ public:
 	static UmemConfig* umem;
 	static std::map<std::string, XDPConfig*> xdp;
 
-	static bool parse();
+	static int parse(int argc, char** argv);
 	static void destroy();
 };
 

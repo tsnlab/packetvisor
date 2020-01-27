@@ -1,4 +1,4 @@
-.PHONY: all setup teardown enter run off clean examples libpv/libpv.so libpv/libpv.a xdp_user/pv xdp_kern/pv.o
+.PHONY: all setup teardown enter run echo forward off clean examples libpv/libpv.so libpv/libpv.a xdp_user/pv xdp_kern/pv.o
 
 RELEASE ?= 0
 ENV ?= veth
@@ -16,7 +16,13 @@ enter:
 	sudo testenv/testenv.sh enter --name $(ENV)
 
 run: all
-	sudo LD_LIBRARY_PATH=. ./pv
+	sudo LD_LIBRARY_PATH=. ./pv -c examples/echo/config.xml
+
+echo: all
+	sudo LD_LIBRARY_PATH=. ./pv -c examples/$@/config.xml
+
+forward: all
+	sudo LD_LIBRARY_PATH=. ./pv -c examples/$@/config.xml
 
 off:
 	sudo ip link set dev $(ENV) xdpgeneric off

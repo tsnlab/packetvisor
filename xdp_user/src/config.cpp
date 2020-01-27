@@ -14,6 +14,23 @@
 
 namespace pv {
 
+static struct option opts[] = {
+	{ "help", no_argument, nullptr, 'h' },
+	{ "config", required_argument, nullptr, 'c' },
+	{ nullptr, 0, nullptr, 0 }
+};
+
+struct desc {
+	const char* param;
+	const char* desc;
+};
+
+static struct desc descs[] = {
+	{ nullptr, "Print this message" },
+	{ "<config>", "specify config.xml file location, default is ./config.xml" },
+	{ nullptr, nullptr }
+};
+
 UmemConfig::UmemConfig() {
 	num_frames = 4096;
 }
@@ -193,26 +210,57 @@ static bool parse_xdp(const pugi::xml_node& node, XDPConfig* config) {
 	return true;
 }
 
-bool Config::parse() {
+static void usage() {
+	char buf[32];
+
+	printf("Usage: pv\n");
+	for(int i = 0; opts[i].name != nullptr; i++) {
+		if(descs[i].param != nullptr)
+			snprintf(buf, 32, "%s %s", opts[i].name, descs[i].param);
+		else
+			snprintf(buf, 32, "%s", opts[i].name);
+
+		printf("\t-%c,--%-30s%s\n", opts[i].val, buf, descs[i].desc);
+	}
+}
+
+int Config::parse(int argc, char** argv) {
+	char path[256];
+	sprintf(path, "config.xml");
+
+	int ch;
+	while((ch = getopt_long(argc, argv, "c:", opts, NULL)) != -1) {
+		switch (ch) {
+			case 'c':
+				snprintf(path, 256, "%s", optarg);
+				break;
+			default:
+				usage();
+				return 0;
+		}
+	}
+
+	printf("Using config file: %s\n", path);
+
 	pugi::xml_document doc;
-	pugi::xml_parse_result result = doc.load_file("config.xml");
+	pugi::xml_parse_result result = doc.load_file(path);
 	if(result) {
 		Config::umem = new UmemConfig();
 		if(!parse_umem(doc.child("packetvisor").child("umem"), Config::umem))
-			return false;
+			return -1;
 
 		for(pugi::xml_node node = doc.child("packetvisor").child("xdp"); node; node = node.next_sibling("xdp")) {
 			std::string dev = node.attribute("dev").as_string();
 			XDPConfig* config = new XDPConfig(dev);
 			Config::xdp[dev] = config;
 			if(!parse_xdp(node, config))
-				return false;
+				return -2;
 		}
 	} else {
-		return false;
+		return -3;
 	}
 
-	return true;
+	return optind;
 }
 
 void Config::destroy() {

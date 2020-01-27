@@ -73,9 +73,13 @@ static void* run(void* ctx) {
 	return nullptr;
 }
 
-int main(__attribute__((unused)) int argc, __attribute__((unused))char** argv) {
-	if(!pv::Config::parse())
-		return -1;
+int main(int argc, char** argv) {
+	int ret = pv::Config::parse(argc, argv);
+	if(ret <= 0)
+		return ret;
+
+	argc -= ret;
+	argv += ret;
 
 	// Load libpv
 	void* handle = dlopen("libpv.so", RTLD_LAZY);
