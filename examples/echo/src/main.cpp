@@ -58,13 +58,10 @@ bool EchoPacketlet::received(Packet* packet) {
 
 			if(!send(packet)) {
 				std::cerr << "Cannot reply arp" << std::endl;
-				return false;
-			} else {
-				return true;
 			}
-		}
 
-		return false;
+			return true;
+		}
 	} else if(ether->getType() == ETHER_TYPE_IPv4) {
 		IPv4* ipv4 = new IPv4(ether);
 		std::cout << ipv4 << std::endl;
@@ -93,10 +90,9 @@ bool EchoPacketlet::received(Packet* packet) {
 
 				if(!send(packet)) {
 					std::cerr << "Cannot reply icmp" << std::endl;
-					return false;
-				} else {
-					return true;
 				}
+
+				return true;
 			}
 		} else if(ipv4->getProto() == IP_PROTOCOL_UDP && ipv4->getDst() == addr) {
 			UDP* udp = new UDP(ipv4);
@@ -114,10 +110,9 @@ bool EchoPacketlet::received(Packet* packet) {
 
 				if(!send(packet)) {
 					std::cerr << "Cannot reply udp echo" << std::endl;
-					return false;
-				} else {
-					return true;
 				}
+
+				return true;
 			}
 		}
 	}
