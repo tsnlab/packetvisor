@@ -15,11 +15,18 @@ class EchoPacketlet: public Packetlet {
 public:
 	uint32_t addr;
 	EchoPacketlet(uint32_t addr);
+
+	void init(Driver* driver);
 	bool received(Packet* packet);
 };
 
 EchoPacketlet::EchoPacketlet(uint32_t addr) : Packetlet() {
 	this->addr = addr;
+}
+
+void EchoPacketlet::init(Driver* driver) {
+	Packetlet::init(driver);
+
 	std::cout << "EchoPacketlet starting at " << 
 		std::to_string((addr >> 24) & 0xff) << "." <<
 		std::to_string((addr >> 16) & 0xff) << "." <<
@@ -41,12 +48,12 @@ bool EchoPacketlet::received(Packet* packet) {
 			std::cout << "Sending ARP..." << std::endl;
 
 			ether->setDst(ether->getSrc())
-			     ->setSrc(driver->mac);
+			     ->setSrc(driver->getMAC());
 			
 			arp->setOpcode(2)
 			   ->setDstHw(arp->getSrcHw())
 			   ->setDstProto(arp->getSrcProto())
-			   ->setSrcHw(driver->mac)
+			   ->setSrcHw(driver->getMAC())
 			   ->setSrcProto(addr);
 
 			if(!send(packet)) {
@@ -79,10 +86,10 @@ bool EchoPacketlet::received(Packet* packet) {
 				    ->setDf(false)
 				    ->setId(ipv4->getId() + 1)
 				    ->setChecksum(0)
-				    ->setChecksum(ipv4->checksum(0, ipv4->getHdrLen() * 4));
+					->checksum();
 
 				ether->setDst(ether->getSrc())
-				     ->setSrc(driver->mac);
+				     ->setSrc(driver->getMAC());
 
 				if(!send(packet)) {
 					std::cerr << "Cannot reply icmp" << std::endl;
@@ -103,7 +110,7 @@ bool EchoPacketlet::received(Packet* packet) {
 				   ->checksum();
 
 				ether->setDst(ether->getSrc())
-				     ->setSrc(driver->mac);
+				     ->setSrc(driver->getMAC());
 
 				if(!send(packet)) {
 					std::cerr << "Cannot reply udp echo" << std::endl;
@@ -122,7 +129,7 @@ extern "C" {
 
 Packetlet* pv_packetlet(int argc, char** argv) {
 	if(argc < 2) {
-		std::cerr << "argv[1] must be a ip address, argc is " << std::to_string(argc) << std::endl;
+		std::cerr << "argv[1] must be an ip address, argc is " << std::to_string(argc) << std::endl;
 		return nullptr;
 	} else {
 		in_addr addr;

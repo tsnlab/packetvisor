@@ -14,7 +14,7 @@ Callback::Callback() {
 Callback::~Callback() {
 }
 
-bool Callback::received(uint32_t queueId, uint8_t* payload, uint32_t start, uint32_t end, uint32_t size) {
+bool Callback::received(uint32_t queueId, uint8_t* payload, uint32_t start, uint32_t end) {
 	return false;
 }
 
@@ -33,6 +33,18 @@ Driver::Driver() {
 Driver::~Driver() {
 }
 
+uint64_t Driver::getMAC() {
+	return getMAC(0);
+}
+
+uint64_t Driver::getMAC(uint32_t id) {
+	return 0;
+}
+
+uint32_t Driver::getPayloadSize() {
+	return 0;
+}
+
 uint8_t* Driver::alloc() {
 	return nullptr;
 }
@@ -40,7 +52,7 @@ uint8_t* Driver::alloc() {
 void Driver::free(uint8_t* payload) {
 }
 
-bool Driver::send(uint32_t queueId, uint8_t* payload, uint32_t start, uint32_t end, uint32_t size) {
+bool Driver::send(uint32_t queueId, uint8_t* payload, uint32_t start, uint32_t end) {
 	return false;
 }
 
@@ -57,8 +69,8 @@ Container::~Container() {
 	}
 }
 
-bool Container::received(uint32_t queueId, uint8_t* payload, uint32_t start, uint32_t end, uint32_t size) {
-	Packet* packet = new Packet(queueId, payload, start, end, size);
+bool Container::received(uint32_t queueId, uint8_t* payload, uint32_t start, uint32_t end) {
+	Packet* packet = new Packet(queueId, payload, start, end, driver->getPayloadSize());
 
 	for(uint32_t i = 0; i < packetlet_count; i++) {
 		try {
@@ -69,6 +81,7 @@ bool Container::received(uint32_t queueId, uint8_t* payload, uint32_t start, uin
 		}
 	}
 
+	printf("deleteing packet: %p\n", packet);
 	packet->payload = nullptr;
 	delete packet;
 
@@ -108,6 +121,7 @@ int32_t Container::load(const char* path, int argc, char** argv) {
 
 	packetlet->setId(id);
 	packetlet->setHandle(handle);
+	packetlet->init(driver);
 
 	return id;
 }
@@ -124,10 +138,9 @@ bool Container::unload(int32_t id) {
 }
 
 int32_t Container::addPacketlet(Packetlet* packetlet) {
-	packetlet->setDriver(driver);
-
 	if(packetlet_count < MAX_PACKETLETS) {
 		packetlets[packetlet_count++] = (Packetlet*)packetlet;
+
 		return packetlet_count - 1;
 	}
 

@@ -12,7 +12,7 @@ Packetlet::Packetlet() {
 Packetlet::~Packetlet() {
 }
 
-void Packetlet::setDriver(Driver* driver) {
+void Packetlet::init(Driver* driver) {
 	this->driver = driver;
 }
 
@@ -37,7 +37,7 @@ Packet* Packetlet::alloc() {
 	if(payload == nullptr)
 		return nullptr;
 
-	return new Packet(-1, payload, 0, driver->payload_size, driver->payload_size);
+	return new Packet(0, payload, 0, driver->getPayloadSize(), driver->getPayloadSize());
 }
 
 void Packetlet::drop(Packet* packet) {
@@ -50,14 +50,14 @@ bool Packetlet::received(Packet* packet) {
 }
 
 bool Packetlet::send(Packet* packet) {
-	bool result = driver->send(packet->queueId, packet->payload, packet->start, packet->end, packet->size);
+	bool result = driver->send(packet->queueId, packet->payload, packet->start, packet->end);
 
 	delete packet;
 
 	return result;
 }
 
-Packet::Packet(int32_t queueId, uint8_t* payload, uint32_t start, uint32_t end, uint32_t size) {
+Packet::Packet(uint32_t queueId, uint8_t* payload, uint32_t start, uint32_t end, uint32_t size) {
 	this->queueId = queueId;
 	this->payload = payload;
 	this->start = start;
@@ -78,7 +78,7 @@ std::ostream& operator<<(std::ostream& out, const Packet& obj) {
 }
 
 std::ostream& operator<<(std::ostream& out, const Packet* obj) {
-	out << "Packet[payload: " << std::to_string((obj->end - obj->start)) << " bytes]";
+	out << "Packet[queueId: " << std::to_string(obj->queueId) << ", payload: " << std::to_string((obj->end - obj->start)) << " bytes]";
 
 	return out;
 }

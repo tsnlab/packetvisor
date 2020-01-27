@@ -15,22 +15,34 @@ namespace pv {
 typedef void (*__free)(void*);
 __free _free = free;
 
+XDPDriver* XDPDriver::xdp_drivers[16];
+uint32_t XDPDriver::xdp_driver_count = 0;
+
 uint64_t XDPDriver::alloc_frame() {
+	pthread_spin_lock(&umem.lock);
+
 	uint64_t frame;
 	if(umem.umem_frame_free == 0) {
+		pthread_spin_unlock(&umem.lock);
 		return INVALID_UMEM_FRAME;
 	}
 
 	frame = umem.umem_frame_addr[--umem.umem_frame_free];
 	umem.umem_frame_addr[umem.umem_frame_free] = INVALID_UMEM_FRAME;
 
+	pthread_spin_unlock(&umem.lock);
+
 	return frame;
 }
 
 void XDPDriver::free_frame(uint64_t frame) {
+	pthread_spin_lock(&umem.lock);
+
 	assert(umem.umem_frame_free < Config::umem->num_frames);
 
 	umem.umem_frame_addr[umem.umem_frame_free++] = frame;
+
+	pthread_spin_unlock(&umem.lock);
 }
 
 XDPDriver::XDPDriver(XDPConfig* config) {
@@ -54,6 +66,8 @@ XDPDriver::XDPDriver(XDPConfig* config) {
 
 	umem.buffer = packet_buffer;
 	
+	pthread_spin_init(&umem.lock, PTHREAD_PROCESS_PRIVATE);
+
 	umem.umem_frame_addr = (uint64_t*)calloc(sizeof(uint64_t), Config::umem->num_frames);
 
 	for(uint32_t i = 0; i < Config::umem->num_frames; i++)
@@ -113,6 +127,9 @@ XDPDriver::XDPDriver(XDPConfig* config) {
 	xdp_flags = config->xdp_flags;
 	is_polling = config->is_xsk_polling;
 	ifname = config->ifname;
+
+	xdp_drivers[xdp_driver_count++] = this;
+	id = xdp_driver_count;
 }
 
 XDPDriver::~XDPDriver() {
@@ -125,9 +142,24 @@ XDPDriver::~XDPDriver() {
 	xdp_link_detach(ifindex, xdp_flags, 0);
 
 	// delete umem
+	pthread_spin_destroy(&umem.lock);
+
 	_free(umem.umem_frame_addr);
 	xsk_umem__delete(umem.umem);
 	_free(packet_buffer);
+}
+
+uint64_t XDPDriver::getMAC(uint32_t id) {
+	if(id == 0)
+		return mac;
+	else if(id > XDPDriver::xdp_driver_count)
+		return 0;
+	else
+		return XDPDriver::xdp_drivers[id - 1]->mac;
+}
+
+uint32_t XDPDriver::getPayloadSize() {
+	return payload_size;
 }
 
 void XDPDriver::setCallback(Callback* callback) {
@@ -150,7 +182,7 @@ void XDPDriver::free(uint8_t* payload) {
 
 bool XDPDriver::process(uint8_t* payload, uint32_t len) {
 	try {
-		if(callback != nullptr && callback->received(0, payload, 0, len, len)) {
+		if(callback != nullptr && callback->received(0, payload, 0, len)) {
 			return true;
 		}
 	} catch(...) {
@@ -166,7 +198,7 @@ bool XDPDriver::received() {
 	size_t ret;
 
 	rcvd = xsk_ring_cons__peek(&xsk.rx, RX_BATCH_SIZE, &idx_rx);
-	if(!rcvd)
+	if(rcvd == 0)
 		return false;
 
 	/* Stuff the ring with as much frames as possible */
@@ -198,21 +230,35 @@ bool XDPDriver::received() {
 
 	xsk_ring_cons__release(&xsk.rx, rcvd);
 
-	/* Do we need to wake up the kernel for transmission */
-	if(xsk.outstanding_tx > 0) {
-		flush();
-	}
-
 	return true;
 }
 
-bool XDPDriver::send(uint32_t queueId, uint8_t* payload, uint32_t start, uint32_t end, uint32_t size) {
+bool XDPDriver::send(uint32_t queueId, uint8_t* payload, uint32_t start, uint32_t end) {
+	if(queueId != 0 && queueId != id) {
+		if(queueId > XDPDriver::xdp_driver_count)
+			return false;
+
+		XDPDriver* driver = XDPDriver::xdp_drivers[queueId - 1];
+		if(driver == nullptr)
+			return false;
+
+		uint8_t* payload2 = driver->alloc();
+		if(payload2 == nullptr)
+			return false;
+
+		memcpy(payload2 + start, payload + start, end - start);
+		free(payload);
+
+		return driver->send(queueId, payload2, start, end);
+	}
+
 	if(pcap != NULL)
 		pcap->send(payload + start, end - start);
 
 	uint32_t tx_idx = 0;
 	int ret = xsk_ring_prod__reserve(&xsk.tx, 1, &tx_idx);
-	if (ret != 1) {
+	if(ret != 1) {
+		fprintf(stderr, "TX queue full\n");
 		/* No more transmit slots, drop the packet */
 		return false;
 	}
@@ -221,10 +267,15 @@ bool XDPDriver::send(uint32_t queueId, uint8_t* payload, uint32_t start, uint32_
 	xsk_ring_prod__tx_desc(&xsk.tx, tx_idx)->addr = addr;
 	xsk_ring_prod__tx_desc(&xsk.tx, tx_idx)->len = end - start;
 	xsk_ring_prod__submit(&xsk.tx, 1);
-	xsk.outstanding_tx++;
+	// xsk.outstanding_tx++;
 
 	// tx_byees += end - start;
 	// tx_packets += 1
+
+	/* Do we need to wake up the kernel for transmission */
+	// if(xsk.outstanding_tx > 0) {
+	flush();
+	// }
 
 	return true;
 }

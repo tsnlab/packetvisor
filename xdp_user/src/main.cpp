@@ -108,7 +108,7 @@ int main(__attribute__((unused)) int argc, __attribute__((unused))char** argv) {
 		exit(EXIT_FAILURE);
 	}
 
-	uint32_t i = 0;
+	uint32_t idx = 0;
 	uint32_t size = pv::Config::xdp.size();
 	pv::XDPDriver* drivers[size];
 	pv::Callback* callbacks[size];
@@ -148,7 +148,8 @@ int main(__attribute__((unused)) int argc, __attribute__((unused))char** argv) {
 		pv::XDPDriver* driver;
 		try {
 			driver = new pv::XDPDriver(config);
-			drivers[i] = driver;
+			driver->id = idx + 1;
+			drivers[idx] = driver;
 		} catch(const std::string& msg) {
 			fprintf(stderr, "ERROR: Cannot create XDPDriver: %s\n", msg.c_str());
 			exit(1);
@@ -162,7 +163,7 @@ int main(__attribute__((unused)) int argc, __attribute__((unused))char** argv) {
 			exit(1);
 		}
 		driver->setCallback(callback);
-		callbacks[i] = callback;
+		callbacks[idx] = callback;
 
 		printf("\tMAC address is %02lx:%02lx:%02lx:%02lx:%02lx:%02lx\n", 
 				(config->mac >> 40) & 0xff,
@@ -172,14 +173,25 @@ int main(__attribute__((unused)) int argc, __attribute__((unused))char** argv) {
 				(config->mac >> 8) & 0xff,
 				(config->mac >> 0) & 0xff);
 
-		printf("\tPacketlet count: %lu\n", config->packetlets.size());
+		idx++;
+	}
+
+	idx = 0;
+	for(auto it = pv::Config::xdp.begin(); it != pv::Config::xdp.end(); it++) {
+		std::string dev = it->first;
+		pv::XDPConfig* config = it->second;
+		pv::Callback* callback = callbacks[idx];
+
+		printf("Loading packetlet for %s(count=%lu)\n", dev.c_str(), config->packetlets.size());
 		for(pv::PacketletInfo* info: config->packetlets) {
-			printf("\tLoading packetlet: %s\n", info->path.c_str());
+			printf("\tLoading: %s ", info->path.c_str());
 			char* argv[info->args.size() + 1];
 			argv[0] = strdup(info->path.c_str());
 			for(unsigned int i = 0; i < info->args.size(); i++) {
 				argv[i + 1] = strdup(info->args[i].c_str());
+				printf("%s ", argv[i + 1]);
 			}
+			printf("\n");
 
 			callback->load(info->path.c_str(), (int)info->args.size() + 1, argv);
 
@@ -188,7 +200,7 @@ int main(__attribute__((unused)) int argc, __attribute__((unused))char** argv) {
 			}
 		}
 
-		i++;
+		idx++;
 	}
 
 	/* Global shutdown handler */

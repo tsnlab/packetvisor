@@ -58,6 +58,7 @@ public:
 
 	uint16_t getChecksum() const;
 	IPv4* setChecksum(uint16_t checksum);
+	IPv4* checksum();
 
 	uint32_t getSrc() const;
 	IPv4* setSrc(uint32_t src);

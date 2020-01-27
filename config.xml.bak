@@ -3,8 +3,7 @@
 			<frames>4096</frames>
 	</umem>
 	<xdp dev="veth">
-		<mac>06:d5:70:51:5b:78</mac>
-		<!--<mac>00:11:22:33:44:55</mac>-->
+		<mac>00:11:22:33:44:55</mac>
 		<pcap>/tmp/pv</pcap>
 		<mode>auto</mode> <!-- auto, skb, native, offload -->
 		<polling>false</polling>
@@ -13,14 +12,12 @@
 		<section>xdp_sock</section>
 		<queue>0</queue>
 		<packetlet>
-			<path>examples/pass/pass.so</path>
-			<arg>192.168.0.20</arg>
-			<arg>2</arg>
+			<path>examples/echo/echo.so</path>
+			<arg>192.168.0.1</arg>
 		</packetlet>
 	</xdp>
 	<xdp dev="veth2">
-		<mac>4a:6c:7a:2c:cd:af</mac>
-		<!--<mac>00:11:22:33:44:55</mac>-->
+		<mac>00:11:22:33:44:66</mac>
 		<pcap>/tmp/pv2</pcap>
 		<mode>auto</mode> <!-- auto, skb, native, offload -->
 		<polling>false</polling>
@@ -29,9 +26,8 @@
 		<section>xdp_sock</section>
 		<queue>0</queue>
 		<packetlet>
-			<path>examples/pass/pass.so</path>
-			<arg>192.168.0.10</arg>
-			<arg>1</arg>
+			<path>examples/echo/echo.so</path>
+			<arg>192.168.0.2</arg>
 		</packetlet>
 	</xdp>
 </packetvisor>

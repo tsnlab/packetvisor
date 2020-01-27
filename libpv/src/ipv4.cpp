@@ -167,6 +167,13 @@ IPv4* IPv4::setChecksum(uint16_t checksum) {
 	return this;
 }
 
+IPv4* IPv4::checksum() {
+	CHECK(10, 2);
+	*(uint16_t*)OFFSET(10) = 0;
+	*(uint16_t*)OFFSET(10) = endian16(Protocol::checksum(0, getHdrLen() * 4));
+	return this;
+}
+
 uint32_t IPv4::getSrc() const {
 	CHECK(12, 4);
 	return endian32(*(uint32_t*)OFFSET(12));
@@ -206,25 +213,29 @@ std::ostream& operator<<(std::ostream& out, const IPv4* obj) {
 	out << ", dscp: " << std::to_string(obj->getDscp());
 	out << ", ecn: " << std::to_string(obj->getEcn());
 	out << ", len: " << std::to_string(obj->getLen());
-	sprintf(buf, "%04x", obj->getId());
+	sprintf(buf, "0x%04x", obj->getId());
 	out << ", id: " << buf;
-	sprintf(buf, "%01x", obj->getFlags());
+	sprintf(buf, "0x%01x", obj->getFlags());
 	out << ", flags: " << buf;
 	out << ", flags.rb: " << (obj->isRb() ? 1 : 0);
 	out << ", flags.df: " << (obj->isDf() ? 1 : 0);
 	out << ", flags.mf: " << (obj->isMf() ? 1 : 0);
 	out << ", frag_offset: " << obj->getFragOffset();
 	out << ", ttl: " << std::to_string(obj->getTtl());
-	sprintf(buf, "%02x", obj->getProto());
+	sprintf(buf, "0x%02x", obj->getProto());
 	out << ", proto: " << buf;
-	sprintf(buf, "%04x", obj->getChecksum());
+	sprintf(buf, "0x%04x", obj->getChecksum());
 	out << ", checksum: " << buf;
 	uint32_t addr = obj->getSrc();
-	out << ", src: " << ((addr >> 24) & 0xff) << "." << ((addr >> 16) & 0xff) << ".";
-	out << ((addr >> 8) & 0xff) << "." << ((addr >> 0) & 0xff);
+	out << ", src: " << std::to_string((addr >> 24) & 0xff) << ".";
+	out << std::to_string((addr >> 16) & 0xff) << ".";
+	out << std::to_string((addr >> 8) & 0xff) << ".";
+	out << std::to_string((addr >> 0) & 0xff);
 	addr = obj->getDst();
-	out << ", dst: " << ((addr >> 24) & 0xff) << "." << ((addr >> 16) & 0xff) << ".";
-	out << ((addr >> 8) & 0xff) << "." << ((addr >> 0) & 0xff);
+	out << ", dst: " << std::to_string((addr >> 24) & 0xff) << ".";
+	out << (std::to_string((addr >> 16) & 0xff)) << ".";
+	out << std::to_string((addr >> 8) & 0xff) << ".";
+	out << std::to_string((addr >> 0) & 0xff);
 	out << ", body_offset: " << obj->getBodyOffset();
 	out << ", body: " << std::to_string(obj->getEnd() - obj->getBodyOffset()) << " bytes]";
 

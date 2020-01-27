@@ -19,7 +19,7 @@ public:
 	Packetlet();
 	virtual ~Packetlet();
 
-	void setDriver(Driver* driver);
+	virtual void init(Driver* driver);
 
 	void setId(int32_t id);
 	int32_t getId();
@@ -38,14 +38,14 @@ class Protocol;
 
 class Packet {
 public:
-	int32_t		queueId;
+	uint32_t	queueId;
 	uint8_t*	payload;
 	uint32_t	start;
 	uint32_t	end;
 	uint32_t	size;
 	Protocol*	protocol;
 
-	Packet(int32_t queueId, uint8_t* payload, uint32_t start, uint32_t end, uint32_t size);
+	Packet(uint32_t queueId, uint8_t* payload, uint32_t start, uint32_t end, uint32_t size);
 	virtual ~Packet();
 
 	friend std::ostream& operator<<(std::ostream& out, const Packet& obj);
