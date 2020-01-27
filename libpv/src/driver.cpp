@@ -81,7 +81,6 @@ bool Container::received(uint32_t queueId, uint8_t* payload, uint32_t start, uin
 		}
 	}
 
-	printf("deleteing packet: %p\n", packet);
 	packet->payload = nullptr;
 	delete packet;
 

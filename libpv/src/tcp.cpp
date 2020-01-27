@@ -8,7 +8,7 @@ struct TCP_Pseudo {
 	uint32_t	destination;	///< Destination address (endian32)
 	uint8_t		padding;		///< Zero padding
 	uint8_t		protocol;		///< TCP protocol number, 0x06
-	uint16_t	length;			///< Header and data length in bytes (endian32)
+	uint16_t	length;			///< Header and data length in bytes (endian16)
 } __attribute__((packed));
 
 TCP::TCP(Packet* packet, uint32_t offset) : Protocol(packet, offset) {

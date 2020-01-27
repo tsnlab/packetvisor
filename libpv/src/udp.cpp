@@ -1,6 +1,15 @@
+#include <pv/ipv4.h>
 #include <pv/udp.h>
 
 namespace pv {
+
+struct UDP_Pseudo {
+	uint32_t	source;			///< Source address (endian32)
+	uint32_t	destination;	///< Destination address (endian32)
+	uint8_t		padding;		///< Zero padding
+	uint8_t		protocol;		///< UDP protocol number, 0x11
+	uint16_t	length;			///< Header and data length in bytes (endian16)
+} __attribute__((packed));
 
 UDP::UDP(Packet* packet, uint32_t offset) : Protocol(packet, offset) {
 }
@@ -58,12 +67,21 @@ UDP* UDP::setChecksum(uint16_t checksum) {
 UDP* UDP::checksum() {
 	CHECK(6, 2);
 	*(uint16_t*)OFFSET(6) = 0;
-	uint32_t len = getLength();
-	uint32_t len2 = getEnd() - getBodyOffset();
-	if(len2 < len)
-		len = len2;
 
-	*(uint16_t*)OFFSET(6) = Protocol::checksum(0, len);
+	IPv4* ip = (IPv4*)parent;
+	uint16_t len = getLength();
+	UDP_Pseudo pseudo;
+	pseudo.source = endian32(ip->getSrc());
+	pseudo.destination = endian32(ip->getDst());
+	pseudo.padding = 0;
+	pseudo.protocol = ip->getProto();
+	pseudo.length = endian16(len);
+	
+	uint32_t sum = (uint16_t)~Protocol::checksum((uint8_t*)&pseudo, 0, sizeof(pseudo)) + (uint16_t)~Protocol::checksum(0, len);
+	while(sum >> 16)
+		sum = (sum & 0xffff) + (sum >> 16);
+	*(uint16_t*)OFFSET(16) = endian16(~sum);
+
 	return this;
 }
 
