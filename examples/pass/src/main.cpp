@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 #include <iostream>
 #include <arpa/inet.h>
 #include <pv/packet.h>
@@ -92,11 +93,17 @@ bool PassPacketlet::received(Packet* packet) {
 				udp->setDstport(2000);
 				udp->setChecksum(0);
 				udp->setLength(56);
+				bzero(packet2->payload + udp->getBodyOffset(), packet2->end - udp->getBodyOffset());
 				sprintf((char*)packet2->payload + udp->getBodyOffset(), "\nHello World to 2 %d\n\n", counter++);
 				std::cout << "packet2" << std::endl;
+				std::cout << packet2 << std::endl;
 				std::cout << ether2 << std::endl;
 				std::cout << ip2 << std::endl;
 				std::cout << udp << std::endl;
+				for(unsigned int i = packet2->start; i < packet2->end; i++) {
+					printf("%02x ", packet2->payload[packet2->start + i]);
+				}
+				printf("\n");
 
 				printf("packet2: %p\n", packet2);
 				if(!send(packet2)) {
@@ -118,6 +125,7 @@ bool PassPacketlet::received(Packet* packet) {
 				     ->setSrc(mac);
 				     //->setSrc(driver->getMAC());
 
+				/*
 				Packet* packet3 = new Packet(0, driver->alloc(), packet->start, packet->end, packet->size);
 				packet3->queueId = 1;
 				memcpy(packet3->payload + packet3->start, packet->payload + packet->start, packet->end - packet->start);
@@ -130,6 +138,7 @@ bool PassPacketlet::received(Packet* packet) {
 				udp3->setDstport(2000);
 				udp3->setChecksum(0);
 				udp3->setLength(56);
+				bzero(packet3->payload + udp3->getBodyOffset(), packet3->end - udp3->getBodyOffset());
 				sprintf((char*)packet3->payload + udp3->getBodyOffset(), "\nHello World to 1 %d\n\n", counter++);
 				std::cout << "packet3" << std::endl;
 				std::cout << ether3 << std::endl;
@@ -140,6 +149,7 @@ bool PassPacketlet::received(Packet* packet) {
 				if(!send(packet3)) {
 					std::cerr << "Cannot send dup packet" << std::endl;
 				}
+				*/
 
 				printf("packet: %p\n", packet);
 				if(!send(packet)) {
@@ -148,15 +158,47 @@ bool PassPacketlet::received(Packet* packet) {
 
 				return true;
 			}
+		} else if(ipv4->getProto() == IP_PROTOCOL_UDP && ipv4->getDst() == addr) {
+			UDP* udp = new UDP(ipv4);
+			std::cout << udp << std::endl;
 		}
 	}
 
 	//ether->setSrc(mac);
+	std::cout << "Forwarding..." << std::endl;
+	std::cout << ether << std::endl;
+	IPv4* ipv4 = new IPv4(ether);
+	std::cout << ipv4 << std::endl;
+	UDP* udp = new UDP(ipv4);
+	udp->setChecksum(0);
+	std::cout << udp << std::endl;
+
+	Packet* packet2 = new Packet(0, driver->alloc(), packet->start, packet->end, packet->size);
+	packet2->queueId = id;
+	memcpy(packet2->payload + packet2->start, packet->payload + packet->start, packet->end - packet->start);
+
+	std::cout << "forwarding copy\n";
+	std::cout << packet2 << std::endl;
+
+	for(unsigned int i = packet2->start; i < packet2->end; i++) {
+		printf("%02x ", packet2->payload[packet2->start + i]);
+	}
+	printf("\n");
+
+	if(!send(packet2)) {
+		std::cerr << "Cannot forward packet" << std::endl;
+	}
+
 	packet->queueId = id;
 
-	std::cout << "Forwarding..." << std::endl;
+	std::cout << "forwarding original\n";
 	std::cout << packet << std::endl;
-	std::cout << ether << std::endl;
+
+	for(unsigned int i = packet->start; i < packet->end; i++) {
+		printf("%02x ", packet->payload[packet->start + i]);
+	}
+	printf("\n");
+
 	if(!send(packet)) {
 		std::cerr << "Cannot forward packet" << std::endl;
 	}
