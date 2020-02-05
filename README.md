@@ -37,7 +37,7 @@ make off		-> Uninstall xdp moudle forcely
 make teardown	-> destroy veth interface
 
 ## Terminal #1 (ping client)
-make etner								-> enter virtual environment
+make enter								-> enter virtual environment
 ip addr add 192.168.0.10/24 dev veth0	-> set veth0's IPv4 address
 ping 192.168.0.1						-> ping to XDP's user application
 
