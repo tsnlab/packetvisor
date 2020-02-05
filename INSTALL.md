@@ -33,7 +33,7 @@ sudo reboot
 sudo apt install vim git
 
 ## Prepare dependent libraries
-sudo apt install clang llvm gcc-multilib libelf-dev libpugixml-dev
+sudo apt install clang llvm gcc-multilib libelf-dev libpugixml-dev libtbb-dev
 sudo apt install ethtool
 
 ## git clone
