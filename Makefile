@@ -1,4 +1,4 @@
-.PHONY: all setup teardown enter run echo forward off clean examples libpv/libpv.so libpv/libpv.a xdp_user/pv xdp_kern/pv.o
+.PHONY: all setup teardown enter run echo forward loadbalancer off clean examples libpv/libpv.so libpv/libpv.a xdp_user/pv xdp_kern/pv.o
 
 RELEASE ?= 0
 ENV ?= veth
@@ -22,6 +22,9 @@ echo: all
 	sudo LD_LIBRARY_PATH=. ./pv -c examples/$@/config.xml
 
 forward: all
+	sudo LD_LIBRARY_PATH=. ./pv -c examples/$@/config.xml
+
+loadbalancer: all
 	sudo LD_LIBRARY_PATH=. ./pv -c examples/$@/config.xml
 
 off:
