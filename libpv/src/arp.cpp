@@ -41,7 +41,7 @@ uint8_t ARP::getHwSize() const {
 
 ARP* ARP::setHwSize(uint8_t size) {
 	CHECK(4, 1);
-	*OFFSET(2) = size;
+	*OFFSET(4) = size;
 	return this;
 }
 
@@ -52,7 +52,7 @@ uint8_t ARP::getProtoSize() const {
 
 ARP* ARP::setProtoSize(uint8_t size) {
 	CHECK(5, 1);
-	*OFFSET(2) = size;
+	*OFFSET(5) = size;
 	return this;
 }
 
