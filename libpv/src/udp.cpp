@@ -80,7 +80,7 @@ UDP* UDP::checksum() {
 	uint32_t sum = (uint16_t)~Protocol::checksum((uint8_t*)&pseudo, 0, sizeof(pseudo)) + (uint16_t)~Protocol::checksum(0, len);
 	while(sum >> 16)
 		sum = (sum & 0xffff) + (sum >> 16);
-	*(uint16_t*)OFFSET(16) = endian16(~sum);
+	*(uint16_t*)OFFSET(6) = endian16(~sum);
 
 	return this;
 }
