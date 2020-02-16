@@ -7,6 +7,8 @@
 #include <pv/driver.h>
 #include <pv/packet.h>
 
+#include "arp.hpp"
+
 class Interface: public pv::Packetlet {
 public:
 	Interface(uint32_t address, uint32_t netmask, uint32_t gateway);
@@ -30,7 +32,7 @@ private:
 	bool ICMPProcess(pv::Packet* packet);
 	void sendARPRequest(uint32_t address);
 
-	tbb::concurrent_unordered_map<uint32_t, uint64_t> arp_table;
+	tbb::concurrent_unordered_map<uint32_t, ARPEntry> arp_table;
 };
 
 #endif /*__INTERFACE_HPP__*/

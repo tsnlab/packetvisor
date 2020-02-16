@@ -3,6 +3,8 @@
 #include <pv/ipv4.h>
 #include <pv/icmp.h>
 
+#include <tbb/parallel_for.h>
+
 #include "interface.hpp"
 #include "lb.hpp"
 
@@ -71,7 +73,7 @@ bool Interface::ARPProcess(Packet* packet) {
 		uint32_t sip = arp->getSrcProto();
 
 		//TODO: check insert result
-		arp_table.insert({sip, smac});
+		arp_table.insert({sip, ARPEntry(smac, sip)});
 		return true;
 	}
 
@@ -107,16 +109,22 @@ void Interface::sendARPRequest(uint32_t address) {
 }
 
 uint64_t Interface::getDestHWAddr(uint32_t address) {
-	// TODO: garbage collection
-
 	auto it = arp_table.find(address);
 	if(it == arp_table.end()) {
-		// send arp request
 		sendARPRequest(address);
 
 		return 0xffffffffffff;
 	} else {
-		return it->second;
+		ARPEntry& arpEntry = it->second;
+		if(arpEntry.isTimeout()) {
+			sendARPRequest(address);
+			uint64_t mac = arpEntry.getMAC();
+			arp_table.unsafe_erase(address);
+
+			return mac;
+		}
+
+		return arpEntry.getMAC();
 	}
 }
 
