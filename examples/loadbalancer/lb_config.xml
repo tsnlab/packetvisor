@@ -1,0 +1,25 @@
+<loadbalancer>
+	<service>
+		<address>192.168.0.200</address>
+		<protocol>udp</protocol>
+		<port>7</port>
+		<schedule>rr</schedule>
+		<servers>
+			<server>
+				<address>10.0.0.200</address>
+				<port>8080</port>
+				<mode>nat</mode>
+			</server>
+			<server>
+				<address>10.0.0.200</address>
+				<port>8081</port>
+				<mode>nat</mode>
+			</server>
+			<server>
+				<address>10.0.0.200</address>
+				<port>8082</port>
+				<mode>nat</mode>
+			</server>
+		</servers>
+	</service>
+</loadbalancer>
