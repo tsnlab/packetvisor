@@ -13,10 +13,10 @@
 		<queue>0</queue>
 		<packetlet>
 			<path>examples/loadbalancer/loadbalancer.so</path>
-			<arg>192.168.0.100</arg>
-			<arg>255.255.255.0</arg>
-			<arg>192.168.0.254</arg>
-			<arg>examples/loadbalancer/lb_config.xml</arg>
+			<arg>192.168.0.100</arg> <!-- IPv4 address -->
+			<arg>255.255.255.0</arg> <!-- Netmask -->
+			<arg>192.168.0.254</arg> <!-- Gateway address -->
+			<arg>examples/loadbalancer/lb_config.xml</arg> <!-- Loadbalancer configuration file path -->
 		</packetlet>
 	</xdp>
 	<xdp dev="veth1">
@@ -30,9 +30,9 @@
 		<queue>0</queue>
 		<packetlet>
 			<path>examples/loadbalancer/loadbalancer.so</path>
-			<arg>10.0.0.10</arg>
-			<arg>255.255.255.0</arg>
-			<arg>10.0.0.254</arg>
+			<arg>10.0.0.10</arg> <!-- IPv4 address -->
+			<arg>255.255.255.0</arg> <!-- Netmask -->
+			<arg>10.0.0.254</arg> <!-- Gateway address -->
 		</packetlet>
 	</xdp>
 </packetvisor>
