@@ -28,7 +28,7 @@ Simple loadbalancer for packetvisor
 ## 2. Set network interface address & loadbalancer configuration path to packetlet parameter
 ```
 <packetvisor>
-	<xdp dev="veth0">
+	<xdp dev="veth0"> <!-- External Network -->
 		<packetlet>
 			<path>examples/loadbalancer/loadbalancer.so</path>
 			<arg>192.168.0.100</arg> <!-- IPv4 address -->
@@ -37,7 +37,50 @@ Simple loadbalancer for packetvisor
 			<arg>examples/loadbalancer/lb_config.xml</arg> <!-- Loadbalancer configuration file path -->
 		</packetlet>
 	</xdp>
+	<xdp dev="veth1"> <!-- Internal Network -->
+		<packetlet>
+			<path>examples/loadbalancer/loadbalancer.so</path>
+			<arg>10.0.0.10</arg> <!-- IPv4 address -->
+			<arg>255.255.255.0</arg> <!-- Netmask -->
+			<arg>192.168.0.254</arg> <!-- Gateway address -->
+			<arg>examples/loadbalancer/lb_config.xml</arg> <!-- Loadbalancer configuration file path -->
+		</packetlet>
+	</xdp>
 </packetvisor>
+```
+
+## 3. Start example
+
+```
+# Execute loadbalancer
+$ sudo ./testenv/testenv.sh setup --name veth0
+$ sudo ./testenv/testenv.sh setup --name veth1
+$ make loadbalancer
+```
+
+```
+# Set your client ip address
+$ sudo ./testenv/testenv.sh enter --name veth0
+# ip addr add 192.168.0.10/24
+```
+
+```
+# Set your server ip address
+$ sudo ./testenv/testenv.sh enter --name veth1
+# ip addr add 10.0.0.200/24
+# route add default gw 10.0.0.10
+```
+
+```
+# Run server
+$ sudo ./testenv/testenv.sh enter --name veth1
+# nc -l -p 8081
+```
+
+```
+# Request service
+$ sudo ./testenv/testenv.sh enter --name veth0
+# telnet 192.168.0.200 8080
 ```
 
 # TODO list
