@@ -55,7 +55,7 @@ pv::Packetlet* pv_packetlet(int argc, char** argv) {
 
 				uint8_t protocol;
 				if(_protocol.compare("udp") == 0) {
-					_protocol = IP_PROTOCOL_UDP;
+					protocol = IP_PROTOCOL_UDP;
 				} else if(_protocol.compare("tcp") == 0) {
 					protocol = IP_PROTOCOL_TCP;
 				} else {
