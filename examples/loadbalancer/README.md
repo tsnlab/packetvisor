@@ -117,7 +117,7 @@ $ sudo ./testenv/testenv.sh enter --name veth1
 Run client
 ```
 $ sudo ./testenv/testenv.sh enter --name veth0
-# nc -u 192.168.0.200 8080
+# nc -u 192.168.0.200 7
 ```
 
 # TODO list
