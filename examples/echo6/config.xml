@@ -1,0 +1,19 @@
+<packetvisor>
+	<umem>
+			<frames>4096</frames>
+	</umem>
+	<xdp dev="enp1s0">
+		<mac>00:90:27:e5:73:bc</mac>
+		<pcap>/tmp/pv</pcap>
+		<mode>auto</mode> <!-- auto, skb, native, offload -->
+		<polling>false</polling>
+		<copy>copy</copy> <!-- copy, zero -->
+		<program>pv.o</program>
+		<section>xdp_sock</section>
+		<queue>0</queue>
+		<packetlet>
+			<path>examples/echo6/echo6.so</path>
+			<arg>fc00::4</arg>
+		</packetlet>
+	</xdp>
+</packetvisor>
