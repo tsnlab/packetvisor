@@ -41,6 +41,8 @@ public:
 	uint32_t getOffset() const;
 	Protocol* setOffset(uint32_t offset);
 
+	Protocol* getParent() const;
+
 	virtual uint32_t getBodyOffset() const;
 
 	static uint16_t checksum(uint8_t* payload, uint32_t offset, uint32_t size);

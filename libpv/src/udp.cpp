@@ -64,6 +64,17 @@ UDP* UDP::setChecksum(uint16_t checksum) {
 	return this;
 }
 
+UDP* UDP::checksumWithPseudo(uint16_t pseudo_checksum) {
+	CHECK(6, 2);
+	*(uint16_t*)OFFSET(6) = 0;
+	uint32_t sum = pseudo_checksum + (uint16_t)~Protocol::checksum(0, getLength());
+	while(sum >> 16)
+		sum = (sum & 0xffff) + (sum >> 16);
+	*(uint16_t*)OFFSET(6) = endian16(~sum);
+
+	return this;
+}
+
 UDP* UDP::checksum() {
 	CHECK(6, 2);
 	*(uint16_t*)OFFSET(6) = 0;

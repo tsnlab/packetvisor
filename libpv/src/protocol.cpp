@@ -68,6 +68,10 @@ uint32_t Protocol::getBodyOffset() const {
 	return getEnd();
 }
 
+Protocol* Protocol::getParent() const {
+	return parent;
+}
+
 void Protocol::CHECK(uint32_t pos, uint32_t size) const {
 	if(packet->start + offset + pos + size > packet->end) {
 		char buf[160];

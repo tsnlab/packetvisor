@@ -104,9 +104,15 @@ ICMP6* ICMP6::setOFlag(uint8_t o) {
 	return this;
 }
 
-struct in6_addr ICMP6::getTarget() const {
+ICMP6* ICMP6::clearReserved() {
+	CHECK(4, 1);
+	*OFFSET(4) = *OFFSET(4) & 0xe0;
+	memset(OFFSET(5), 0x00, 3);
+}
+
+struct ip6_addr ICMP6::getTarget() const {
 	CHECK(8, 16);
-	struct in6_addr target = {};
+	struct ip6_addr target = {};
 	target.u.addr32[0] = *(uint32_t*)OFFSET(8);
 	target.u.addr32[1] = *(uint32_t*)OFFSET(12);
 	target.u.addr32[2] = *(uint32_t*)OFFSET(16);
@@ -114,7 +120,7 @@ struct in6_addr ICMP6::getTarget() const {
 	return target;
 }
 
-ICMP6* ICMP6::setTarget(struct in6_addr target) {
+ICMP6* ICMP6::setTarget(struct ip6_addr target) {
 	CHECK(8, 16);
 	*(uint32_t*)OFFSET(8) = target.u.addr32[0];
 	*(uint32_t*)OFFSET(12) = target.u.addr32[1];
@@ -178,6 +184,7 @@ ICMP6* ICMP6::setSeq(uint16_t seq) {
 	*(uint16_t*)OFFSET(6) = endian16(seq);
 	return this;
 }
+
 
 std::ostream& operator<<(std::ostream& out, const ICMP6& obj) {
 	out << &obj;

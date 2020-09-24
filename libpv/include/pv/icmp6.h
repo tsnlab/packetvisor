@@ -42,8 +42,10 @@ public:
 	uint8_t getOFlag() const;	///< for TYPE_NA
 	ICMP6* setOFlag(uint8_t o);
 
-	struct in6_addr getTarget() const;	///< for TYPE_NA, NS
-	ICMP6* setTarget(struct in6_addr target);
+	ICMP6* clearReserved();
+
+	struct ip6_addr getTarget() const;	///< for TYPE_NA, NS
+	ICMP6* setTarget(struct ip6_addr target);
 
 	uint8_t getOptLen() const;	///< for TYPE_NA, NS
 	ICMP6* setOptLen(uint8_t len);
@@ -59,6 +61,7 @@ public:
 
 	uint16_t getSeq() const;	///< for TYPE_ECHO_REQ, RES
 	ICMP6* setSeq(uint16_t seq);
+
 
 	friend std::ostream& operator<<(std::ostream& out, const ICMP6& obj);
 	friend std::ostream& operator<<(std::ostream& out, const ICMP6* obj);

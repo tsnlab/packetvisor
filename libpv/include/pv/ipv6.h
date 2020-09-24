@@ -8,17 +8,18 @@ namespace pv {
 
 #define IP_PROTOCOL_ICMP6	0x3A	///< IPv6 next header number for ICMPv6
 
-struct in6_addr {
+struct ip6_addr {
 	union {
 		uint8_t addr8[16];
 		uint16_t addr16[8];
 		uint32_t addr32[4];
+		uint64_t addr64[2];
 	} u;
 };
 
 struct IPv6_Pseudo {
-	struct in6_addr source;
-	struct in6_addr destination;
+	struct ip6_addr source;
+	struct ip6_addr destination;
 	uint32_t upper_len;
 	uint8_t zero[3];	// Reserved, fill zero
 	uint8_t next_hdr;
@@ -48,12 +49,14 @@ public:
 	uint8_t getHopLimit() const;
 	IPv6* setHopLimit(uint8_t hop_limit);
 
-	struct in6_addr getSrc() const;
-	IPv6* setSrc(struct in6_addr src);
+	struct ip6_addr getSrc() const;
+	IPv6* setSrc(struct ip6_addr src);
 
-	struct in6_addr getDst() const;
-	IPv6* setDst(struct in6_addr dst);
+	struct ip6_addr getDst() const;
+	IPv6* setDst(struct ip6_addr dst);
 	
+	uint16_t getPseudoChecksum() const;
+
 	virtual uint32_t getBodyOffset() const;
 
 	friend std::ostream& operator<<(std::ostream& out, const IPv6& obj);
