@@ -23,6 +23,7 @@ public:
 
 	uint16_t getChecksum() const;
 	UDP* setChecksum(uint16_t checksum);
+	UDP* checksumWithPseudo(uint16_t pseudo_checksum);
 	UDP* checksum();
 
 	uint32_t getBodyOffset() const;

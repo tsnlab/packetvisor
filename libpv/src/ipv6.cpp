@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <pv/ipv6.h>
 
+#include <string.h>
+
 namespace pv {
 
 IPv6::IPv6(Packet* packet, uint32_t offset) : Protocol(packet, offset) {
@@ -83,9 +85,9 @@ IPv6* IPv6::setHopLimit(uint8_t hop_limit) {
 	return this;
 }
 
-struct in6_addr IPv6::getSrc() const {
+struct ip6_addr IPv6::getSrc() const {
 	CHECK(8, 16);
-	struct in6_addr src = {};
+	struct ip6_addr src = {};
 	src.u.addr32[0] = *(uint32_t*)OFFSET(8);
 	src.u.addr32[1] = *(uint32_t*)OFFSET(12);
 	src.u.addr32[2] = *(uint32_t*)OFFSET(16);
@@ -93,7 +95,7 @@ struct in6_addr IPv6::getSrc() const {
 	return src;
 }
 
-IPv6* IPv6::setSrc(struct in6_addr src) {
+IPv6* IPv6::setSrc(struct ip6_addr src) {
 	CHECK(8, 16);
 	*(uint32_t*)OFFSET(8) = src.u.addr32[0];
 	*(uint32_t*)OFFSET(12) = src.u.addr32[1];
@@ -102,9 +104,9 @@ IPv6* IPv6::setSrc(struct in6_addr src) {
 	return this;
 }
 
-struct in6_addr IPv6::getDst() const {
+struct ip6_addr IPv6::getDst() const {
 	CHECK(24, 16);
-	struct in6_addr dst = {};
+	struct ip6_addr dst = {};
 	dst.u.addr32[0] = *(uint32_t*)OFFSET(24);
 	dst.u.addr32[1] = *(uint32_t*)OFFSET(28);
 	dst.u.addr32[2] = *(uint32_t*)OFFSET(32);
@@ -112,13 +114,24 @@ struct in6_addr IPv6::getDst() const {
 	return dst;
 }
 
-IPv6* IPv6::setDst(struct in6_addr dst) {
+IPv6* IPv6::setDst(struct ip6_addr dst) {
 	CHECK(24, 16);
 	*(uint32_t*)OFFSET(24) = dst.u.addr32[0];
 	*(uint32_t*)OFFSET(28) = dst.u.addr32[1];
 	*(uint32_t*)OFFSET(32) = dst.u.addr32[2];
 	*(uint32_t*)OFFSET(36) = dst.u.addr32[3];
 	return this;
+}
+
+uint16_t IPv6::getPseudoChecksum() const {
+	struct IPv6_Pseudo pseudo;
+	pseudo.source = getSrc();
+	pseudo.destination = getDst();
+	pseudo.upper_len = endian32(getPayLen());
+	memset(pseudo.zero, 0x00, 3);
+	pseudo.next_hdr = getNextHdr();
+
+	return (uint16_t)~Protocol::checksum((uint8_t*)&pseudo, 0, sizeof(pseudo));
 }
 
 uint32_t IPv6::getBodyOffset() const {
@@ -139,14 +152,14 @@ std::ostream& operator<<(std::ostream& out, const IPv6* obj) {
 	out << ", pay_len: " << std::to_string(obj->getPayLen());
 	out << ", next_hdr: " << std::to_string(obj->getNextHdr());
 	out << ", hop_limit: " << std::to_string(obj->getHopLimit());
-	struct in6_addr src = obj->getSrc();
+	struct ip6_addr src = obj->getSrc();
 	sprintf(buf, "%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x", 
 			endian16(src.u.addr16[0]),	endian16(src.u.addr16[1]), 
 			endian16(src.u.addr16[2]),	endian16(src.u.addr16[3]),
 			endian16(src.u.addr16[4]),	endian16(src.u.addr16[5]),
 			endian16(src.u.addr16[6]),	endian16(src.u.addr16[7]));
 	out << ", src: " << buf;
-	struct in6_addr dst = obj->getDst();
+	struct ip6_addr dst = obj->getDst();
 	sprintf(buf, "%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x", 
 			endian16(dst.u.addr16[0]),	endian16(dst.u.addr16[1]), 
 			endian16(dst.u.addr16[2]),	endian16(dst.u.addr16[3]),

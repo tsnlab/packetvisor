@@ -16,14 +16,14 @@ using namespace pv;
 
 class EchoPacketlet: public Packetlet {
 public:
-	struct pv::in6_addr addr;
-	EchoPacketlet(struct pv::in6_addr addr);
+	struct pv::ip6_addr addr;
+	EchoPacketlet(struct pv::ip6_addr addr);
 
 	void init(Driver* driver);
 	bool received(Packet* packet);
 };
 
-EchoPacketlet::EchoPacketlet(struct pv::in6_addr addr) : Packetlet() {
+EchoPacketlet::EchoPacketlet(struct pv::ip6_addr addr) : Packetlet() {
 	this->addr = addr;
 }
 
@@ -121,7 +121,7 @@ Packetlet* pv_packetlet(int argc, char** argv) {
 		std::cerr << "argv[1] must be an ip address, argc is " << std::to_string(argc) << std::endl;
 		return nullptr;
 	} else {
-		struct pv::in6_addr addr = {};
+		struct pv::ip6_addr addr = {};
 		inet_pton(AF_INET6, argv[1], &addr);
 		return new EchoPacketlet(addr);
 	}
