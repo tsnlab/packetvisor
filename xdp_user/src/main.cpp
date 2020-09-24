@@ -218,8 +218,8 @@ int main(int argc, char** argv) {
 	for(uint32_t i = 0; i < size; i++) {
 		pthread_join(threads[i], NULL);
 
-		delete drivers[i];
 		destroy(callbacks[i]);
+		delete drivers[i];
 	}
 
     dlclose(handle);
