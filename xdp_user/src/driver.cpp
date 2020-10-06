@@ -45,6 +45,12 @@ void XDPDriver::free_frame(uint64_t frame) {
 	pthread_spin_unlock(&umem.lock);
 }
 
+void XDPDriver::_free_frame(uint64_t frame) {
+	assert(umem.umem_frame_free < Config::umem->num_frames);
+
+	umem.umem_frame_addr[umem.umem_frame_free++] = frame;
+}
+
 XDPDriver::XDPDriver(XDPConfig* config) {
 	mac = config->mac;
 	payload_size = FRAME_SIZE;
@@ -286,17 +292,21 @@ void XDPDriver::flush() {
 
 	sendto(xsk_socket__fd(xsk.xsk), NULL, 0, MSG_DONTWAIT, NULL, 0);
 
+	pthread_spin_lock(&umem.lock);
+
 	/* Collect/free completed TX buffers */
 	completed = xsk_ring_cons__peek(&xsk.umem->cq,
 					XSK_RING_CONS__DEFAULT_NUM_DESCS,
 					&idx_cq);
 
+
 	if(completed > 0) {
 		for(unsigned int i = 0; i < completed; i++)
-			free_frame(*xsk_ring_cons__comp_addr(&xsk.umem->cq, idx_cq++));
+			_free_frame(*xsk_ring_cons__comp_addr(&xsk.umem->cq, idx_cq++));
 
 		xsk_ring_cons__release(&xsk.umem->cq, completed);
 	}
+	pthread_spin_unlock(&umem.lock);
 }
 
 bool XDPDriver::loop() {
