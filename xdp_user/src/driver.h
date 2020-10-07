@@ -56,6 +56,7 @@ protected:
 
 	uint64_t alloc_frame();
 	void free_frame(uint64_t frame);
+	void _free_frame(uint64_t frame);
 	
 public:
 	uint32_t		id;
