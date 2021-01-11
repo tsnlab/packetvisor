@@ -4,12 +4,10 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-struct pv_pkt {
-
-};
-
-struct pv_mempool {
-
+struct pv_packet {
+	uint8_t* payload;
+	uint16_t nic_id;
+	struct rte_mbuf* mbuf;
 };
 
 /**
@@ -22,14 +20,12 @@ struct pv_mempool {
  *   - The pointer to the allocated packet on succes.
  *   - NULL if allocation failed
  */
-struct pv_pkt* pv_pkt_alloc(struct pv_pkt_pool* pkt_pool);
+struct pv_packet* pv_packet_alloc();
 
 /**
  * Free an allocated packet.
  *
  */
-void pv_pkt_free(struct pv_pkt* pkt);
-
-struct pv_mempool* pv_pkt_pool_create(const char* name, unsigned int nb_pkt /*, cache_size, priv_size, data_room_size, socket_id(?)*/);
+void pv_packet_free(struct pv_packet* packet);
 
 #endif /* __PV_NET_PACKET_H__ */

@@ -4,9 +4,9 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#include <pv/net/pkt.h>
+#include <pv/packet.h>
 
-uint64_t pv_nic_mac_get();
+uint64_t pv_nic_get_mac(uint16_t nic_id);
 
 bool pv_nic_is_promisc();
 
@@ -17,7 +17,7 @@ bool pv_nic_is_promisc();
  *   - The pointer to the received packet on success.
  *   - NULL if receiving failed.
  */
-struct pv_pkt* pv_nic_rx(uint16_t nic_id, uint16_t queue_id);
+struct pv_packet* pv_nic_rx(uint16_t nic_id, uint16_t queue_id);
 
 /**
  * Receive packets from NIC
@@ -25,7 +25,7 @@ struct pv_pkt* pv_nic_rx(uint16_t nic_id, uint16_t queue_id);
  * @return
  *   The number of packets received to rx_buf.
  */
-uint16_t pv_nic_rx_burst(uint16_t nic_id, uint16_t queue_id, struct pv_pkt** rx_buf, uint16_t rx_buf_size);
+uint16_t pv_nic_rx_burst(uint16_t nic_id, uint16_t queue_id, struct pv_packet** rx_buf, uint16_t rx_buf_size);
 
 /**
  * Send a packet to NIC
@@ -34,7 +34,7 @@ uint16_t pv_nic_rx_burst(uint16_t nic_id, uint16_t queue_id, struct pv_pkt** rx_
  *   - True on success.
  *   - False if transmission failed.
  */
-bool pv_nic_tx(uint16_t nic_id, uint16_t queue_id, struct pv_pkt* pkt);
+bool pv_nic_tx(uint16_t nic_id, uint16_t queue_id, struct pv_packet* pkt);
 
 /**
  * Send packets to NIC
@@ -42,7 +42,7 @@ bool pv_nic_tx(uint16_t nic_id, uint16_t queue_id, struct pv_pkt* pkt);
  * @return
  *   The number of packets transmitted to NIC's tx_ring.
  */
-uint16_t pv_nic_tx_burst(uint16_t nic_id, uint16_t queue_id, struct pv_pkt** pkts, uint16_t nb_pkts);
+uint16_t pv_nic_tx_burst(uint16_t nic_id, uint16_t queue_id, struct pv_packet** pkts, uint16_t nb_pkts);
 
 
 #endif /* __PV_NIC_H__ */
