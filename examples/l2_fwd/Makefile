@@ -1,6 +1,13 @@
 .PHONY: shared clean
 
 APP = l2_fwd
+RELEASE ?= 1
+
+ifeq ($(RELEASE), 1)
+	CFLAGS=-O3
+else
+	CFLAGS=-O0 -g -fsanitize=address
+endif
 
 SRCS := main.c
 
@@ -11,7 +18,7 @@ shared: build/$(APP)-shared
 
 PKGCONF ?= pkg-config
 
-CFLAGS += -Wl,-rpath=/home/user/packetvisor/libpv
+CFLAGS += -Wl,-rpath=/home/neowine/packetvisor/libpv
 LDFLAGS_SHARED = -L../../libpv -lpv $(shell $(PKGCONF) --libs libdpdk)
 INCLUDE = -I ../../lipv/include
 

@@ -17,7 +17,7 @@ int pv_init(int argc, char** argv) {
 	printf("in %d\n", __LINE__);
 
 // static var start
-    char* dev_name = "0000:00:08.0";
+    char* dev_name = "0000:01:00.1";
     uint16_t nic_id = 0;
     uint16_t nb_rx_queue = 1;
     uint16_t nb_tx_queue = 1;

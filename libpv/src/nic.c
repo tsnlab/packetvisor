@@ -18,7 +18,6 @@ static bool pv_nic_get_dpdk_port_id(char* dev_name, uint16_t* port_id) {
 		if(rte_eth_dev_info_get(id, &dev_info) != 0)
 			return false;
 
-printf("nic : %s\n", dev_info.device->name);
 		if(strncmp(dev_info.device->name, dev_name, strlen(dev_info.device->name)) == 0) {
 			*port_id = id;
 			return true;
@@ -42,11 +41,24 @@ int pv_nic_init(char* dev_name, uint16_t nic_id, uint16_t nb_rx_queue, uint16_t 
 
 	nic_id_map[nic_id] = dpdk_port_id;
 
+	struct rte_eth_dev_info dev_info = {};
+	ret = rte_eth_dev_info_get(dpdk_port_id, &dev_info);
+	if(ret != 0) {
+		printf("%s %d\n", __FILE__, __LINE__);
+		return ret;
+	}
+
 	struct rte_eth_conf port_conf = {
 		.rxmode = {
 			.max_rx_pkt_len = RTE_ETHER_MAX_LEN,
 		},
 	};
+
+	if(dev_info.tx_offload_capa & DEV_TX_OFFLOAD_IPV4_CKSUM) {
+		port_conf.txmode.offloads |= DEV_TX_OFFLOAD_IPV4_CKSUM;
+		printf("INFO: IPv4 cksum tx_offload is set\n");
+	}
+
 	ret = rte_eth_dev_configure(dpdk_port_id, nb_rx_queue, nb_tx_queue, &port_conf);
 	if(ret != 0) {
 		printf("%s %d\n", __FILE__, __LINE__);
@@ -61,14 +73,8 @@ int pv_nic_init(char* dev_name, uint16_t nic_id, uint16_t nb_rx_queue, uint16_t 
 		}
 	}
 
-	struct rte_eth_dev_info dev_info = {};
-	ret = rte_eth_dev_info_get(dpdk_port_id, &dev_info);
-	if(ret != 0) {
-		printf("%s %d\n", __FILE__, __LINE__);
-		return ret;
-	}
-
 	struct rte_eth_txconf txconf = dev_info.default_txconf;
+	txconf.offloads = port_conf.txmode.offloads;
 	ret = rte_eth_tx_queue_setup(dpdk_port_id, 0, tx_queue_size, SOCKET_ID_ANY, &txconf);
 	if(ret < 0) {
 		printf("%s %d\n", __FILE__, __LINE__);
@@ -88,9 +94,9 @@ bool pv_nic_set_promisc(uint16_t nic_id, bool enable) {
 }
 
 int pv_nic_start(uint16_t nic_id) {
-    uint16_t dpdk_port_id = nic_id_map[nic_id];
+	uint16_t dpdk_port_id = nic_id_map[nic_id];
 
-    return rte_eth_dev_start(dpdk_port_id);
+	return rte_eth_dev_start(dpdk_port_id);
 }
 
 uint64_t pv_nic_get_mac(uint16_t nic_id) {
@@ -133,7 +139,7 @@ uint16_t pv_nic_rx_burst(uint16_t nic_id, uint16_t queue_id, struct pv_packet** 
 	uint16_t nrecv = rte_eth_rx_burst(port_id, queue_id, (struct rte_mbuf**)rx_buf, rx_buf_size);
 	if(nrecv == 0)
 		return nrecv;
-	
+
 	for(uint16_t i = 0; i < nrecv; i++) {
 		struct rte_mbuf* mbuf = (struct rte_mbuf*)rx_buf[i];
 		struct pv_packet* packet = mbuf->buf_addr;
@@ -168,6 +174,7 @@ uint16_t pv_nic_tx_burst(uint16_t nic_id, uint16_t queue_id, struct pv_packet* p
 
 	for(uint16_t i = 0; i < nb_pkts; i++) {
 		tx_buf[i] = pkts[i]->mbuf;
+		tx_buf[i]->ol_flags = (tx_buf[i]->ol_flags | PKT_TX_IPV4 | PKT_TX_IP_CKSUM);
 	}
 
 	return rte_eth_tx_burst(port_id, queue_id, tx_buf, nb_pkts);
