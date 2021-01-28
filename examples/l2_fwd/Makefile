@@ -3,10 +3,14 @@
 APP = l2_fwd
 RELEASE ?= 1
 
+ifeq ($(PV_HOME),)
+PV_HOME = $(word 1, $(subst /examples, , $(realpath $(lastword $(MAKEFILE_LIST)))))
+endif
+
 ifeq ($(RELEASE), 1)
-	CFLAGS=-O3
+	CFLAGS=-Wl,-rpath=$(PV_HOME)/libpv -O3
 else
-	CFLAGS=-O0 -g -fsanitize=address
+	CFLAGS=-Wl,-rpath=$(PV_HOME)/libpv -O0 -g -fsanitize=address
 endif
 
 SRCS := main.c
@@ -18,13 +22,12 @@ shared: build/$(APP)-shared
 
 PKGCONF ?= pkg-config
 
-CFLAGS += -Wl,-rpath=/home/neowine/packetvisor/libpv
-LDFLAGS_SHARED = -L../../libpv -lpv $(shell $(PKGCONF) --libs libdpdk)
-INCLUDE = -I ../../lipv/include
+LDFLAGS_SHARED = -L $(PV_HOME)/libpv -lpv
+INCLUDE = -I $(PV_HOME)/libpv/include
 
 
 build/$(APP)-shared: $(SRCS) | build
-	$(CC) $(CFLAGS) $(SRCS) -o $@ -I ../../libpv/include $(LDFLAGS) $(LDFLAGS_SHARED)
+	$(CC) $(CFLAGS) $(SRCS) -o $@ $(INCLUDE) $(LDFLAGS) $(LDFLAGS_SHARED)
 
 build:
 	@mkdir -p $@

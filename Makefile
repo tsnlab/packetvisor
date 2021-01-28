@@ -1,14 +1,15 @@
-.PHONY: all libpv/libpv.so examples
+.PHONY: all libpv.so examples clean
 
-RELEASE ?= 0
+RELEASE ?= 1
 
 all: libpv.so examples
 
-libpv/libpv.so:
+libpv.so:
 	make -C libpv RELEASE=$(RELEASE)
 
-libpv.so:
-	cp $^ $@
-
 examples:
-	make -C examples
+	make -C examples RELEASE=$(RELEASE)
+
+clean:
+	make -C examples clean
+	make -C libpv clean

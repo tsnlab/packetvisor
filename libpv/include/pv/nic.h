@@ -6,9 +6,11 @@
 
 #include <pv/packet.h>
 
-uint64_t pv_nic_get_mac(uint16_t nic_id);
+bool pv_nic_get_mac(uint16_t nic_id, uint64_t* mac_addr);
 
-bool pv_nic_is_promisc();
+bool pv_nic_get_ipv4(uint16_t nic_id, uint32_t* ipv4_addr);
+
+bool pv_nic_get_promisc(uint16_t nic_id, bool* is_promisc);
 
 /**
  * Receive a packet from NIC

@@ -3,8 +3,7 @@
 #include <pv/pv.h>
 #include <pv/nic.h>
 #include <pv/net/ethernet.h>
-#include <pv/net/ip.h>
-#include <pv/net/udp.h>
+#include <pv/net/ipv4.h>
 
 uint64_t mac;
 
@@ -22,29 +21,25 @@ int process(struct pv_packet* packet) {
 	ip->dst = src_ip;
 	ip->checksum = 0;
 
-	if(ip->proto != PV_IP_PROTO_UDP)
-		return 0;
-
-	struct pv_udp* udp = (struct pv_udp*)PV_IPv4_DATA(ip);
-	uint16_t src_port = udp->srcport;
-	udp->srcport = udp->dstport;
-	udp->dstport = src_port;
-	udp->checksum = 0;
-
 	return 0;
 }
 
 int main(int argc, char** argv) {
 	int ret = pv_init(argc, argv);
-	printf("pv_init(): %d\n", ret);
+	if(ret != 0) {
+		printf("Failed to init pv\n");
+		return ret;
+	}
 
-	mac = pv_nic_get_mac(0);
-	printf("mac : %lx\n", mac);
+	pv_debug();
 
-	struct pv_packet* pkt_buf[100] = {};
+	pv_nic_get_mac(0, &mac);
+	printf("mac: %lx\n", mac);
+
+	struct pv_packet* pkt_buf[1024] = {};
 
 	while(1) {
-		uint16_t nrecv = pv_nic_rx_burst(0, 0, pkt_buf, 100);
+		uint16_t nrecv = pv_nic_rx_burst(0, 0, pkt_buf, 1024);
 		if(nrecv == 0) {
 			continue;
 		}
@@ -56,7 +51,6 @@ int main(int argc, char** argv) {
 		uint16_t nsent = pv_nic_tx_burst(0, 0, pkt_buf, nrecv);
 		if(nsent == 0) {
 			printf("nsent is 0\n");
-			return 1;
 		}
 
 	}

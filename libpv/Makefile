@@ -13,8 +13,8 @@ endif
 PKGCONF ?= pkg-config
 
 LIBS=-ldl
-CFLAGS += $(shell $(PKGCONF) --cflags libdpdk)
-LIBS += $(shell $(PKGCONF) --libs libdpdk) -lrte_net_e1000
+CFLAGS += $(shell $(PKGCONF) --cflags libdpdk libfyaml)
+LIBS += $(shell $(PKGCONF) --libs libdpdk libfyaml)
 
 OBJS=$(patsubst src/%.c, obj/%.o, $(wildcard src/*.c))
 
@@ -25,7 +25,7 @@ clean:
 	rm -f $(TARGET).so
 
 $(TARGET).so: $(OBJS)
-	$(CC) $(CFLAGS) -shared -o $@ $(filter %.o, $^)
+	$(CC) $(CFLAGS) -shared -o $@ $(filter %.o, $^) $(LIBS)
 
 $(TARGET).a: $(OBJS)
 	ar rc $@ $(filter %.o, $^)
@@ -33,7 +33,7 @@ $(TARGET).a: $(OBJS)
 obj/%.d : src/%.c
 	mkdir -p obj; $(CC) $(CFLAGS) -M $< > $@
 
--include $(patsubst src/%.c, obj/%.d, $(wildcard src/*.c))  
+#-include $(patsubst src/%.c, obj/%.d, $(wildcard src/*.c))  
 
 obj/%.o: src/%.c
 	mkdir -p obj; $(CC) $(CFLAGS) -c -o $@ $^

@@ -1,9 +1,0 @@
-obj
-libbpf.so*
-libpv.so
-libpv.a
-/pv
-xdp_user/pv
-pv.o
-*.swp
-*.so
