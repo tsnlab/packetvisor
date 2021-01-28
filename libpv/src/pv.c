@@ -17,7 +17,6 @@ int pv_init(int argc, char** argv) {
 		printf("Faild to parse config\n");
 		return -1;
 	}
-	pv_config_print(config);
 
 	int new_argc = argc;
 	char* new_argv[MAX_ARGC] = {};
@@ -36,13 +35,9 @@ int pv_init(int argc, char** argv) {
 		core_mask[config->cores[i] / 128] |= (1 << (config->cores[i] % 128));
 	}
 	snprintf(core_mask_buf, sizeof(core_mask_buf), "0x%lx%lx", core_mask[1], core_mask[0]);
-	printf("coremask : %s\n", core_mask_buf);
 
 	new_argv[new_argc++] = "-c";
 	new_argv[new_argc++] = core_mask_buf;
-	for(int i = 0; i < new_argc; i++) {
-	printf("argv[%d]: %s\n", i, new_argv[i]);
-		}
 
 	int ret = rte_eal_init(new_argc, new_argv);
 	if(ret < 0) {
@@ -61,6 +56,8 @@ int pv_init(int argc, char** argv) {
 	}
 
 	// TODO create global shared memory
+
+	// TODO set log level
 
 	// init nics
 	ret = pv_nic_init(config->nics_count, mbuf_pool);
@@ -118,9 +115,4 @@ int pv_start_core(unsigned int core_id, pv_core_function_t* func, void* context)
 
 int pv_wait_core(unsigned int core_id) {
 	return rte_eal_wait_lcore(core_id);
-}
-
-void pv_debug() {
-	printf("nic count: %d\n", rte_eth_dev_count_avail());
-	printf("core count: %d\n", rte_lcore_count());
 }

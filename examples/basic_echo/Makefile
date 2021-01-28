@@ -1,6 +1,6 @@
 .PHONY: shared clean
 
-APP = l2_fwd
+APP = basic_echo
 RELEASE ?= 1
 
 ifeq ($(PV_HOME),)

@@ -98,15 +98,22 @@ int pv_nic_add(uint16_t nic_id, char* dev_name, uint16_t nb_rx_queue, uint16_t n
 		},
 	};
 
-	// set offload
+	// set rx offload
 	port_conf.rxmode.offloads |= (dev_info.rx_offload_capa & rx_offloads);
+	nics[nic_id].rx_offload_mask = port_conf.rxmode.offloads;
+
+	// print debug msg
 	uint32_t rx_incapa = (dev_info.rx_offload_capa & rx_offloads) ^ rx_offloads;
 	for(int i = 0; i < sizeof(rx_off_types) / sizeof(rx_off_types[0]); i++) {
 		if(rx_incapa & rx_off_types[i].mask)
 			printf("NIC doesn't support rx_offload: '%s'.\n", rx_off_types[i].name);
 	}
 
+	// set tx offload
 	port_conf.txmode.offloads |= (dev_info.tx_offload_capa & tx_offloads);
+	nics[nic_id].tx_offload_mask = port_conf.txmode.offloads;
+
+	// print debug msg
 	uint32_t tx_incapa = (dev_info.tx_offload_capa & tx_offloads) ^ tx_offloads;
 	for(int i = 0; i < sizeof(tx_off_types) / sizeof(tx_off_types[0]); i++) {
 		if(tx_incapa & tx_off_types[i].mask)
@@ -265,11 +272,13 @@ uint16_t pv_nic_tx_burst(uint16_t nic_id, uint16_t queue_id, struct pv_packet* p
 
 	for(uint16_t i = 0; i < nb_pkts; i++) {
 		tx_buf[i] = pkts[i]->mbuf;
-		// l3 checksum offload
-		tx_buf[i]->ol_flags = (tx_buf[i]->ol_flags | PKT_TX_IPV4 | PKT_TX_IP_CKSUM);
-		tx_buf[i]->l2_len = 14;
-		tx_buf[i]->l3_len = 20;
-		// l3 checksum offload
+
+		// l3 checksum offload. TODO refactor offloading code
+		if(nics[nic_id].tx_offload_mask & DEV_TX_OFFLOAD_IPV4_CKSUM) {
+			tx_buf[i]->ol_flags = (tx_buf[i]->ol_flags | PKT_TX_IPV4 | PKT_TX_IP_CKSUM);
+			tx_buf[i]->l2_len = 14;	// TODO calculate the value from header
+			tx_buf[i]->l3_len = 20;
+		}
 	}
 
 	return rte_eth_tx_burst(port_id, queue_id, tx_buf, nb_pkts);

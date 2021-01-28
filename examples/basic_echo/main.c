@@ -31,8 +31,6 @@ int main(int argc, char** argv) {
 		return ret;
 	}
 
-	pv_debug();
-
 	pv_nic_get_mac(0, &mac);
 	printf("mac: %lx\n", mac);
 

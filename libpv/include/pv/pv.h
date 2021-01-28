@@ -15,6 +15,4 @@ int pv_start_core(unsigned int core_id, pv_core_function_t* func, void* context)
 
 int pv_wait_core(unsigned int core_id);
 
-void pv_debug();
-
 #endif /* __PV_CORE_PV_H__ */
