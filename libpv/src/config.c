@@ -6,7 +6,7 @@
 #include "internal_nic.h"	// for offload type list
 #include <libfyaml.h>
 
-static const char* DEFAULT_CONFIG_PATH = "./config.yaml";
+static const char* DEFAULT_CONFIG_PATH = "./.tmp_config.yaml";
 
 struct pv_offload_type rx_off_types[19] = {
 	{"vlan_strip", DEV_RX_OFFLOAD_VLAN_STRIP},
@@ -264,6 +264,35 @@ struct pv_config* pv_config_create() {
 			goto fail;
 	}
 
+	// get eal_params
+	struct fy_node* eal_params_node = fy_node_by_path(fy_document_root(fyd), "/eal_params", strlen("/eal_params"), FYNWF_DONT_FOLLOW);
+	if(eal_params_node == NULL) {
+		printf("Failed to parse '/eal_params'\n");
+		goto fail;
+	}
+
+	config->eal_params_count = fy_node_sequence_item_count(eal_params_node);
+	if(config->eal_params_count < 1) {
+		printf("Invalid eal_params count: %d\n", config->eal_params_count);
+		goto fail;
+	}
+
+	config->eal_params = calloc(config->eal_params_count, sizeof(char*));
+	if(config->eal_params == NULL) {
+		printf("Failed to alloc memory for 'config->eal_params'\n");
+		goto fail;
+	}
+
+	iter = NULL;
+	for(int i = 0; i < config->eal_params_count; i++) {
+		struct fy_node* item = fy_node_sequence_iterate(eal_params_node, &iter);
+		config->eal_params[i] = strdup(fy_node_get_scalar0(item));
+		if(config->eal_params[i] == NULL) {
+			printf("Failed to alloc memory for 'config->eal_params[%d]: %s'\n", i, fy_node_get_scalar0(item));
+			goto fail;
+		}
+	}
+
 	fy_document_destroy(fyd);
 
 	return config;
@@ -289,6 +318,12 @@ void pv_config_destroy(struct pv_config* config) {
 	
 	if(config->nics != NULL)
 		free(config->nics);
+
+	if(config->eal_params != NULL) {
+		for(int i = 0; i < config->eal_params_count; i++)
+			free(config->eal_params[i]);
+		free(config->eal_params);
+	}
 
 	free(config);
 }
@@ -336,6 +371,12 @@ void pv_config_print(struct pv_config* config) {
 		for(int i = 0; i < sizeof(tx_off_types) / sizeof(tx_off_types[0]); i++) {
 			if(config->nics[nic_id].tx_offloads & tx_off_types[i].mask)
 				printf(" %s,", tx_off_types[i].name);
+		}
+		printf("\b  ]\n");
+
+		printf("    eal_params: [ ");
+		for(int i = 0; i < config->eal_params_count; i++) {
+			printf(" %s,", config->eal_params[i]);
 		}
 		printf("\b  ]\n");
 	}

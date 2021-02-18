@@ -19,6 +19,7 @@ all: shared
 
 shared: build/$(APP)-shared
 	ln -sf $(APP)-shared build/$(APP)
+	cp build/$(APP) $(APP)
 
 PKGCONF ?= pkg-config
 
@@ -34,4 +35,5 @@ build:
 
 clean:
 	rm -rf build
+	rm -f $(APP)
 

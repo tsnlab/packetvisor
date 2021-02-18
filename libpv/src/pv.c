@@ -17,36 +17,27 @@ int pv_init(int argc, char** argv) {
 		printf("Faild to parse config\n");
 		return -1;
 	}
-
-	int new_argc = argc;
-	char* new_argv[MAX_ARGC] = {};
-	memcpy(new_argv, argv, argc * sizeof(char*));
-
-	// create core mask parameter 
-	uint64_t core_mask[2] = {};
-	char core_mask_buf[40] = {};
-
-	for(int i = 0; i < config->cores_count; i++) {
-		if(config->cores[i] < 0 || config->cores[i] > 127) {
-			printf("Core index must be between 0~127.\n");
-			pv_config_destroy(config);
-			return -1;
-		}
-		core_mask[config->cores[i] / 128] |= (1 << (config->cores[i] % 128));
+	
+	// call rte_eal_init. rte_eal_init reorder argv internally, use copy of eal_params
+	void* tmp_argv = calloc(config->eal_params_count, sizeof(char*));
+	if(tmp_argv == NULL) {
+		printf("Failed to alloc memory for pv_argv\n");
+		pv_config_destroy(config);
+		return -1;
 	}
-	snprintf(core_mask_buf, sizeof(core_mask_buf), "0x%lx%lx", core_mask[1], core_mask[0]);
+	memcpy(tmp_argv, config->eal_params, sizeof(char*) * config->eal_params_count);
 
-	new_argv[new_argc++] = "-c";
-	new_argv[new_argc++] = core_mask_buf;
-
-	int ret = rte_eal_init(new_argc, new_argv);
+	int ret = rte_eal_init(config->eal_params_count, tmp_argv);
 	if(ret < 0) {
 		pv_config_destroy(config);
+		free(tmp_argv);
 		return ret;
 	}
+	free(tmp_argv);
+
 
 	// init packet_pool
-	uint16_t priv_size = sizeof(struct pv_packet);
+	uint16_t priv_size = sizeof(struct pv_packet); // TODO + 128 bytes padding;
 	priv_size = RTE_ALIGN(priv_size, RTE_MBUF_PRIV_ALIGN);
 	struct rte_mempool* mbuf_pool = rte_pktmbuf_pool_create("PV", config->memory.packet_pool, 250, priv_size, RTE_MBUF_DEFAULT_BUF_SIZE, SOCKET_ID_ANY);
 	if(mbuf_pool == NULL) {

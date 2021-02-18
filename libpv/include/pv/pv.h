@@ -1,5 +1,5 @@
-#ifndef __PV_CORE_PV_H__
-#define __PV_CORE_PV_H__
+#ifndef __PV_PV_H__
+#define __PV_PV_H__
 
 #include <rte_lcore.h>
 
@@ -15,4 +15,4 @@ int pv_start_core(unsigned int core_id, pv_core_function_t* func, void* context)
 
 int pv_wait_core(unsigned int core_id);
 
-#endif /* __PV_CORE_PV_H__ */
+#endif /* __PV_PV_H__ */

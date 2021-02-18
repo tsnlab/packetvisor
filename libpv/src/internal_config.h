@@ -37,6 +37,9 @@ struct pv_config {
 
 	struct pv_config_nic* nics;
 	int nics_count;
+
+	char** eal_params;
+	int eal_params_count;
 };
 
 struct pv_config* pv_config_create();
