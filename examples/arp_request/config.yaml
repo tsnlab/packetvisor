@@ -1,0 +1,16 @@
+cores: [0, 1]
+memory:
+  packet_pool: 2048
+  shared_memory: 1024
+log_level: debug
+nics:
+  - dev: 'eno1'
+    mac: '00:11:22:33:44:55'
+    ipv4: '192.168.0.10'
+    ipv6: auto
+    rx_queue: 1024
+    tx_queue: 1024
+    promisc: false
+    rx_offloads: [vlan_strip,]
+    tx_offloads: [ipv4_cksum, ]
+

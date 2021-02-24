@@ -1,57 +1,40 @@
-#pragma once
+#ifndef __PV_NET_PACKET_H__
+#define __PV_NET_PACKET_H__
 
-#include <iostream>
-#include <stdbool.h>
 #include <stdint.h>
-#include <pv/driver.h>
+#include <stdbool.h>
 
-namespace pv {
-
-class Packet;
-
-class Packetlet {
-protected:
-	Driver*		driver;
-	int32_t		id;
-	void*		handle;
-
-public:
-	Packetlet();
-	virtual ~Packetlet();
-
-	virtual void init(Driver* driver);
-
-	void setId(int32_t id);
-	int32_t getId();
-
-	void setHandle(void* handle);
-	void* getHandle();
-
-	Packet* alloc();
-	void drop(Packet* packet);
-
-	virtual bool received(Packet* packet);
-	bool send(Packet* packet);
+struct pv_packet {
+	uint8_t* payload;
+	uint32_t payload_len;
+	uint16_t nic_id;
+	struct rte_mbuf* mbuf;
 };
 
-class Protocol;
+/**
+ * Allocate a new packet.
+ *
+ * @param pkt_pool
+ *   Preallocated packet pool. Use default packet pool if the param is NULL.
+ *
+ * @return
+ *   - The pointer to the allocated packet on success.
+ *   - NULL if allocation failed
+ */
+struct pv_packet* pv_packet_alloc();
 
-class Packet {
-public:
-	uint32_t	queueId;
-	uint8_t*	payload;
-	uint32_t	start;
-	uint32_t	end;
-	uint32_t	size;
-	Protocol*	protocol;
+/**
+ * Free an allocated packet.
+ *
+ */
+void pv_packet_free(struct pv_packet* packet);
 
-	Packet(uint32_t queueId, uint8_t* payload, uint32_t start, uint32_t end, uint32_t size);
-	virtual ~Packet();
+bool pv_packet_add_head_paylen(struct pv_packet* packet, uint32_t len);
 
-	friend std::ostream& operator<<(std::ostream& out, const Packet& obj);
-	friend std::ostream& operator<<(std::ostream& out, const Packet* obj);
-};
+bool pv_packet_remove_head_paylen(struct pv_packet* packet, uint32_t len);
 
-typedef Packetlet* (*packetlet)(int argc, char** argv);	// Packetlet* pv_packetlet();
+bool pv_packet_add_tail_paylen(struct pv_packet* packet, uint32_t len);
 
-}; // namespace pv
+bool pv_packet_add_tail_paylen(struct pv_packet* packet, uint32_t len);
+
+#endif /* __PV_NET_PACKET_H__ */

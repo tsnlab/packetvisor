@@ -1,36 +1,39 @@
-.PHONY: all run test clean cleanall
+.PHONY: all run clean
 
 TARGET=libpv
-RELEASE ?= 0
-CC=g++
+RELEASE ?= 1
+CC=gcc
 
 ifeq ($(RELEASE), 1)
-	CFLAGS=-Iinclude -Wall -std=c++11 -fPIC -O3
+	CFLAGS=-Iinclude -Wall -fPIC -O3
 else
-	CFLAGS=-Iinclude -Wall -std=c++11 -fPIC -O0 -g -fsanitize=address
+	CFLAGS=-Iinclude -Wall -fPIC -O0 -g -fsanitize=address
 endif
 
+PKGCONF ?= pkg-config
+
 LIBS=-ldl
+CFLAGS += $(shell $(PKGCONF) --cflags libdpdk libfyaml)
+LIBS += $(shell $(PKGCONF) --libs libdpdk libfyaml)
 
-OBJS=$(patsubst src/%.cpp, obj/%.o, $(wildcard src/*.cpp))
+OBJS=$(patsubst src/%.c, obj/%.o, $(wildcard src/*.c))
 
-all: $(TARGET).so $(TARGET).a
+all: $(TARGET).so
 
 clean:
 	rm -rf obj
 	rm -f $(TARGET).so
-	rm -f $(TARGET).a
 
 $(TARGET).so: $(OBJS)
-	$(CC) $(CFLAGS) $(LIBS) -shared -o $@ $(filter %.o, $^)
+	$(CC) $(CFLAGS) -shared -o $@ $(filter %.o, $^) $(LIBS)
 
 $(TARGET).a: $(OBJS)
 	ar rc $@ $(filter %.o, $^)
 
-obj/%.d : src/%.cpp
+obj/%.d : src/%.c
 	mkdir -p obj; $(CC) $(CFLAGS) -M $< > $@
 
--include $(patsubst src/%.cpp, obj/%.d, $(wildcard src/*.cpp))  
+#-include $(patsubst src/%.c, obj/%.d, $(wildcard src/*.c))  
 
-obj/%.o: src/%.cpp
+obj/%.o: src/%.c
 	mkdir -p obj; $(CC) $(CFLAGS) -c -o $@ $^

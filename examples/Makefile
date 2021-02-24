@@ -4,11 +4,10 @@ EXAMPLES=$(filter-out Makefile, $(wildcard *))
 
 all: ${EXAMPLES}
 	for dir in $^ ; do \
-		make -C $${dir} ; \
+		make -C $${dir} RELEASE=$(RELEASE) ; \
 	done
 
 clean: ${EXAMPLES}
 	for dir in $^ ; do \
-		make -C $${dir} clean; \
+		make -C $${dir} clean ; \
 	done
-	
