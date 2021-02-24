@@ -13,6 +13,11 @@ bool pv_nic_get_ipv4(uint16_t nic_id, uint32_t* ipv4_addr);
 bool pv_nic_get_promisc(uint16_t nic_id, bool* is_promisc);
 
 /**
+ * Return the number of available nic
+*/
+uint16_t pv_nic_get_avail_count();
+
+/**
  * Receive a packet from NIC
  *
  * @return

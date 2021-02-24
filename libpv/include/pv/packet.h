@@ -6,6 +6,7 @@
 
 struct pv_packet {
 	uint8_t* payload;
+	uint32_t payload_len;
 	uint16_t nic_id;
 	struct rte_mbuf* mbuf;
 };
@@ -17,7 +18,7 @@ struct pv_packet {
  *   Preallocated packet pool. Use default packet pool if the param is NULL.
  *
  * @return
- *   - The pointer to the allocated packet on succes.
+ *   - The pointer to the allocated packet on success.
  *   - NULL if allocation failed
  */
 struct pv_packet* pv_packet_alloc();
@@ -27,5 +28,13 @@ struct pv_packet* pv_packet_alloc();
  *
  */
 void pv_packet_free(struct pv_packet* packet);
+
+bool pv_packet_add_head_paylen(struct pv_packet* packet, uint32_t len);
+
+bool pv_packet_remove_head_paylen(struct pv_packet* packet, uint32_t len);
+
+bool pv_packet_add_tail_paylen(struct pv_packet* packet, uint32_t len);
+
+bool pv_packet_add_tail_paylen(struct pv_packet* packet, uint32_t len);
 
 #endif /* __PV_NET_PACKET_H__ */

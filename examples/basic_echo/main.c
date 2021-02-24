@@ -25,7 +25,7 @@ int process(struct pv_packet* packet) {
 }
 
 int main(int argc, char** argv) {
-	int ret = pv_init(argc, argv);
+	int ret = pv_init();
 	if(ret != 0) {
 		printf("Failed to init pv\n");
 		return ret;

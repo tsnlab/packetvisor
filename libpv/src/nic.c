@@ -7,7 +7,10 @@
 #include <rte_ethdev.h>
 #include <rte_mbuf.h>
 
-extern struct rte_mempool* pv_mbuf_pool;
+extern struct pv_offload_type rx_off_types[19];	// config.c
+extern struct pv_offload_type tx_off_types[22];	// config.c
+extern struct rte_mempool* pv_mbuf_pool;	// packet.c
+extern struct pv_packet* pv_mbuf_to_packet(struct rte_mbuf* mbuf, uint16_t nic_id);	// packet.c
 
 struct pv_nic {
 	uint16_t dpdk_port_id;
@@ -22,8 +25,6 @@ struct pv_nic {
 static struct pv_nic* nics;
 static uint16_t nics_count;
 
-extern struct pv_offload_type rx_off_types[19];
-extern struct pv_offload_type tx_off_types[22];
 
 static bool pv_nic_get_dpdk_port_id(char* dev_name, uint16_t* port_id) {
 	uint16_t id;
@@ -210,6 +211,10 @@ int pv_nic_start(uint16_t nic_id) {
 	return rte_eth_dev_start(nics[nic_id].dpdk_port_id);
 }
 
+uint16_t pv_nic_avail_count() {
+	return nics_count;
+}
+
 /**
  * Receive a packet from NIC
  *
@@ -237,12 +242,7 @@ uint16_t pv_nic_rx_burst(uint16_t nic_id, uint16_t queue_id, struct pv_packet** 
 
 	for(uint16_t i = 0; i < nrecv; i++) {
 		struct rte_mbuf* mbuf = (struct rte_mbuf*)rx_buf[i];
-		struct pv_packet* packet = mbuf->buf_addr;
-		packet->mbuf = mbuf;
-		packet->payload = rte_pktmbuf_mtod(mbuf, void*);
-		packet->nic_id = nic_id;
-
-		rx_buf[i] = packet;
+		rx_buf[i] = pv_mbuf_to_packet(mbuf, nic_id);
 	}
 
 	return nrecv;

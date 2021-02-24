@@ -152,15 +152,14 @@ def main(arg):
     for nic in config.get('nics'):
         subprocess.call(["sudo", "dpdk-devbind.py", "-b=" + PMD, nic['dev']])
 
-    # the tmp_config created here will be parsed from app's pv_init()
-    tmp_config_path = '.tmp_' + os.path.basename(config_path)
-    with open(tmp_config_path, 'w') as f:
-        yaml.dump(config, f, default_flow_style=True)
+    # the 'PACKETVISOR_TMP_CONFIG' env created here will be parsed from app's pv_init()
+    app_env = os.environ.copy()
+    app_env['PACKETVISOR_TMP_CONFIG'] = yaml.dump(config, default_flow_style=True)
 
     # start app
     print("PV: start app...")
     print("\n------------------------------------------------------------\n")
-    proc = subprocess.Popen(["sudo", "-S", app_path], start_new_session=True)
+    proc = subprocess.Popen(["sudo", "-E", app_path], start_new_session=True, env=app_env)
 
     def handler(signum, frame):
         proc.send_signal(signum)
@@ -168,9 +167,6 @@ def main(arg):
     default_handler = signal.signal(signal.SIGINT, handler)
     proc.wait()
     signal.signal(signal.SIGINT, default_handler)
-
-    # remove tmp_config
-    os.remove(tmp_config_path)
 
     # unbind nics
     print("\n------------------------------------------------------------\n")

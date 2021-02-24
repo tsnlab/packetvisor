@@ -1,4 +1,4 @@
-cores: [0]
+cores: [0, 1]
 memory:
   packet_pool: 2048
   shared_memory: 1024

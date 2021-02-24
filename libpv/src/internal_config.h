@@ -28,8 +28,8 @@ struct pv_config_nic {
 };
 
 struct pv_config {
-	uint16_t* cores;
-	int cores_count;
+	uint32_t* cores;
+	uint32_t cores_count;
 
 	struct pv_config_memory memory;
 

@@ -6,7 +6,7 @@
 #include "internal_nic.h"	// for offload type list
 #include <libfyaml.h>
 
-static const char* DEFAULT_CONFIG_PATH = "./.tmp_config.yaml";
+static const char* DEFAULT_CONFIG_ENV = "PACKETVISOR_TMP_CONFIG";
 
 struct pv_offload_type rx_off_types[19] = {
 	{"vlan_strip", DEV_RX_OFFLOAD_VLAN_STRIP},
@@ -177,9 +177,15 @@ static bool pv_config_parse_nic(struct fy_node* nic_node, struct pv_config_nic* 
 struct pv_config* pv_config_create() {
 	struct pv_config* config = NULL;
 
-	struct fy_document* fyd = fy_document_build_from_file(NULL, DEFAULT_CONFIG_PATH);
+	char* env = getenv(DEFAULT_CONFIG_ENV);
+	if(env == NULL) {
+		printf("Failed to get config env '%s'\n", DEFAULT_CONFIG_ENV);
+		return NULL;
+	}
+
+	struct fy_document* fyd = fy_document_build_from_string(NULL, env, strlen(env));
 	if(fyd == NULL) {
-		printf("Failed to read config file '%s'\n", DEFAULT_CONFIG_PATH);
+		printf("Failed to parse config. Check '%s' env in pv.py\n", DEFAULT_CONFIG_ENV);
 		return NULL;
 	}
 
@@ -202,7 +208,7 @@ struct pv_config* pv_config_create() {
 		goto fail;
 	}
 
-	config->cores = calloc(config->cores_count, sizeof(uint16_t));
+	config->cores = calloc(config->cores_count, sizeof(uint32_t));
 	if(config->cores == NULL) {
 		printf("Failed to alloc memory for 'config->cores'\n");
 		goto fail;
@@ -309,9 +315,6 @@ fail:
 void pv_config_destroy(struct pv_config* config) {
 	if(config == NULL)
 		return;
-
-	if(config->cores != NULL)
-		free(config->cores);
 
 	if(config->log_level != NULL)
 		free(config->log_level);
