@@ -16,7 +16,7 @@ bool pv_core_init(uint32_t* config_cores, uint32_t config_cnt) {
 		return false;
 	}
 
-	for(int i = 0; i < ncore; i++) {
+	for(int i = 0; i < config_cnt; i++) {
 		if(config_cores[i] > ncore) {
 			printf("Invalid core index '%u'\n", config_cores[i]);
 			return false;
