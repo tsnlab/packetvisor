@@ -10,7 +10,8 @@
 uint64_t my_mac;
 uint32_t my_ipv4;
 
-int process_icmp(struct pv_icmp* icmp);
+int process_icmp(struct pv_icmp* icmp, size_t size);
+uint16_t icmp_checksum(uint16_t* buffer, size_t size);
 
 int process_arp(struct pv_arp* arp) {
     if (arp->opcode != PV_ARP_OPCODE_ARP_REQUEST) {
@@ -42,14 +43,16 @@ int process_ipv4(struct pv_ipv4* ipv4) {
     ipv4->src = my_ipv4;
     ipv4->checksum = 0;
 
+    size_t size = ipv4->len - ipv4->hdr_len;
+
     switch (ipv4->proto) {
     case PV_IP_PROTO_ICMP:
-        process_icmp(payload);
+        process_icmp(payload, size);
     }
     return 0;
 }
 
-int process_icmp(struct pv_icmp* icmp) {
+int process_icmp(struct pv_icmp* icmp, size_t size) {
 
     printf("icmp type: %d\n", icmp->type);
 
@@ -57,9 +60,34 @@ int process_icmp(struct pv_icmp* icmp) {
         icmp->type = PV_ICMP_TYPE_ECHO_REPLY;
     }
 
-    icmp->checksum += 0x0800;  // TODO: Calculate icmp checksum
+    // icmp->checksum += 0x0800;  // TODO: Calculate icmp checksum
+    icmp->checksum = 0;
+    icmp->checksum = icmp_checksum((void*)icmp, size);
 
     return 0;
+}
+
+uint16_t icmp_checksum(uint16_t* buffer, size_t size) {
+    uint32_t checksum = 0;
+    printf("size: %ld\n", size);
+
+    while (size > 1) {
+        checksum += *buffer;
+        printf("adding up: %04x, checksum: %04x\n", *buffer, checksum);
+        buffer += 1;
+        size -= 2;
+    }
+
+    if (size) {
+        checksum += *(uint8_t*)buffer;
+    }
+
+    checksum = (checksum >> 16) + (checksum & 0xffff);
+    checksum = (checksum >> 16) + (checksum & 0xffff);
+
+    printf("~checksum: %x\n", checksum);
+
+    return htons(~checksum);
 }
 
 int process(struct pv_packet* packet) {
