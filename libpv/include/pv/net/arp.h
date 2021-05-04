@@ -3,6 +3,18 @@
 
 #define PV_ARP_HDR_LEN 28
 
+enum pv_arp_opcode {
+	PV_ARP_OPCODE_ARP_REQUEST = 1,
+	PV_ARP_OPCODE_ARP_REPLY = 2,
+	PV_ARP_OPCODE_RARP_REQUEST = 3,
+	PV_ARP_OPCODE_RARP_REPLY = 4,
+	PV_ARP_OPCODE_DRARP_REQUEST = 5,
+	PV_ARP_OPCODE_DRARP_REPLY = 6,
+	PV_ARP_OPCODE_DRARP_ERROR = 7,
+	PV_ARP_OPCODE_INARP_REQUEST = 8,
+	PV_ARP_OPCODE_INARP_REPLY = 9,
+};
+
 struct pv_arp {
 	uint16_t hw_type;		// Hardware type
 	uint16_t proto_type;	// Protocol type
