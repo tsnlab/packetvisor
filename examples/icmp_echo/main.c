@@ -67,7 +67,7 @@ int main(int argc, char** argv) {
     }
 
     pv_nic_get_mac(0, &mac);
-    printf("mac: %lx\n", mac);
+    printf("mac: %012lx\n", mac);
 
 	pv_nic_get_ipv4(0, &ipv4);
 	printf("ipv4: %d.%d.%d.%d\n",
