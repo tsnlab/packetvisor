@@ -65,6 +65,8 @@ int pv_nic_add(uint16_t nic_id, char* dev_name, uint16_t nb_rx_queue, uint16_t n
 	uint16_t dpdk_port_id = 0;
 	if(pv_nic_get_dpdk_port_id(dev_name, &dpdk_port_id) == false) {
 		printf("%s, Failed to get dpdk port id.\n", dev_name);
+		printf("That NIC seems to be held by kernel.\n");
+		printf("Please down your link and try again.\n");
 		return 1;
 	}
 
