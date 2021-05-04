@@ -10,4 +10,9 @@ struct pv_icmp {
 	uint16_t checksum;
 } __attribute__ ((packed, scalar_storage_order("big-endian")));
 
+enum PV_ICMP_TYPE {
+	PV_ICMP_TYPE_ECHO_REPLY = 0,
+	PV_ICMP_TYPE_ECHO_REQUEST = 8,
+};
+
 #endif /* __PV_NET_ICMP_H__ */

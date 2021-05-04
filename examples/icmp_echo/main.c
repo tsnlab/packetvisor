@@ -5,9 +5,12 @@
 #include <pv/net/ethernet.h>
 #include <pv/net/ipv4.h>
 #include <pv/net/arp.h>
+#include <pv/net/icmp.h>
 
 uint64_t my_mac;
 uint32_t my_ipv4;
+
+int process_icmp(struct pv_icmp* icmp);
 
 int process_arp(struct pv_arp* arp) {
     if (arp->opcode != PV_ARP_OPCODE_ARP_REQUEST) {
@@ -37,6 +40,7 @@ int process_ipv4(struct pv_ipv4* ipv4) {
 
     ipv4->dst = ipv4->src;
     ipv4->src = my_ipv4;
+    ipv4->checksum = 0;
 
     switch (ipv4->proto) {
     case PV_IP_PROTO_ICMP:
@@ -45,6 +49,17 @@ int process_ipv4(struct pv_ipv4* ipv4) {
     return 0;
 }
 
+int process_icmp(struct pv_icmp* icmp) {
+
+    printf("icmp type: %d\n", icmp->type);
+
+    if (icmp->type == PV_ICMP_TYPE_ECHO_REQUEST) {
+        icmp->type = PV_ICMP_TYPE_ECHO_REPLY;
+    }
+
+    icmp->checksum = 0;
+
+    return 0;
 }
 
 int process(struct pv_packet* packet) {
