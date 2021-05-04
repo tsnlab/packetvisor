@@ -1,6 +1,6 @@
 .PHONY: clean
 
-EXAMPLES=$(filter-out Makefile, $(wildcard *))
+EXAMPLES=$(wildcard */.)
 
 all: ${EXAMPLES}
 	for dir in $^ ; do \

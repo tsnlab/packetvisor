@@ -1,6 +1,7 @@
 #include <stdio.h>
 
 #include <pv/nic.h>
+#include <pv/net/ethernet.h>
 #include "internal_nic.h"
 
 #include <rte_eal.h>
@@ -275,8 +276,11 @@ uint16_t pv_nic_tx_burst(uint16_t nic_id, uint16_t queue_id, struct pv_packet* p
 	for(uint16_t i = 0; i < nb_pkts; i++) {
 		tx_buf[i] = pkts[i]->mbuf;
 
+		struct pv_ethernet* ethernet = (struct pv_ethernet*) pkts[i]->payload;
+
 		// l3 checksum offload. TODO refactor offloading code
-		if(nics[nic_id].tx_offload_mask & DEV_TX_OFFLOAD_IPV4_CKSUM) {
+		if(ethernet->type == PV_ETH_TYPE_IPv4 &&
+				nics[nic_id].tx_offload_mask & DEV_TX_OFFLOAD_IPV4_CKSUM) {
 			tx_buf[i]->ol_flags = (tx_buf[i]->ol_flags | PKT_TX_IPV4 | PKT_TX_IP_CKSUM);
 			tx_buf[i]->l2_len = 14;	// TODO calculate the value from header
 			tx_buf[i]->l3_len = 20;
