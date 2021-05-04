@@ -274,12 +274,13 @@ uint16_t pv_nic_tx_burst(uint16_t nic_id, uint16_t queue_id, struct pv_packet* p
 	struct rte_mbuf** tx_buf = (struct rte_mbuf**)pkts;
 
 	for(uint16_t i = 0; i < nb_pkts; i++) {
+		// Must be before set tx_buf[i].
+		struct pv_ethernet* ether = (struct pv_ethernet *)pkts[i]->payload;
+
 		tx_buf[i] = pkts[i]->mbuf;
 
-		struct pv_ethernet* ethernet = (struct pv_ethernet*) pkts[i]->payload;
-
 		// l3 checksum offload. TODO refactor offloading code
-		if(ethernet->type == PV_ETH_TYPE_IPv4 &&
+		if(ether->type == PV_ETH_TYPE_IPv4 &&
 				nics[nic_id].tx_offload_mask & DEV_TX_OFFLOAD_IPV4_CKSUM) {
 			tx_buf[i]->ol_flags = (tx_buf[i]->ol_flags | PKT_TX_IPV4 | PKT_TX_IP_CKSUM);
 			tx_buf[i]->l2_len = 14;	// TODO calculate the value from header
