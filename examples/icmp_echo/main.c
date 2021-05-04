@@ -57,7 +57,7 @@ int process_icmp(struct pv_icmp* icmp) {
         icmp->type = PV_ICMP_TYPE_ECHO_REPLY;
     }
 
-    icmp->checksum = 0;
+    icmp->checksum += 0x0800;  // TODO: Calculate icmp checksum
 
     return 0;
 }
