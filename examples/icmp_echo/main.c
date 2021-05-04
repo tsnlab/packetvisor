@@ -33,6 +33,8 @@ int process_arp(struct pv_ethernet* ether) {
 	arp->dst_proto = arp->src_proto;
 	arp->src_hw = mac;
 	arp->src_proto = ipv4;
+	
+	return 0;
 }
 
 int process_ipv4(struct pv_ethernet* ether) {
