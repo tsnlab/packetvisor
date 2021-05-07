@@ -1,7 +1,5 @@
 #include <stdio.h>
 
-#include <netinet/in.h>
-
 #include <pv/pv.h>
 #include <pv/nic.h>
 #include <pv/net/ethernet.h>
@@ -9,6 +7,7 @@
 #include <pv/net/udp.h>
 #include <pv/net/arp.h>
 #include <pv/net/icmp.h>
+#include <pv/checksum.h>
 
 uint64_t my_mac;
 uint32_t my_ipv4;
@@ -17,7 +16,6 @@ int process_ipv4(struct pv_ipv4* ipv4);
 int process_icmp(struct pv_icmp* icmp, size_t size);
 int process_udp(struct pv_udp* udp, size_t size);
 int process_arp(struct pv_arp* arp);
-uint16_t checksum(void* buffer, size_t size);
 
 int process(struct pv_packet* packet) {
     struct pv_ethernet* ether = (struct pv_ethernet*)packet->payload;
@@ -103,26 +101,6 @@ int process_arp(struct pv_arp* arp) {
     arp->src_proto = my_ipv4;
 
     return 0;
-}
-
-uint16_t checksum(void* start, size_t size) {
-    uint32_t checksum = 0;
-    uint16_t* buffer = start;
-
-    while (size > 1) {
-        checksum += *buffer;
-        buffer += 1;
-        size -= 2;
-    }
-
-    if (size) {
-        checksum += *(uint8_t*)buffer;
-    }
-
-    checksum = (checksum >> 16) + (checksum & 0xffff);
-    checksum = (checksum >> 16) + (checksum & 0xffff);
-
-    return htons(~checksum);
 }
 
 int main(int argc, char** argv) {
