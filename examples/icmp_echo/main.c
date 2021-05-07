@@ -6,14 +6,81 @@
 #include <pv/nic.h>
 #include <pv/net/ethernet.h>
 #include <pv/net/ipv4.h>
+#include <pv/net/udp.h>
 #include <pv/net/arp.h>
 #include <pv/net/icmp.h>
 
 uint64_t my_mac;
 uint32_t my_ipv4;
 
+int process_ipv4(struct pv_ipv4* ipv4);
 int process_icmp(struct pv_icmp* icmp, size_t size);
-uint16_t icmp_checksum(void* buffer, size_t size);
+int process_udp(struct pv_udp* udp, size_t size);
+int process_arp(struct pv_arp* arp);
+uint16_t checksum(void* buffer, size_t size);
+
+int process(struct pv_packet* packet) {
+    struct pv_ethernet* ether = (struct pv_ethernet*)packet->payload;
+    ether->dmac = ether->smac;
+    ether->smac = my_mac;
+
+    printf("Got packet.\n");
+
+    void* payload = PV_ETH_PAYLOAD(ether);
+
+    switch (ether->type) {
+    case PV_ETH_TYPE_ARP:
+        process_arp(payload);
+        break;
+    case PV_ETH_TYPE_IPv4:
+        process_ipv4(payload);
+        break;
+    }
+
+    return 0;
+}
+
+int process_ipv4(struct pv_ipv4* ipv4) {
+    void* payload = PV_IPv4_DATA(ipv4);
+
+    ipv4->dst = ipv4->src;
+    ipv4->src = my_ipv4;
+    ipv4->checksum = 0;
+
+    size_t size = ipv4->len - ipv4->hdr_len;
+
+    switch (ipv4->proto) {
+    case PV_IP_PROTO_ICMP:
+        process_icmp(payload, size);
+        break;
+    case PV_IP_PROTO_UDP:
+        process_udp(payload, size);
+    }
+    return 0;
+}
+
+int process_icmp(struct pv_icmp* icmp, size_t size) {
+
+    printf("icmp type: %d\n", icmp->type);
+
+    if (icmp->type == PV_ICMP_TYPE_ECHO_REQUEST) {
+        icmp->type = PV_ICMP_TYPE_ECHO_REPLY;
+    }
+
+    icmp->checksum = 0;
+    icmp->checksum = checksum(icmp, size);
+
+    return 0;
+}
+
+int process_udp(struct pv_udp* udp, size_t size) {
+    uint16_t port = udp->dstport;
+    udp->dstport = udp->srcport;
+    udp->srcport = port;
+
+    udp->checksum = 0;
+    udp->checksum = checksum(udp, size);
+}
 
 int process_arp(struct pv_arp* arp) {
     if (arp->opcode != PV_ARP_OPCODE_ARP_REQUEST) {
@@ -38,37 +105,7 @@ int process_arp(struct pv_arp* arp) {
     return 0;
 }
 
-int process_ipv4(struct pv_ipv4* ipv4) {
-    void* payload = PV_IPv4_DATA(ipv4);
-
-    ipv4->dst = ipv4->src;
-    ipv4->src = my_ipv4;
-    ipv4->checksum = 0;
-
-    size_t size = ipv4->len - ipv4->hdr_len;
-
-    switch (ipv4->proto) {
-    case PV_IP_PROTO_ICMP:
-        process_icmp(payload, size);
-    }
-    return 0;
-}
-
-int process_icmp(struct pv_icmp* icmp, size_t size) {
-
-    printf("icmp type: %d\n", icmp->type);
-
-    if (icmp->type == PV_ICMP_TYPE_ECHO_REQUEST) {
-        icmp->type = PV_ICMP_TYPE_ECHO_REPLY;
-    }
-
-    icmp->checksum = 0;
-    icmp->checksum = icmp_checksum((void*)icmp, size);
-
-    return 0;
-}
-
-uint16_t icmp_checksum(void* start, size_t size) {
+uint16_t checksum(void* start, size_t size) {
     uint32_t checksum = 0;
     uint16_t* buffer = start;
 
@@ -86,27 +123,6 @@ uint16_t icmp_checksum(void* start, size_t size) {
     checksum = (checksum >> 16) + (checksum & 0xffff);
 
     return htons(~checksum);
-}
-
-int process(struct pv_packet* packet) {
-    struct pv_ethernet* ether = (struct pv_ethernet*)packet->payload;
-    ether->dmac = ether->smac;
-    ether->smac = my_mac;
-
-    printf("Got packet.\n");
-
-    void* payload = PV_ETH_PAYLOAD(ether);
-
-    switch (ether->type) {
-    case PV_ETH_TYPE_ARP:
-        process_arp(payload);
-        break;
-    case PV_ETH_TYPE_IPv4:
-        process_ipv4(payload);
-        break;
-    }
-
-    return 0;
 }
 
 int main(int argc, char** argv) {
