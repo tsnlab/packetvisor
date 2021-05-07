@@ -24,13 +24,13 @@ if args.bind:
     sock.bind(('0.0.0.0', args.bind))
 
 while True:
-    msg = input('send: ')
-    sock.sendto(msg.encode('utf-8'), serv)
     try:
+        msg = input('send: ')
+        sock.sendto(msg.encode('utf-8'), serv)
         data, server = sock.recvfrom(4096)
         print(f'recv: {data.decode("utf-8")}')
     except socket.timeout as e:
         print(e, file=sys.stderr)
         continue
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, EOFError):
         break
