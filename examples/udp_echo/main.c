@@ -9,13 +9,23 @@
 #include <pv/net/icmp.h>
 #include <pv/checksum.h>
 
+struct pseudo_header {
+    uint32_t src;
+    uint32_t dst;
+    uint8_t padding;
+    uint8_t proto;
+    uint16_t length;
+} __attribute__ ((packed, scalar_storage_order("big-endian")));
+
 uint64_t my_mac;
 uint32_t my_ipv4;
 
 int process_ipv4(struct pv_ipv4* ipv4);
 int process_icmp(struct pv_icmp* icmp, size_t size);
-int process_udp(struct pv_udp* udp, size_t size);
+int process_udp(struct pv_ipv4* ipv4, struct pv_udp* udp, size_t size);
 int process_arp(struct pv_arp* arp);
+
+uint16_t checksum_with_pseudo(const struct pseudo_header* pseudo, void* start, uint32_t size);
 
 int process(struct pv_packet* packet) {
     struct pv_ethernet* ether = (struct pv_ethernet*)packet->payload;
@@ -45,14 +55,14 @@ int process_ipv4(struct pv_ipv4* ipv4) {
     ipv4->src = my_ipv4;
     ipv4->checksum = 0;
 
-    size_t size = ipv4->len - ipv4->hdr_len;
+    size_t size = ipv4->len - (ipv4->hdr_len * 4);
 
     switch (ipv4->proto) {
     case PV_IP_PROTO_ICMP:
         process_icmp(payload, size);
         break;
     case PV_IP_PROTO_UDP:
-        process_udp(payload, size);
+        process_udp(ipv4, payload, size);
     }
     return 0;
 }
@@ -71,13 +81,21 @@ int process_icmp(struct pv_icmp* icmp, size_t size) {
     return 0;
 }
 
-int process_udp(struct pv_udp* udp, size_t size) {
+int process_udp(struct pv_ipv4* ipv4, struct pv_udp* udp, size_t size) {
     uint16_t port = udp->dstport;
     udp->dstport = udp->srcport;
     udp->srcport = port;
 
     udp->checksum = 0;
-    udp->checksum = checksum(udp, size);
+
+    struct pseudo_header pseudo;
+    pseudo.src = ipv4->src;
+    pseudo.dst = ipv4->dst;
+    pseudo.padding = 0;
+    pseudo.proto = PV_IP_PROTO_UDP;
+    pseudo.length = size;
+
+    udp->checksum = checksum_with_pseudo(&pseudo, udp, size);
 }
 
 int process_arp(struct pv_arp* arp) {
@@ -101,6 +119,13 @@ int process_arp(struct pv_arp* arp) {
     arp->src_proto = my_ipv4;
 
     return 0;
+}
+
+uint16_t checksum_with_pseudo(const struct pseudo_header* pseudo, void* start, uint32_t size) {
+    uint16_t checksum1 = checksum_partial(pseudo, sizeof(*pseudo));
+    uint16_t checksum2 = checksum_partial(start, size);
+    uint16_t checksum = checksum_finalise(checksum1 + checksum2);
+    return checksum;
 }
 
 int main(int argc, char** argv) {
