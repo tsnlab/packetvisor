@@ -1,5 +1,7 @@
 #include <stdio.h>
 
+#include <netinet/in.h>
+
 #include <pv/pv.h>
 #include <pv/nic.h>
 #include <pv/net/ethernet.h>
@@ -11,7 +13,7 @@ uint64_t my_mac;
 uint32_t my_ipv4;
 
 int process_icmp(struct pv_icmp* icmp, size_t size);
-uint16_t icmp_checksum(uint16_t* buffer, size_t size);
+uint16_t icmp_checksum(void* buffer, size_t size);
 
 int process_arp(struct pv_arp* arp) {
     if (arp->opcode != PV_ARP_OPCODE_ARP_REQUEST) {
@@ -66,8 +68,9 @@ int process_icmp(struct pv_icmp* icmp, size_t size) {
     return 0;
 }
 
-uint16_t icmp_checksum(uint16_t* buffer, size_t size) {
+uint16_t icmp_checksum(void* start, size_t size) {
     uint32_t checksum = 0;
+    uint16_t* buffer = start;
 
     while (size > 1) {
         checksum += *buffer;
