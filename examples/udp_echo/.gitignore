@@ -1,2 +1,2 @@
 build/*
-icmp_echo
+udp_echo
