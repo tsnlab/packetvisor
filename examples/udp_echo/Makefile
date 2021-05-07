@@ -1,6 +1,6 @@
 .PHONY: shared clean
 
-APP = icmp_echo
+APP = udp_echo
 RELEASE ?= 1
 
 ifeq ($(PV_HOME),)
