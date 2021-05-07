@@ -60,7 +60,6 @@ int process_icmp(struct pv_icmp* icmp, size_t size) {
         icmp->type = PV_ICMP_TYPE_ECHO_REPLY;
     }
 
-    // icmp->checksum += 0x0800;  // TODO: Calculate icmp checksum
     icmp->checksum = 0;
     icmp->checksum = icmp_checksum((void*)icmp, size);
 
@@ -69,11 +68,9 @@ int process_icmp(struct pv_icmp* icmp, size_t size) {
 
 uint16_t icmp_checksum(uint16_t* buffer, size_t size) {
     uint32_t checksum = 0;
-    printf("size: %ld\n", size);
 
     while (size > 1) {
         checksum += *buffer;
-        printf("adding up: %04x, checksum: %04x\n", *buffer, checksum);
         buffer += 1;
         size -= 2;
     }
@@ -84,8 +81,6 @@ uint16_t icmp_checksum(uint16_t* buffer, size_t size) {
 
     checksum = (checksum >> 16) + (checksum & 0xffff);
     checksum = (checksum >> 16) + (checksum & 0xffff);
-
-    printf("~checksum: %x\n", checksum);
 
     return htons(~checksum);
 }
