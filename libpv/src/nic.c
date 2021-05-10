@@ -296,7 +296,7 @@ bool inline pv_is_tx_offload_supported(const struct pv_nic* nic, uint32_t featur
 void offload_ipv4_checksum(const struct pv_nic* nic, struct pv_ethernet* const ether, struct rte_mbuf* const mbuf) {
 	struct pv_ipv4 * const ipv4 = (struct pv_ipv4 *)PV_ETH_PAYLOAD(ether);
 
-	if(false && pv_is_tx_offload_supported(nic, DEV_TX_OFFLOAD_IPV4_CKSUM)) {
+	if(pv_is_tx_offload_supported(nic, DEV_TX_OFFLOAD_IPV4_CKSUM)) {
 		mbuf->ol_flags |= PKT_TX_IPV4 | PKT_TX_IP_CKSUM;
 		mbuf->l2_len = sizeof(struct pv_ethernet);
 		mbuf->l3_len = ipv4->hdr_len * 4;
