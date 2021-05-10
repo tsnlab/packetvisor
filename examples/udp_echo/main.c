@@ -71,7 +71,7 @@ int process_icmp(struct pv_icmp* icmp, size_t size) {
 
     printf("icmp type: %d\n", icmp->type);
 
-    if (icmp->type == PV_ICMP_TYPE_ECHO_REQUEST) {
+    if(icmp->type == PV_ICMP_TYPE_ECHO_REQUEST) {
         icmp->type = PV_ICMP_TYPE_ECHO_REPLY;
     }
 
@@ -99,12 +99,12 @@ int process_udp(struct pv_ipv4* ipv4, struct pv_udp* udp, size_t size) {
 }
 
 int process_arp(struct pv_arp* arp) {
-    if (arp->opcode != PV_ARP_OPCODE_ARP_REQUEST) {
+    if(arp->opcode != PV_ARP_OPCODE_ARP_REQUEST) {
         printf("ARP opcode %d is not supported\n", arp->opcode);
         return 0;
     }
 
-    if (arp->dst_proto != my_ipv4) {
+    if(arp->dst_proto != my_ipv4) {
         // Not my IP, ignore
         printf("Not my ip. ignore\n");
         return 0;
