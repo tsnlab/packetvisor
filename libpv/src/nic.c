@@ -3,6 +3,7 @@
 #include <pv/nic.h>
 #include <pv/net/ethernet.h>
 #include <pv/net/ipv4.h>
+#include <pv/checksum.h>
 #include "internal_nic.h"
 
 #include <rte_eal.h>
@@ -16,6 +17,8 @@ extern struct pv_packet* pv_mbuf_to_packet(struct rte_mbuf* mbuf, uint16_t nic_i
 
 static struct pv_nic* nics;
 static uint16_t nics_count;
+
+void offload_ipv4_checksum(const struct pv_nic* nic, struct pv_ethernet* const ether, struct rte_mbuf* const mbuf);
 
 
 static bool pv_nic_get_dpdk_port_id(char* dev_name, uint16_t* port_id) {
@@ -272,18 +275,9 @@ uint16_t pv_nic_tx_burst(uint16_t nic_id, uint16_t queue_id, struct pv_packet* p
 
 		tx_buf[i] = pkts[i]->mbuf;
 
-		// l3 checksum offload. TODO refactor offloading code
-		if(ether->type == PV_ETH_TYPE_IPv4 &&
-				pv_tx_offload_enabled(nics[nic_id], DEV_TX_OFFLOAD_IPV4_CKSUM)) {
-			if(pv_tx_offload_supported(nics[nic_id], DEV_TX_OFFLOAD_IPV4_CKSUM)) {
-				struct pv_ipv4* ipv4 = (struct pv_ipv4*)PV_ETH_PAYLOAD(ether);
-
-				tx_buf[i]->ol_flags = (tx_buf[i]->ol_flags | PKT_TX_IPV4 | PKT_TX_IP_CKSUM);
-				tx_buf[i]->l2_len = sizeof(struct pv_ethernet);
-				tx_buf[i]->l3_len = ipv4->hdr_len * 4;
-			} else {
-				// TODO: calculate IPv4 checksum manually
-			}
+		// l3 checksum offload.
+		if(ether->type == PV_ETH_TYPE_IPv4 && pv_tx_offload_enabled(&nics[nic_id], DEV_TX_OFFLOAD_IPV4_CKSUM)) {
+			offload_ipv4_checksum(&nics[nic_id], ether, tx_buf[i]);
 		}
 	}
 
@@ -291,10 +285,23 @@ uint16_t pv_nic_tx_burst(uint16_t nic_id, uint16_t queue_id, struct pv_packet* p
 }
 
 
-bool inline pv_tx_offload_enabled(struct pv_nic nic, uint32_t feature) {
-	return nic.tx_offload_mask & feature;
+bool inline pv_tx_offload_enabled(const struct pv_nic* nic, uint32_t feature) {
+	return nic->tx_offload_mask & feature;
 }
 
-bool inline pv_tx_offload_supported(struct pv_nic nic, uint32_t feature) {
-	return nic.tx_offload_capa & feature;
+bool inline pv_tx_offload_supported(const struct pv_nic* nic, uint32_t feature) {
+	return nic->tx_offload_capa & feature;
+}
+
+void offload_ipv4_checksum(const struct pv_nic* nic, struct pv_ethernet* const ether, struct rte_mbuf* const mbuf) {
+	struct pv_ipv4 * const ipv4 = (struct pv_ipv4 *)PV_ETH_PAYLOAD(ether);
+
+	if(false && pv_tx_offload_supported(nic, DEV_TX_OFFLOAD_IPV4_CKSUM)) {
+		mbuf->ol_flags |= PKT_TX_IPV4 | PKT_TX_IP_CKSUM;
+		mbuf->l2_len = sizeof(struct pv_ethernet);
+		mbuf->l3_len = ipv4->hdr_len * 4;
+	} else {
+		ipv4->checksum = 0;
+		ipv4->checksum = checksum(ipv4, ipv4->hdr_len * 4);
+	}
 }
