@@ -6,6 +6,19 @@
 
 #include <pv/packet.h>
 
+struct pv_nic {
+	uint16_t dpdk_port_id;
+
+	uint64_t mac_addr;
+	uint32_t ipv4_addr;
+
+	uint32_t rx_offload_mask;
+	uint32_t tx_offload_mask;
+	
+	uint32_t rx_offload_capa;
+	uint32_t tx_offload_capa;
+};
+
 bool pv_nic_get_mac(uint16_t nic_id, uint64_t* mac_addr);
 
 bool pv_nic_get_ipv4(uint16_t nic_id, uint32_t* ipv4_addr);
@@ -50,6 +63,22 @@ bool pv_nic_tx(uint16_t nic_id, uint16_t queue_id, struct pv_packet* pkt);
  *   The number of packets transmitted to NIC's tx_ring.
  */
 uint16_t pv_nic_tx_burst(uint16_t nic_id, uint16_t queue_id, struct pv_packet** pkts, uint16_t nb_pkts);
+
+/**
+ * Check tx offload is enabled on config.
+ * 
+ * @return
+ *   true if enabled
+ */
+bool inline pv_nic_is_tx_offload_enabled(const struct pv_nic* nic, uint32_t feature);
+
+/**
+ * Check tx offload is supported by hardware.
+ * 
+ * @return
+ *   true if supported by hardware
+ */
+bool inline pv_nic_is_tx_offload_supported(const struct pv_nic* nic, uint32_t feature);
 
 
 #endif /* __PV_NIC_H__ */
