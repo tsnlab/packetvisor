@@ -2,6 +2,7 @@
 
 #include <pv/nic.h>
 #include <pv/net/ethernet.h>
+#include <pv/net/ipv4.h>
 #include "internal_nic.h"
 
 #include <rte_eal.h>
@@ -275,9 +276,11 @@ uint16_t pv_nic_tx_burst(uint16_t nic_id, uint16_t queue_id, struct pv_packet* p
 		if(ether->type == PV_ETH_TYPE_IPv4 &&
 				pv_tx_offload_enabled(nics[nic_id], DEV_TX_OFFLOAD_IPV4_CKSUM)) {
 			if(pv_tx_offload_supported(nics[nic_id], DEV_TX_OFFLOAD_IPV4_CKSUM)) {
+				struct pv_ipv4* ipv4 = (struct pv_ipv4*)PV_ETH_PAYLOAD(ether);
+
 				tx_buf[i]->ol_flags = (tx_buf[i]->ol_flags | PKT_TX_IPV4 | PKT_TX_IP_CKSUM);
-				tx_buf[i]->l2_len = 14;	// TODO calculate the value from header
-				tx_buf[i]->l3_len = 20;
+				tx_buf[i]->l2_len = sizeof(struct pv_ethernet);
+				tx_buf[i]->l3_len = ipv4->hdr_len * 4;
 			} else {
 				// TODO: calculate IPv4 checksum manually
 			}
