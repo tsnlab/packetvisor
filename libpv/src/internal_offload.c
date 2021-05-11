@@ -7,7 +7,25 @@
 #include <pv/checksum.h>
 
 
-void offload_ipv4_checksum(const struct pv_nic* nic, struct pv_ethernet* const ether, struct rte_mbuf* const mbuf) {
+void rx_offload_ipv4_checksum(const struct pv_nic* nic, struct pv_ethernet* const ether, struct rte_mbuf* const mbuf) {
+	struct pv_ipv4 * const ipv4 = (struct pv_ipv4 *)PV_ETH_PAYLOAD(ether);
+	uint16_t pkt_checksum = ipv4->checksum;
+
+	ipv4->checksum = 0;
+	uint16_t calculated_checksum = checksum(ipv4, ipv4->hdr_len * 4);
+
+	if (pkt_checksum == calculated_checksum) {
+		printf("Checksum good\n");
+		mbuf->ol_flags |= PKT_RX_IP_CKSUM_GOOD;
+	} else {
+		printf("Checksum bad\n");
+		mbuf->ol_flags |= PKT_RX_IP_CKSUM_BAD;
+	}
+	
+	ipv4->checksum = pkt_checksum;
+}
+
+void tx_offload_ipv4_checksum(const struct pv_nic* nic, struct pv_ethernet* const ether, struct rte_mbuf* const mbuf) {
 	struct pv_ipv4 * const ipv4 = (struct pv_ipv4 *)PV_ETH_PAYLOAD(ether);
 
 	if(pv_nic_is_tx_offload_supported(nic, DEV_TX_OFFLOAD_IPV4_CKSUM)) {
