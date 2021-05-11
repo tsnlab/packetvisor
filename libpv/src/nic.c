@@ -5,6 +5,7 @@
 #include <pv/net/ipv4.h>
 #include <pv/checksum.h>
 #include "internal_nic.h"
+#include "internal_offload.h"
 
 #include <rte_eal.h>
 #include <rte_ethdev.h>
@@ -17,8 +18,6 @@ extern struct pv_packet* pv_mbuf_to_packet(struct rte_mbuf* mbuf, uint16_t nic_i
 
 static struct pv_nic* nics;
 static uint16_t nics_count;
-
-void offload_ipv4_checksum(const struct pv_nic* nic, struct pv_ethernet* const ether, struct rte_mbuf* const mbuf);
 
 
 static bool pv_nic_get_dpdk_port_id(char* dev_name, uint16_t* port_id) {
@@ -282,17 +281,4 @@ uint16_t pv_nic_tx_burst(uint16_t nic_id, uint16_t queue_id, struct pv_packet* p
 	}
 
 	return rte_eth_tx_burst(port_id, queue_id, tx_buf, nb_pkts);
-}
-
-void offload_ipv4_checksum(const struct pv_nic* nic, struct pv_ethernet* const ether, struct rte_mbuf* const mbuf) {
-	struct pv_ipv4 * const ipv4 = (struct pv_ipv4 *)PV_ETH_PAYLOAD(ether);
-
-	if(pv_nic_is_tx_offload_supported(nic, DEV_TX_OFFLOAD_IPV4_CKSUM)) {
-		mbuf->ol_flags |= PKT_TX_IPV4 | PKT_TX_IP_CKSUM;
-		mbuf->l2_len = sizeof(struct pv_ethernet);
-		mbuf->l3_len = ipv4->hdr_len * 4;
-	} else {
-		ipv4->checksum = 0;
-		ipv4->checksum = checksum(ipv4, ipv4->hdr_len * 4);
-	}
 }
