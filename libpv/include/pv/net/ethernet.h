@@ -1,6 +1,8 @@
 #ifndef __PV_NET_ETHERNET_H__
 #define __PV_NET_ETHERNET_H__
 
+#include <stdint.h>
+
 #define PV_ETH_HDR_LEN 14
 
 #define PV_ETH_PAYLOAD(ETH) ((uint8_t*)(ETH) + PV_ETH_HDR_LEN)
