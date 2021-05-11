@@ -284,15 +284,6 @@ uint16_t pv_nic_tx_burst(uint16_t nic_id, uint16_t queue_id, struct pv_packet* p
 	return rte_eth_tx_burst(port_id, queue_id, tx_buf, nb_pkts);
 }
 
-
-bool inline pv_nic_is_tx_offload_enabled(const struct pv_nic* nic, uint32_t feature) {
-	return nic->tx_offload_mask & feature;
-}
-
-bool inline pv_nic_is_tx_offload_supported(const struct pv_nic* nic, uint32_t feature) {
-	return nic->tx_offload_capa & feature;
-}
-
 void offload_ipv4_checksum(const struct pv_nic* nic, struct pv_ethernet* const ether, struct rte_mbuf* const mbuf) {
 	struct pv_ipv4 * const ipv4 = (struct pv_ipv4 *)PV_ETH_PAYLOAD(ether);
 

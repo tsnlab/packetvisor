@@ -70,7 +70,9 @@ uint16_t pv_nic_tx_burst(uint16_t nic_id, uint16_t queue_id, struct pv_packet** 
  * @return
  *   true if enabled
  */
-bool inline pv_nic_is_tx_offload_enabled(const struct pv_nic* nic, uint32_t feature);
+bool inline pv_nic_is_tx_offload_enabled(const struct pv_nic* nic, uint32_t feature) {
+	return nic->tx_offload_mask & feature;
+}
 
 /**
  * Check tx offload is supported by hardware.
@@ -78,7 +80,8 @@ bool inline pv_nic_is_tx_offload_enabled(const struct pv_nic* nic, uint32_t feat
  * @return
  *   true if supported by hardware
  */
-bool inline pv_nic_is_tx_offload_supported(const struct pv_nic* nic, uint32_t feature);
-
+bool inline pv_nic_is_tx_offload_supported(const struct pv_nic* nic, uint32_t feature) {
+	return nic->tx_offload_capa & feature;
+}
 
 #endif /* __PV_NIC_H__ */
