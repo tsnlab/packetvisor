@@ -4,10 +4,33 @@
 #include <rte_ethdev.h>
 
 #include <pv/nic.h>
+#include <pv/net/vlan.h>
 #include <pv/net/ipv4.h>
 #include <pv/checksum.h>
 #include <pv/offload.h>
 
+
+void rx_offload_vlan_strip(const struct pv_nic* nic, struct pv_packet* const packet, struct rte_mbuf* const mbuf) {
+	struct pv_ethernet* ether = (struct pv_ethernet*) packet->payload;
+	if (ether->type != PV_ETH_TYPE_VLAN) {
+		return;
+	}
+	
+	mbuf->ol_flags |= PKT_RX_VLAN | PKT_RX_VLAN_STRIPPED;
+	
+	struct pv_vlan* vlan = (struct pv_vlan*)PV_ETH_PAYLOAD(ether);
+	
+	mbuf->vlan_tci = vlan->tci;
+
+	// MAGIC: PV_ETHER_HDR_LEN - sizeof(ether->type) -- vlan->etype becomes ether->type
+	memmove(packet->payload + PV_VLAN_HDR_LEN, packet->payload, PV_ETH_HDR_LEN - sizeof(ether->type));
+	
+	mbuf->data_off += PV_VLAN_HDR_LEN;
+	mbuf->data_len -= PV_VLAN_HDR_LEN;
+	// XXX: Maybe pv_mbuf_to_packet?
+	packet->payload += PV_VLAN_HDR_LEN;
+	packet->payload_len -= PV_VLAN_HDR_LEN;
+}
 
 void rx_offload_ipv4_checksum(const struct pv_nic* nic, struct pv_packet* const packet, struct rte_mbuf* const mbuf) {
 	struct pv_ethernet * const ether = (struct pv_ethernet *) packet->payload;

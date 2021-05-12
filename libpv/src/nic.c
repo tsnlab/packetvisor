@@ -245,6 +245,12 @@ uint16_t pv_nic_rx_burst(uint16_t nic_id, uint16_t queue_id, struct pv_packet** 
 		if(pv_nic_is_rx_offload_enabled(&nics[nic_id], DEV_RX_OFFLOAD_IPV4_CKSUM)) {
 			rx_offload_ipv4_checksum(&nics[nic_id], rx_buf[i], mbuf);
 		}
+		
+		if(pv_nic_is_rx_offload_enabled(&nics[nic_id], DEV_RX_OFFLOAD_VLAN_STRIP)) {
+			if(true || !pv_nic_is_rx_offload_supported(&nics[nic_id], DEV_RX_OFFLOAD_VLAN_STRIP)) {
+				rx_offload_vlan_strip(&nics[nic_id], rx_buf[i], mbuf);
+			}
+		}
 	}
 
 	return nrecv;
