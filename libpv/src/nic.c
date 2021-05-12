@@ -244,9 +244,9 @@ uint16_t pv_nic_rx_burst(uint16_t nic_id, uint16_t queue_id, struct pv_packet** 
 		
 		struct pv_ethernet* ether = (struct pv_ethernet*) rx_buf[i]->payload;
 
-		if(pv_nic_is_rx_offload_enabled(&nics[nic_id], DEV_RX_OFFLOAD_VLAN_STRIP) &&
+		if(pv_nic_is_rx_offload_enabled(&nics[nic_id], DEV_RX_OFFLOAD_IPV4_CKSUM) &&
 				ether->type == PV_ETH_TYPE_IPv4) {
-			if(!pv_nic_is_rx_offload_supported(&nics[nic_id], DEV_RX_OFFLOAD_VLAN_STRIP)) {
+			if(!pv_nic_is_rx_offload_supported(&nics[nic_id], DEV_RX_OFFLOAD_IPV4_CKSUM)) {
 				rx_offload_ipv4_checksum(&nics[nic_id], ether, mbuf);
 			}
 		}
