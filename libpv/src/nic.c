@@ -101,7 +101,7 @@ int pv_nic_add(uint16_t nic_id, char* dev_name, uint16_t nb_rx_queue, uint16_t n
 	nics[nic_id].rx_offload_capa = dev_info.rx_offload_capa;
 
 	// print debug msg
-	uint32_t rx_incapa = (dev_info.rx_offload_capa & rx_offloads) ^ rx_offloads;
+	uint32_t rx_incapa = rx_offloads & ~dev_info.rx_offload_capa;
 	for(int i = 0; i < sizeof(rx_off_types) / sizeof(rx_off_types[0]); i++) {
 		if(rx_incapa & rx_off_types[i].mask)
 			printf("NIC doesn't support rx_offload: '%s'.\n", rx_off_types[i].name);
@@ -113,7 +113,7 @@ int pv_nic_add(uint16_t nic_id, char* dev_name, uint16_t nb_rx_queue, uint16_t n
 	nics[nic_id].tx_offload_capa = dev_info.tx_offload_capa;
 
 	// print debug msg
-	uint32_t tx_incapa = (dev_info.tx_offload_capa & tx_offloads) ^ tx_offloads;
+	uint32_t tx_incapa = tx_offloads & ~dev_info.tx_offload_capa;
 	for(int i = 0; i < sizeof(tx_off_types) / sizeof(tx_off_types[0]); i++) {
 		if(tx_incapa & tx_off_types[i].mask)
 			printf("NIC doesn't support tx_offload: '%s'.\n", tx_off_types[i].name);
