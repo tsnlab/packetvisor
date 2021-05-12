@@ -15,10 +15,8 @@ void rx_offload_ipv4_checksum(const struct pv_nic* nic, struct pv_ethernet* cons
 	uint16_t calculated_checksum = checksum(ipv4, ipv4->hdr_len * 4);
 
 	if (pkt_checksum == calculated_checksum) {
-		printf("Checksum good\n");
 		mbuf->ol_flags |= PKT_RX_IP_CKSUM_GOOD;
 	} else {
-		printf("Checksum bad\n");
 		mbuf->ol_flags |= PKT_RX_IP_CKSUM_BAD;
 	}
 	
