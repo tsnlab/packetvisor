@@ -234,19 +234,7 @@ struct pv_packet* pv_nic_rx(uint16_t nic_id, uint16_t queue_id) {
  */
 uint16_t pv_nic_rx_burst(uint16_t nic_id, uint16_t queue_id, struct pv_packet** rx_buf, uint16_t rx_buf_size) {
 	uint16_t port_id = nics[nic_id].dpdk_port_id;
-	struct rte_mbuf** const mbufs = (struct rte_mbuf**)rx_buf;
-
-	// Set offload flags before read
-	uint64_t ol_flags = 0;
-	if (pv_nic_is_rx_offload_enabled(&nics[nic_id], DEV_RX_OFFLOAD_IPV4_CKSUM)) {
-		ol_flags |= DEV_RX_OFFLOAD_IPV4_CKSUM;
-	}
-
-	for(int i = 0; i < rx_buf_size; i += 1) {
-		mbufs[i]->ol_flags = ol_flags;
-	}
-
-	uint16_t nrecv = rte_eth_rx_burst(port_id, queue_id, mbufs, rx_buf_size);
+	uint16_t nrecv = rte_eth_rx_burst(port_id, queue_id, (struct rte_mbuf**) rx_buf, rx_buf_size);
 	if(nrecv == 0)
 		return nrecv;
 
