@@ -50,6 +50,25 @@ void rx_offload_vlan_strip(const struct pv_nic* nic, struct pv_packet* const pac
 	}
 }
 
+bool rx_offload_vlan_filter(const struct pv_nic* nic, struct pv_packet* const packet) {
+	uint16_t vlan_id;
+	puts("???");
+	if (packet->mbuf->ol_flags & PKT_RX_VLAN_STRIPPED) {
+		// Already stripped by HW
+		vlan_id = packet->mbuf->vlan_tci & 0x7f;
+	} else {
+		struct pv_ethernet* ether = (struct pv_ethernet*)packet->payload;
+		if(ether->type != PV_ETH_TYPE_VLAN) {
+			return true;
+		}
+		struct pv_vlan* vlan = (struct pv_vlan*)PV_ETH_PAYLOAD(ether);
+		vlan_id = vlan->tci.id;
+	}
+
+	printf("vlan id %x\n", vlan_id);
+	return vlan_id == 42;
+}
+
 void rx_offload_ipv4_checksum(const struct pv_nic* nic, struct pv_packet* const packet, struct rte_mbuf* const mbuf) {
 	struct pv_ethernet * const ether = (struct pv_ethernet *) packet->payload;
 	

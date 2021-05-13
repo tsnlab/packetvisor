@@ -19,6 +19,8 @@ extern struct pv_packet* pv_mbuf_to_packet(struct rte_mbuf* mbuf, uint16_t nic_i
 static struct pv_nic* nics;
 static uint16_t nics_count;
 
+#define VLAN_ID_SIZE (sizeof(uint16_t))
+
 
 static bool pv_nic_get_dpdk_port_id(char* dev_name, uint16_t* port_id) {
 	uint16_t id;
@@ -100,6 +102,9 @@ int pv_nic_add(uint16_t nic_id, char* dev_name, uint16_t nb_rx_queue, uint16_t n
 	nics[nic_id].rx_offload_mask = rx_offloads;
 	nics[nic_id].rx_offload_capa = dev_info.rx_offload_capa;
 
+	// TMP: remove vlan filter offload
+	port_conf.rxmode.offloads &= ~DEV_RX_OFFLOAD_VLAN_FILTER;
+
 	// print debug msg
 	uint32_t rx_incapa = rx_offloads & ~dev_info.rx_offload_capa;
 	for(int i = 0; i < sizeof(rx_off_types) / sizeof(rx_off_types[0]); i++) {
@@ -144,6 +149,9 @@ int pv_nic_add(uint16_t nic_id, char* dev_name, uint16_t nb_rx_queue, uint16_t n
 		printf("%s, Failed to setup dpdk tx_queue\n", dev_name);
 		return ret;
 	}
+
+	// Create vlan ids
+	nics[nic_id].vlan_ids = pv_list_create(VLAN_ID_SIZE, 0);
 
 	return 0;
 }
@@ -238,9 +246,24 @@ uint16_t pv_nic_rx_burst(uint16_t nic_id, uint16_t queue_id, struct pv_packet** 
 	if(nrecv == 0)
 		return nrecv;
 
+	// Filter first, and process
+	if (pv_nic_is_rx_offload_enabled(&nics[nic_id], DEV_RX_OFFLOAD_VLAN_FILTER) &&
+			!pv_nic_is_rx_offload_supported(&nics[nic_id], DEV_RX_OFFLOAD_VLAN_FILTER)) {
+		for(uint16_t i = 0; i < nrecv; i += 1) {
+			rx_buf[i] = pv_mbuf_to_packet(rx_buf[i], nic_id);
+
+			puts("check packet");
+			if(!rx_offload_vlan_filter(&nics[nic_id], rx_buf[i])) {
+				puts("Need to be filtered out!!");
+				// TODO: filter out this from rx_bufs
+			} else {
+				puts("Fine vlan id");
+			}
+		}
+	}
+
 	for(uint16_t i = 0; i < nrecv; i++) {
-		struct rte_mbuf* mbuf = (struct rte_mbuf*)rx_buf[i];
-		rx_buf[i] = pv_mbuf_to_packet(mbuf, nic_id);
+		struct rte_mbuf* mbuf = rx_buf[i]->mbuf;
 
 		if(pv_nic_is_rx_offload_enabled(&nics[nic_id], DEV_RX_OFFLOAD_IPV4_CKSUM)) {
 			rx_offload_ipv4_checksum(&nics[nic_id], rx_buf[i], mbuf);
@@ -281,6 +304,8 @@ uint16_t pv_nic_tx_burst(uint16_t nic_id, uint16_t queue_id, struct pv_packet* p
 		struct pv_packet* packet = pkts[i];
 		struct pv_ethernet* ether = (struct pv_ethernet *)pkts[i]->payload;
 
+		tx_buf[i] = pkts[i]->mbuf;
+
 		// l3 checksum offload.
 		if(ether->type == PV_ETH_TYPE_IPv4 && pv_nic_is_tx_offload_enabled(&nics[nic_id], DEV_TX_OFFLOAD_IPV4_CKSUM)) {
 			tx_offload_ipv4_checksum(&nics[nic_id], ether, packet->mbuf);
@@ -289,9 +314,17 @@ uint16_t pv_nic_tx_burst(uint16_t nic_id, uint16_t queue_id, struct pv_packet* p
 		if(pv_nic_is_tx_offload_enabled(&nics[nic_id], DEV_TX_OFFLOAD_VLAN_INSERT)) {
 			tx_offload_vlan_insert(&nics[nic_id], packet);
 		}
-
-		tx_buf[i] = pkts[i]->mbuf;
 	}
 
 	return rte_eth_tx_burst(port_id, queue_id, tx_buf, nb_pkts);
+}
+
+bool pv_nic_vlan_filter_on(uint16_t nic_id, uint16_t id) {
+	int res = rte_eth_dev_vlan_filter(nics[nic_id].dpdk_port_id, id, 1);
+	return res == 0;
+}
+
+bool pv_nic_vlan_filter_off(uint16_t nic_id, uint16_t id) {
+	int res = rte_eth_dev_vlan_filter(nics[nic_id].dpdk_port_id, id, 0);
+	return res == 0;
 }
