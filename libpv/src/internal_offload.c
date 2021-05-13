@@ -11,25 +11,48 @@
 
 
 void rx_offload_vlan_strip(const struct pv_nic* nic, struct pv_packet* const packet, struct rte_mbuf* const mbuf) {
-	struct pv_ethernet* ether = (struct pv_ethernet*) packet->payload;
-	if (ether->type != PV_ETH_TYPE_VLAN) {
-		return;
-	}
 	
-	mbuf->ol_flags |= PKT_RX_VLAN | PKT_RX_VLAN_STRIPPED;
-	
-	struct pv_vlan* vlan = (struct pv_vlan*)PV_ETH_PAYLOAD(ether);
-	
-	mbuf->vlan_tci = vlan->tci;
+	if(pv_nic_is_rx_offload_supported(nic, DEV_RX_OFFLOAD_VLAN_STRIP)) {
+		if (mbuf->ol_flags & PKT_RX_VLAN) {
+			packet->ol_flags |= PV_PKT_RX_VLAN;
+			packet->vlan.is_exists = true;
 
-	// MAGIC: PV_ETHER_HDR_LEN - sizeof(ether->type) -- vlan->etype becomes ether->type
-	memmove(packet->payload + PV_VLAN_HDR_LEN, packet->payload, PV_ETH_HDR_LEN - sizeof(ether->type));
-	
-	mbuf->data_off += PV_VLAN_HDR_LEN;
-	mbuf->data_len -= PV_VLAN_HDR_LEN;
-	// XXX: Maybe pv_mbuf_to_packet?
-	packet->payload += PV_VLAN_HDR_LEN;
-	packet->payload_len -= PV_VLAN_HDR_LEN;
+			struct pv_vlan_tci tci = pv_vlan_uint16_to_tci(mbuf->vlan_tci);
+			packet->vlan.priority = tci.priority;
+			packet->vlan.cfi = tci.cfi;
+			packet->vlan.id = tci.id;
+
+			if (mbuf->ol_flags & PKT_RX_VLAN_STRIPPED)
+			{
+				packet->ol_flags |= PV_PKT_RX_VLAN_STRIPPED;
+			}
+		} else {
+			packet->vlan.is_exists = false;
+		}
+	} else {
+		struct pv_ethernet* ether = (struct pv_ethernet*) packet->payload;
+		if (ether->type != PV_ETH_TYPE_VLAN) {
+			return;
+		}
+
+		packet->ol_flags |= PV_PKT_RX_VLAN | PV_PKT_RX_VLAN_STRIPPED;
+
+		struct pv_vlan* vlan = (struct pv_vlan*)PV_ETH_PAYLOAD(ether);
+
+		packet->vlan.is_exists = true;
+		packet->vlan.priority = vlan->tci.priority;
+		packet->vlan.cfi = vlan->tci.cfi;
+		packet->vlan.id = vlan->tci.id;
+
+		// MAGIC: PV_ETHER_HDR_LEN - sizeof(ether->type) -- vlan->etype becomes ether->type
+		memmove(packet->payload + PV_VLAN_HDR_LEN, packet->payload, PV_ETH_HDR_LEN - sizeof(ether->type));
+
+		mbuf->data_off += PV_VLAN_HDR_LEN;
+		mbuf->data_len -= PV_VLAN_HDR_LEN;
+		// XXX: Maybe pv_mbuf_to_packet?
+		packet->payload += PV_VLAN_HDR_LEN;
+		packet->payload_len -= PV_VLAN_HDR_LEN;
+	}
 }
 
 void rx_offload_ipv4_checksum(const struct pv_nic* nic, struct pv_packet* const packet, struct rte_mbuf* const mbuf) {

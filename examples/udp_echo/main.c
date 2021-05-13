@@ -8,6 +8,8 @@
 #include <pv/net/arp.h>
 #include <pv/net/icmp.h>
 #include <pv/checksum.h>
+#include <pv/offload.h>
+#include <pv/net/vlan.h>
 
 struct pseudo_header {
     uint32_t src;

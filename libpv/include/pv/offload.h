@@ -2,6 +2,9 @@
 #define __PV_OFFLOAD_H__
 
 enum pv_pkt_rx_offload_type {
+    PV_PKT_RX_VLAN = 1 << 0,
+    PV_PKT_RX_VLAN_STRIPPED = 1 << 1,
+
     PV_PKT_RX_IP_CKSUM_UNKNOWN = 0,
     PV_PKT_RX_IP_CKSUM_GOOD = 1 << 2,
     PV_PKT_RX_IP_CKSUM_BAD = 1 << 3,

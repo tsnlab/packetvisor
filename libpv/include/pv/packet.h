@@ -3,12 +3,19 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <pv/net/vlan.h>
 
 struct pv_packet {
 	uint8_t* payload;
 	uint32_t payload_len;
 	uint16_t nic_id;
 	uint32_t ol_flags;
+	struct {
+		bool is_exists;
+		uint8_t priority;
+		uint8_t cfi;
+		uint16_t id;
+	} vlan;
 	struct rte_mbuf* mbuf;
 };
 
