@@ -17,6 +17,7 @@ struct pv_list* pv_list_create(size_t elem_size, size_t init_space) {
     list->array = calloc(init_space, elem_size);
     list->max_size = init_space;
     list->current = 0;
+    list->elem_size = elem_size;
     
     return list;
 }
