@@ -9,8 +9,7 @@ import signal
 # ------ User config starts ------
 
 PMD = "uio_pci_generic"
-HUGE_PAGE_SIZE = "2M"
-HUGE_TOTAL_SIZE = "4G"
+HUGE_PAGE_SIZE = 2 * 1024 * 1024  # 2MiB
 
 # External libraries for network and memory
 external_libs = ['/usr/local/lib/x86_64-linux-gnu/librte_net_e1000.so', '/usr/local/lib/x86_64-linux-gnu/librte_mempool_ring.so']
@@ -93,11 +92,31 @@ def main(arg):
         print("Usage: ", os.path.basename(arg[0]), " [app]")
         sys.exit(0)
 
+    global HUGE_PAGE_SIZE, PMG
+
     app_path = arg[1] if os.path.isabs(arg[1]) else os.path.abspath(arg[1])
     config_path = os.path.join(os.path.dirname(app_path), 'config.yaml')
 
     with open(config_path, 'r') as f:
         config = yaml.load(f, Loader=yaml.FullLoader)
+
+    required_hugemem_size = (
+        config['memory']['shared_memory'] +
+        (
+            config['memory']['packet_pool'] +
+            sum(
+                nic['rx_queue'] + nic['tx_queue']
+                for nic in config['nics']
+            )
+        ) * 2_048
+    )
+
+    # Round up to page size
+    remainder = required_hugemem_size % HUGE_PAGE_SIZE
+    if remainder > 0:
+        required_hugemem_size += HUGE_PAGE_SIZE - remainder
+
+    print(f'{required_hugemem_size = :,}')
 
     config['eal_params'] = []
     eal_params = config['eal_params']
@@ -139,10 +158,13 @@ def main(arg):
         nic['module'] = devices[pci_addr]['Module_str']
         nic['dev'] = pci_addr
 
-    global HUGE_PAGE_SIZE, HUGE_TOTAL_SIZE, PMG
     # mount and reserve hugepage
     print("PV: setup hugepages...")
-    subprocess.call(["sudo", "dpdk-hugepages.py", "-p", str(HUGE_PAGE_SIZE), "--setup", str(HUGE_TOTAL_SIZE)])
+    subprocess.call([
+        "dpdk-hugepages.py",
+        "-p", str(HUGE_PAGE_SIZE),
+        "--setup", str(required_hugemem_size)
+    ])
 
     # bind nics
     print("PV: load '" + PMD + "' module...")
