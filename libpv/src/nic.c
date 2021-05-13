@@ -5,6 +5,7 @@
 #include <pv/net/ipv4.h>
 #include <pv/checksum.h>
 #include "internal_nic.h"
+#include "internal_offload.h"
 
 #include <rte_eal.h>
 #include <rte_ethdev.h>
@@ -17,8 +18,6 @@ extern struct pv_packet* pv_mbuf_to_packet(struct rte_mbuf* mbuf, uint16_t nic_i
 
 static struct pv_nic* nics;
 static uint16_t nics_count;
-
-void offload_ipv4_checksum(const struct pv_nic* nic, struct pv_ethernet* const ether, struct rte_mbuf* const mbuf);
 
 
 static bool pv_nic_get_dpdk_port_id(char* dev_name, uint16_t* port_id) {
@@ -102,7 +101,7 @@ int pv_nic_add(uint16_t nic_id, char* dev_name, uint16_t nb_rx_queue, uint16_t n
 	nics[nic_id].rx_offload_capa = dev_info.rx_offload_capa;
 
 	// print debug msg
-	uint32_t rx_incapa = (dev_info.rx_offload_capa & rx_offloads) ^ rx_offloads;
+	uint32_t rx_incapa = rx_offloads & ~dev_info.rx_offload_capa;
 	for(int i = 0; i < sizeof(rx_off_types) / sizeof(rx_off_types[0]); i++) {
 		if(rx_incapa & rx_off_types[i].mask)
 			printf("NIC doesn't support rx_offload: '%s'.\n", rx_off_types[i].name);
@@ -114,7 +113,7 @@ int pv_nic_add(uint16_t nic_id, char* dev_name, uint16_t nb_rx_queue, uint16_t n
 	nics[nic_id].tx_offload_capa = dev_info.tx_offload_capa;
 
 	// print debug msg
-	uint32_t tx_incapa = (dev_info.tx_offload_capa & tx_offloads) ^ tx_offloads;
+	uint32_t tx_incapa = tx_offloads & ~dev_info.tx_offload_capa;
 	for(int i = 0; i < sizeof(tx_off_types) / sizeof(tx_off_types[0]); i++) {
 		if(tx_incapa & tx_off_types[i].mask)
 			printf("NIC doesn't support tx_offload: '%s'.\n", tx_off_types[i].name);
@@ -235,13 +234,17 @@ struct pv_packet* pv_nic_rx(uint16_t nic_id, uint16_t queue_id) {
  */
 uint16_t pv_nic_rx_burst(uint16_t nic_id, uint16_t queue_id, struct pv_packet** rx_buf, uint16_t rx_buf_size) {
 	uint16_t port_id = nics[nic_id].dpdk_port_id;
-	uint16_t nrecv = rte_eth_rx_burst(port_id, queue_id, (struct rte_mbuf**)rx_buf, rx_buf_size);
+	uint16_t nrecv = rte_eth_rx_burst(port_id, queue_id, (struct rte_mbuf**) rx_buf, rx_buf_size);
 	if(nrecv == 0)
 		return nrecv;
 
 	for(uint16_t i = 0; i < nrecv; i++) {
 		struct rte_mbuf* mbuf = (struct rte_mbuf*)rx_buf[i];
 		rx_buf[i] = pv_mbuf_to_packet(mbuf, nic_id);
+
+		if(pv_nic_is_rx_offload_enabled(&nics[nic_id], DEV_RX_OFFLOAD_IPV4_CKSUM)) {
+			rx_offload_ipv4_checksum(&nics[nic_id], rx_buf[i], mbuf);
+		}
 	}
 
 	return nrecv;
@@ -277,31 +280,9 @@ uint16_t pv_nic_tx_burst(uint16_t nic_id, uint16_t queue_id, struct pv_packet* p
 
 		// l3 checksum offload.
 		if(ether->type == PV_ETH_TYPE_IPv4 && pv_nic_is_tx_offload_enabled(&nics[nic_id], DEV_TX_OFFLOAD_IPV4_CKSUM)) {
-			offload_ipv4_checksum(&nics[nic_id], ether, tx_buf[i]);
+			tx_offload_ipv4_checksum(&nics[nic_id], ether, tx_buf[i]);
 		}
 	}
 
 	return rte_eth_tx_burst(port_id, queue_id, tx_buf, nb_pkts);
-}
-
-
-bool inline pv_nic_is_tx_offload_enabled(const struct pv_nic* nic, uint32_t feature) {
-	return nic->tx_offload_mask & feature;
-}
-
-bool inline pv_nic_is_tx_offload_supported(const struct pv_nic* nic, uint32_t feature) {
-	return nic->tx_offload_capa & feature;
-}
-
-void offload_ipv4_checksum(const struct pv_nic* nic, struct pv_ethernet* const ether, struct rte_mbuf* const mbuf) {
-	struct pv_ipv4 * const ipv4 = (struct pv_ipv4 *)PV_ETH_PAYLOAD(ether);
-
-	if(pv_nic_is_tx_offload_supported(nic, DEV_TX_OFFLOAD_IPV4_CKSUM)) {
-		mbuf->ol_flags |= PKT_TX_IPV4 | PKT_TX_IP_CKSUM;
-		mbuf->l2_len = sizeof(struct pv_ethernet);
-		mbuf->l3_len = ipv4->hdr_len * 4;
-	} else {
-		ipv4->checksum = 0;
-		ipv4->checksum = checksum(ipv4, ipv4->hdr_len * 4);
-	}
 }
