@@ -12,9 +12,7 @@ struct pv_packet {
 	uint32_t ol_flags;
 	struct {
 		bool is_exists;
-		uint8_t priority;
-		uint8_t cfi;
-		uint16_t id;
+		struct pv_vlan_tci tci;
 	} vlan;
 	struct rte_mbuf* mbuf;
 };

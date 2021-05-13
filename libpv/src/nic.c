@@ -278,14 +278,19 @@ uint16_t pv_nic_tx_burst(uint16_t nic_id, uint16_t queue_id, struct pv_packet* p
 
 	for(uint16_t i = 0; i < nb_pkts; i++) {
 		// Must be before set tx_buf[i].
+		struct pv_packet* packet = pkts[i];
 		struct pv_ethernet* ether = (struct pv_ethernet *)pkts[i]->payload;
-
-		tx_buf[i] = pkts[i]->mbuf;
 
 		// l3 checksum offload.
 		if(ether->type == PV_ETH_TYPE_IPv4 && pv_nic_is_tx_offload_enabled(&nics[nic_id], DEV_TX_OFFLOAD_IPV4_CKSUM)) {
-			tx_offload_ipv4_checksum(&nics[nic_id], ether, tx_buf[i]);
+			tx_offload_ipv4_checksum(&nics[nic_id], ether, packet->mbuf);
 		}
+		
+		if(pv_nic_is_tx_offload_enabled(&nics[nic_id], DEV_TX_OFFLOAD_VLAN_INSERT)) {
+			tx_offload_vlan_insert(&nics[nic_id], packet);
+		}
+
+		tx_buf[i] = pkts[i]->mbuf;
 	}
 
 	return rte_eth_tx_burst(port_id, queue_id, tx_buf, nb_pkts);

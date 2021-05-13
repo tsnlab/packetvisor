@@ -17,10 +17,7 @@ void rx_offload_vlan_strip(const struct pv_nic* nic, struct pv_packet* const pac
 			packet->ol_flags |= PV_PKT_RX_VLAN;
 			packet->vlan.is_exists = true;
 
-			struct pv_vlan_tci tci = pv_vlan_uint16_to_tci(mbuf->vlan_tci);
-			packet->vlan.priority = tci.priority;
-			packet->vlan.cfi = tci.cfi;
-			packet->vlan.id = tci.id;
+			packet->vlan.tci = pv_vlan_uint16_to_tci(mbuf->vlan_tci);
 
 			if (mbuf->ol_flags & PKT_RX_VLAN_STRIPPED)
 			{
@@ -40,9 +37,7 @@ void rx_offload_vlan_strip(const struct pv_nic* nic, struct pv_packet* const pac
 		struct pv_vlan* vlan = (struct pv_vlan*)PV_ETH_PAYLOAD(ether);
 
 		packet->vlan.is_exists = true;
-		packet->vlan.priority = vlan->tci.priority;
-		packet->vlan.cfi = vlan->tci.cfi;
-		packet->vlan.id = vlan->tci.id;
+		packet->vlan.tci = vlan->tci;
 
 		// MAGIC: PV_ETHER_HDR_LEN - sizeof(ether->type) -- vlan->etype becomes ether->type
 		memmove(packet->payload + PV_VLAN_HDR_LEN, packet->payload, PV_ETH_HDR_LEN - sizeof(ether->type));
@@ -94,6 +89,30 @@ void rx_offload_ipv4_checksum(const struct pv_nic* nic, struct pv_packet* const 
 		
 		// Restore original checksum
 		ipv4->checksum = pkt_checksum;
+	}
+}
+
+void tx_offload_vlan_insert(const struct pv_nic* nic, struct pv_packet* const packet) {
+	struct rte_mbuf* const mbuf = packet->mbuf;
+
+	if(pv_nic_is_tx_offload_supported(nic, DEV_TX_OFFLOAD_VLAN_INSERT)) {
+		mbuf->ol_flags |= PKT_TX_VLAN;
+		mbuf->vlan_tci = pv_vlan_tci_to_uint16(packet->vlan.tci);
+	} else {
+		void* start = packet->payload;
+		struct pv_ethernet* ether = (struct pv_ethernet*) packet->payload;
+		memmove(start - PV_VLAN_HDR_LEN, start, PV_ETH_HDR_LEN - sizeof(ether->type));
+		packet->payload -= PV_VLAN_HDR_LEN;
+		packet->payload_len += PV_VLAN_HDR_LEN;
+		mbuf->data_off -= PV_VLAN_HDR_LEN;
+		mbuf->data_len += PV_VLAN_HDR_LEN;
+		
+		// Move to new header pos
+		ether = (struct pv_ethernet*) packet->payload;
+		
+		ether->type = PV_ETH_TYPE_VLAN;
+		void* tci_pos = PV_ETH_PAYLOAD(ether);
+		memcpy(tci_pos, &packet->vlan.tci, sizeof(packet->vlan.tci));
 	}
 }
 
