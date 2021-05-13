@@ -147,6 +147,8 @@ int main(int argc, char** argv) {
         my_ipv4 >> (8 * 1) & 0xff,
         my_ipv4 >> (8 * 0) & 0xff);
 
+    pv_nic_vlan_filter_on(0, 42);
+
     struct pv_packet* pkt_buf[1024] = {};
 
     while(1) {

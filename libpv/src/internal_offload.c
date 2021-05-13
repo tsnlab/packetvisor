@@ -52,7 +52,6 @@ void rx_offload_vlan_strip(const struct pv_nic* nic, struct pv_packet* const pac
 
 bool rx_offload_vlan_filter(const struct pv_nic* nic, struct pv_packet* const packet) {
 	uint16_t vlan_id;
-	puts("???");
 	if (packet->mbuf->ol_flags & PKT_RX_VLAN_STRIPPED) {
 		// Already stripped by HW
 		vlan_id = packet->mbuf->vlan_tci & 0x7f;
@@ -65,8 +64,14 @@ bool rx_offload_vlan_filter(const struct pv_nic* nic, struct pv_packet* const pa
 		vlan_id = vlan->tci.id;
 	}
 
-	printf("vlan id %x\n", vlan_id);
-	return vlan_id == 42;
+	struct pv_list* vlan_ids = nic->vlan_ids;
+	for(int i = 0; i < vlan_ids->current; i += 1) {
+		uint16_t vid = *(uint16_t*)pv_list_get(vlan_ids, i);
+		if(vid == vlan_id) {
+			return true;
+		}
+	}
+	return false;
 }
 
 void rx_offload_ipv4_checksum(const struct pv_nic* nic, struct pv_packet* const packet, struct rte_mbuf* const mbuf) {

@@ -105,6 +105,9 @@ int pv_nic_add(uint16_t nic_id, char* dev_name, uint16_t nb_rx_queue, uint16_t n
 	nics[nic_id].rx_offload_mask = rx_offloads;
 	nics[nic_id].rx_offload_capa = dev_info.rx_offload_capa;
 
+	// XXX: To test SW offload, unset port_conf.rxmode.offloads here
+	// port_conf.rx_mode.offloads &= ~DEV_RX_OFFLOAD_VLAN_FILTER;
+
 	// print debug msg
 	uint32_t rx_incapa = rx_offloads & ~dev_info.rx_offload_capa;
 	for(int i = 0; i < sizeof(rx_off_types) / sizeof(rx_off_types[0]); i++) {
