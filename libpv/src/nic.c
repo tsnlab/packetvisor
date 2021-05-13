@@ -105,9 +105,6 @@ int pv_nic_add(uint16_t nic_id, char* dev_name, uint16_t nb_rx_queue, uint16_t n
 	nics[nic_id].rx_offload_mask = rx_offloads;
 	nics[nic_id].rx_offload_capa = dev_info.rx_offload_capa;
 
-	// TMP: remove vlan filter offload
-	port_conf.rxmode.offloads &= ~DEV_RX_OFFLOAD_VLAN_FILTER;
-
 	// print debug msg
 	uint32_t rx_incapa = rx_offloads & ~dev_info.rx_offload_capa;
 	for(int i = 0; i < sizeof(rx_off_types) / sizeof(rx_off_types[0]); i++) {
@@ -245,24 +242,29 @@ struct pv_packet* pv_nic_rx(uint16_t nic_id, uint16_t queue_id) {
  */
 uint16_t pv_nic_rx_burst(uint16_t nic_id, uint16_t queue_id, struct pv_packet** rx_buf, uint16_t rx_buf_size) {
 	uint16_t port_id = nics[nic_id].dpdk_port_id;
-	uint16_t nrecv = rte_eth_rx_burst(port_id, queue_id, (struct rte_mbuf**) rx_buf, rx_buf_size);
+	struct rte_mbuf* mbufs;
+	uint16_t nrecv = rte_eth_rx_burst(port_id, queue_id, &mbufs, rx_buf_size);
 	if(nrecv == 0)
 		return nrecv;
+
+	*rx_buf = (struct pv_packet*)mbufs;
+	for(uint16_t i = 0; i < nrecv; i += 1) {
+			rx_buf[i] = pv_mbuf_to_packet(&mbufs[i], nic_id);
+	}
 
 	// Filter first, and process
 	if (pv_nic_is_rx_offload_enabled(&nics[nic_id], DEV_RX_OFFLOAD_VLAN_FILTER) &&
 			!pv_nic_is_rx_offload_supported(&nics[nic_id], DEV_RX_OFFLOAD_VLAN_FILTER)) {
-		for(uint16_t i = 0; i < nrecv; i += 1) {
-			rx_buf[i] = pv_mbuf_to_packet(rx_buf[i], nic_id);
-
-			puts("check packet");
-			if(!rx_offload_vlan_filter(&nics[nic_id], rx_buf[i])) {
-				puts("Need to be filtered out!!");
-				// TODO: filter out this from rx_bufs
+		uint16_t w = 0;
+		for(uint16_t r = 0; r < nrecv; r += 1) {
+			if(!rx_offload_vlan_filter(&nics[nic_id], rx_buf[r])) {
+				rte_pktmbuf_free(rx_buf[r]->mbuf);
 			} else {
-				puts("Fine vlan id");
+				rx_buf[w] = rx_buf[r];
+				w += 1;
 			}
 		}
+		nrecv = w;
 	}
 
 	for(uint16_t i = 0; i < nrecv; i++) {
