@@ -8,6 +8,7 @@ struct pv_packet {
 	uint8_t* payload;
 	uint32_t payload_len;
 	uint16_t nic_id;
+	uint32_t ol_flags;
 	struct rte_mbuf* mbuf;
 };
 
