@@ -10,9 +10,10 @@
 #include <pv/offload.h>
 
 
-void rx_offload_vlan_strip(const struct pv_nic* nic, struct pv_packet* const packet, struct rte_mbuf* const mbuf) {
+void rx_offload_vlan_strip(const struct pv_nic* nic, struct pv_packet* const packet) {
 	
 	if(pv_nic_is_rx_offload_supported(nic, DEV_RX_OFFLOAD_VLAN_STRIP)) {
+		struct rte_mbuf* const mbuf = packet->mbuf;
 		if (mbuf->ol_flags & PKT_RX_VLAN) {
 			packet->ol_flags |= PV_PKT_RX_VLAN;
 			packet->vlan.is_exists = true;
@@ -27,7 +28,7 @@ void rx_offload_vlan_strip(const struct pv_nic* nic, struct pv_packet* const pac
 			packet->vlan.is_exists = false;
 		}
 	} else {
-		struct pv_ethernet* ether = (struct pv_ethernet*) packet->payload;
+		struct pv_ethernet* ether = (struct pv_ethernet*) pv_packet_data_start(packet);
 		if (ether->type != PV_ETH_TYPE_VLAN) {
 			return;
 		}
@@ -40,13 +41,9 @@ void rx_offload_vlan_strip(const struct pv_nic* nic, struct pv_packet* const pac
 		packet->vlan.tci = vlan->tci;
 
 		// MAGIC: PV_ETHER_HDR_LEN - sizeof(ether->type) -- vlan->etype becomes ether->type
-		memmove(packet->payload + PV_VLAN_HDR_LEN, packet->payload, PV_ETH_HDR_LEN - sizeof(ether->type));
+		memmove(pv_packet_data_start(packet) + PV_VLAN_HDR_LEN, pv_packet_data_start(packet), PV_ETH_HDR_LEN - sizeof(ether->type));
 
-		mbuf->data_off += PV_VLAN_HDR_LEN;
-		mbuf->data_len -= PV_VLAN_HDR_LEN;
-		// XXX: Maybe pv_mbuf_to_packet?
-		packet->payload += PV_VLAN_HDR_LEN;
-		packet->payload_len -= PV_VLAN_HDR_LEN;
+		packet->start += PV_VLAN_HDR_LEN;
 	}
 }
 
@@ -56,7 +53,7 @@ bool rx_offload_vlan_filter(const struct pv_nic* nic, struct pv_packet* const pa
 		// Already stripped by HW
 		vlan_id = packet->mbuf->vlan_tci & 0x7f;
 	} else {
-		struct pv_ethernet* ether = (struct pv_ethernet*)packet->payload;
+		struct pv_ethernet* ether = (struct pv_ethernet*)pv_packet_data_start(packet);
 		if(ether->type != PV_ETH_TYPE_VLAN) {
 			return true;
 		}
@@ -68,8 +65,9 @@ bool rx_offload_vlan_filter(const struct pv_nic* nic, struct pv_packet* const pa
 	return pv_set_contains(vlan_ids, &vlan_id);
 }
 
-void rx_offload_ipv4_checksum(const struct pv_nic* nic, struct pv_packet* const packet, struct rte_mbuf* const mbuf) {
-	struct pv_ethernet * const ether = (struct pv_ethernet *) packet->payload;
+void rx_offload_ipv4_checksum(const struct pv_nic* nic, struct pv_packet* const packet) {
+	struct pv_ethernet * const ether = (struct pv_ethernet *)pv_packet_data_start(packet);
+	struct rte_mbuf* const mbuf = packet->mbuf;
 	
 	if (ether->type != PV_ETH_TYPE_IPv4) {
 		return;
@@ -111,22 +109,19 @@ void rx_offload_ipv4_checksum(const struct pv_nic* nic, struct pv_packet* const 
 }
 
 void tx_offload_vlan_insert(const struct pv_nic* nic, struct pv_packet* const packet) {
-	struct rte_mbuf* const mbuf = packet->mbuf;
 
 	if(pv_nic_is_tx_offload_supported(nic, DEV_TX_OFFLOAD_VLAN_INSERT)) {
+		struct rte_mbuf *const mbuf = packet->mbuf;
 		mbuf->ol_flags |= PKT_TX_VLAN;
 		mbuf->vlan_tci = pv_vlan_tci_to_uint16(packet->vlan.tci);
 	} else {
-		void* start = packet->payload;
-		struct pv_ethernet* ether = (struct pv_ethernet*) packet->payload;
+		void* start = pv_packet_data_start(packet);
+		struct pv_ethernet* ether = (struct pv_ethernet*) start;
 		memmove(start - PV_VLAN_HDR_LEN, start, PV_ETH_HDR_LEN - sizeof(ether->type));
-		packet->payload -= PV_VLAN_HDR_LEN;
-		packet->payload_len += PV_VLAN_HDR_LEN;
-		mbuf->data_off -= PV_VLAN_HDR_LEN;
-		mbuf->data_len += PV_VLAN_HDR_LEN;
+		packet->start -= PV_VLAN_HDR_LEN;
 		
 		// Move to new header pos
-		ether = (struct pv_ethernet*) packet->payload;
+		ether = (struct pv_ethernet*)pv_packet_data_start(packet);
 		
 		ether->type = PV_ETH_TYPE_VLAN;
 		void* tci_pos = PV_ETH_PAYLOAD(ether);
@@ -134,8 +129,10 @@ void tx_offload_vlan_insert(const struct pv_nic* nic, struct pv_packet* const pa
 	}
 }
 
-void tx_offload_ipv4_checksum(const struct pv_nic* nic, struct pv_ethernet* const ether, struct rte_mbuf* const mbuf) {
+void tx_offload_ipv4_checksum(const struct pv_nic* nic, struct pv_packet* const packet) {
+	struct pv_ethernet* const ether = (struct pv_ethernet*)pv_packet_data_start(packet);
 	struct pv_ipv4 * const ipv4 = (struct pv_ipv4 *)PV_ETH_PAYLOAD(ether);
+	struct rte_mbuf* const mbuf = packet->mbuf;
 
 	if(pv_nic_is_tx_offload_supported(nic, DEV_TX_OFFLOAD_IPV4_CKSUM)) {
 		mbuf->ol_flags |= PKT_TX_IPV4 | PKT_TX_IP_CKSUM;

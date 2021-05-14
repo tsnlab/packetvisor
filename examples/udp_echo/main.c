@@ -30,7 +30,7 @@ int process_arp(struct pv_arp* arp);
 uint16_t checksum_with_pseudo(const struct pseudo_header* pseudo, void* start, uint32_t size);
 
 int process(struct pv_packet* packet) {
-    struct pv_ethernet* ether = (struct pv_ethernet*)packet->payload;
+    struct pv_ethernet* ether = (struct pv_ethernet*)pv_packet_data_start(packet);
     ether->dmac = ether->smac;
     ether->smac = my_mac;
 

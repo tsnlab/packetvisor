@@ -271,14 +271,12 @@ uint16_t pv_nic_rx_burst(uint16_t nic_id, uint16_t queue_id, struct pv_packet** 
 	}
 
 	for(uint16_t i = 0; i < nrecv; i++) {
-		struct rte_mbuf* mbuf = rx_buf[i]->mbuf;
-
 		if(pv_nic_is_rx_offload_enabled(&nics[nic_id], DEV_RX_OFFLOAD_IPV4_CKSUM)) {
-			rx_offload_ipv4_checksum(&nics[nic_id], rx_buf[i], mbuf);
+			rx_offload_ipv4_checksum(&nics[nic_id], rx_buf[i]);
 		}
 		
 		if(pv_nic_is_rx_offload_enabled(&nics[nic_id], DEV_RX_OFFLOAD_VLAN_STRIP)) {
-			rx_offload_vlan_strip(&nics[nic_id], rx_buf[i], mbuf);
+			rx_offload_vlan_strip(&nics[nic_id], rx_buf[i]);
 		}
 	}
 
@@ -310,18 +308,21 @@ uint16_t pv_nic_tx_burst(uint16_t nic_id, uint16_t queue_id, struct pv_packet* p
 	for(uint16_t i = 0; i < nb_pkts; i++) {
 		// Must be before set tx_buf[i].
 		struct pv_packet* packet = pkts[i];
-		struct pv_ethernet* ether = (struct pv_ethernet *)pkts[i]->payload;
+		struct pv_ethernet* ether = (struct pv_ethernet *)pkts[i]->buffer;
 
 		tx_buf[i] = pkts[i]->mbuf;
 
 		// l3 checksum offload.
 		if(ether->type == PV_ETH_TYPE_IPv4 && pv_nic_is_tx_offload_enabled(&nics[nic_id], DEV_TX_OFFLOAD_IPV4_CKSUM)) {
-			tx_offload_ipv4_checksum(&nics[nic_id], ether, packet->mbuf);
+			tx_offload_ipv4_checksum(&nics[nic_id], packet);
 		}
 		
 		if(pv_nic_is_tx_offload_enabled(&nics[nic_id], DEV_TX_OFFLOAD_VLAN_INSERT)) {
 			tx_offload_vlan_insert(&nics[nic_id], packet);
 		}
+		
+		packet->mbuf->data_off = packet->start;
+		packet->mbuf->data_len = pv_packet_data_len(packet);
 	}
 
 	return rte_eth_tx_burst(port_id, queue_id, tx_buf, nb_pkts);

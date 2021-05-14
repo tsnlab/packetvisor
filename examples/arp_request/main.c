@@ -23,7 +23,7 @@ int process(void* ctx) {
 			break;
 		}
 
-		struct pv_ethernet* ether = (struct pv_ethernet*)packet->payload;
+		struct pv_ethernet* ether = (struct pv_ethernet*)pv_packet_data_start(packet);
 		ether->dmac = 0xffffffffffff;
 		uint64_t tmp_mac;
 		pv_nic_get_mac(0, &tmp_mac);

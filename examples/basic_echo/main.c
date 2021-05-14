@@ -8,7 +8,7 @@
 uint64_t mac;
 
 int process(struct pv_packet* packet) {
-	struct pv_ethernet* ether = (struct pv_ethernet*)packet->payload;
+	struct pv_ethernet* ether = (struct pv_ethernet*)pv_packet_data_start(packet);
 	ether->dmac = ether->smac;
 	ether->smac = mac;
 
