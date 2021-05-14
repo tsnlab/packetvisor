@@ -52,7 +52,7 @@ int pv_nic_init(uint16_t nic_count, struct rte_mempool* mbuf_pool) {
 
 void pv_nic_finalize(void) {
 	for(int i = 1; i < nics_count; i += 1) {
-		pv_list_destroy(nics[i].vlan_ids);
+		pv_set_destroy(nics[i].vlan_ids);
 	}
 	free(nics);
 }
@@ -154,7 +154,7 @@ int pv_nic_add(uint16_t nic_id, char* dev_name, uint16_t nb_rx_queue, uint16_t n
 	}
 
 	// Create vlan ids
-	nics[nic_id].vlan_ids = pv_list_create(VLAN_ID_SIZE, 0);
+	nics[nic_id].vlan_ids = pv_set_create(VLAN_ID_SIZE, 0);
 
 	return 0;
 }
@@ -328,19 +328,13 @@ uint16_t pv_nic_tx_burst(uint16_t nic_id, uint16_t queue_id, struct pv_packet* p
 }
 
 bool pv_nic_vlan_filter_on(uint16_t nic_id, uint16_t id) {
-	pv_list_append(nics[nic_id].vlan_ids, &id);
+	pv_set_add(nics[nic_id].vlan_ids, &id);
 	int res = rte_eth_dev_vlan_filter(nics[nic_id].dpdk_port_id, id, 1);
 	return res == 0;
 }
 
 bool pv_nic_vlan_filter_off(uint16_t nic_id, uint16_t id) {
-	struct pv_list* const vlan_ids = nics[nic_id].vlan_ids;
-	for(int i = vlan_ids->current; i >= 0; i -= 1) {
-		uint16_t id_ = *(uint16_t*)pv_list_get(vlan_ids, i);
-		if(id_ == id) {
-			pv_list_del(vlan_ids, i);
-		}
-	}
+	pv_set_remove(nics[nic_id].vlan_ids, &id);
 	int res = rte_eth_dev_vlan_filter(nics[nic_id].dpdk_port_id, id, 0);
 	return res == 0;
 }

@@ -64,14 +64,8 @@ bool rx_offload_vlan_filter(const struct pv_nic* nic, struct pv_packet* const pa
 		vlan_id = vlan->tci.id;
 	}
 
-	struct pv_list* vlan_ids = nic->vlan_ids;
-	for(int i = 0; i < vlan_ids->current; i += 1) {
-		uint16_t vid = *(uint16_t*)pv_list_get(vlan_ids, i);
-		if(vid == vlan_id) {
-			return true;
-		}
-	}
-	return false;
+	struct pv_set* vlan_ids = nic->vlan_ids;
+	return pv_set_contains(vlan_ids, &vlan_id);
 }
 
 void rx_offload_ipv4_checksum(const struct pv_nic* nic, struct pv_packet* const packet, struct rte_mbuf* const mbuf) {

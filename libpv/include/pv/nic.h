@@ -5,7 +5,7 @@
 #include <stdbool.h>
 
 #include <pv/packet.h>
-#include <pv/list.h>
+#include <pv/set.h>
 
 struct pv_nic {
 	uint16_t dpdk_port_id;
@@ -18,7 +18,7 @@ struct pv_nic {
 	
 	uint32_t rx_offload_capa;
 	uint32_t tx_offload_capa;
-	struct pv_list* vlan_ids;
+	struct pv_set* vlan_ids;
 };
 
 bool pv_nic_get_mac(uint16_t nic_id, uint64_t* mac_addr);
