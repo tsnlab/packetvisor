@@ -1,14 +1,14 @@
 .PHONY: all libpv.so examples clean
 
-RELEASE ?= 1
+DEBUG ?= 1
 
 all: libpv.so examples
 
 libpv.so:
-	make -C libpv RELEASE=$(RELEASE)
+	make -C libpv DEBUG=$(RELEASE)
 
 examples:
-	make -C examples RELEASE=$(RELEASE)
+	make -C examples DEBUG=$(RELEASE)
 
 clean:
 	make -C examples clean

@@ -36,4 +36,3 @@ build:
 clean:
 	rm -rf build
 	rm -f $(APP)
-
