@@ -8,6 +8,8 @@
 #include <pv/net/arp.h>
 #include <pv/net/icmp.h>
 #include <pv/checksum.h>
+#include <pv/offload.h>
+#include <pv/net/vlan.h>
 
 struct pseudo_header {
     uint32_t src;
@@ -28,7 +30,7 @@ int process_arp(struct pv_arp* arp);
 uint16_t checksum_with_pseudo(const struct pseudo_header* pseudo, void* start, uint32_t size);
 
 int process(struct pv_packet* packet) {
-    struct pv_ethernet* ether = (struct pv_ethernet*)packet->payload;
+    struct pv_ethernet* ether = (struct pv_ethernet*)pv_packet_data_start(packet);
     ether->dmac = ether->smac;
     ether->smac = my_mac;
 
@@ -144,6 +146,8 @@ int main(int argc, char** argv) {
         my_ipv4 >> (8 * 2) & 0xff,
         my_ipv4 >> (8 * 1) & 0xff,
         my_ipv4 >> (8 * 0) & 0xff);
+
+    pv_nic_vlan_filter_on(0, 42);
 
     struct pv_packet* pkt_buf[1024] = {};
 

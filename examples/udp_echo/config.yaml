@@ -11,6 +11,11 @@ nics:
     rx_queue: 1024
     tx_queue: 1024
     promisc: false
-    rx_offloads: [vlan_strip,]
-    tx_offloads: [ipv4_cksum, ]
+    rx_offloads:
+      - vlan_strip
+      - vlan_filter
+      - ipv4_cksum
+    tx_offloads:
+      - vlan_insert
+      - ipv4_cksum
 

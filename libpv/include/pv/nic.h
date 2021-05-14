@@ -5,6 +5,7 @@
 #include <stdbool.h>
 
 #include <pv/packet.h>
+#include <pv/set.h>
 
 struct pv_nic {
 	uint16_t dpdk_port_id;
@@ -17,6 +18,7 @@ struct pv_nic {
 	
 	uint32_t rx_offload_capa;
 	uint32_t tx_offload_capa;
+	struct pv_set* vlan_ids;
 };
 
 bool pv_nic_get_mac(uint16_t nic_id, uint64_t* mac_addr);
@@ -63,6 +65,22 @@ bool pv_nic_tx(uint16_t nic_id, uint16_t queue_id, struct pv_packet* pkt);
  *   The number of packets transmitted to NIC's tx_ring.
  */
 uint16_t pv_nic_tx_burst(uint16_t nic_id, uint16_t queue_id, struct pv_packet** pkts, uint16_t nb_pkts);
+
+/**
+ * Set vlan filter for vlan id
+ *
+ * @return
+ * true if successful
+ */
+bool pv_nic_vlan_filter_on(uint16_t nic_id, uint16_t id);
+
+/**
+ * Unset vlan filter for vlan id
+ *
+ * @return
+ * true if successful
+ */
+bool pv_nic_vlan_filter_off(uint16_t nic_id, uint16_t id);
 
 /**
  * Check tx offload is enabled on config.
