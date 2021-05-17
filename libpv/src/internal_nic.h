@@ -8,8 +8,8 @@
 #include <rte_ethdev.h>
 
 struct pv_offload_type {
-	char* name;
-	uint32_t mask;
+    char* name;
+    uint32_t mask;
 };
 
 int pv_nic_init(uint16_t nic_count, struct rte_mempool* mbuf_pool);

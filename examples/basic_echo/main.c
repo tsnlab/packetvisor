@@ -8,50 +8,50 @@
 uint64_t mac;
 
 int process(struct pv_packet* packet) {
-	struct pv_ethernet* ether = (struct pv_ethernet*)pv_packet_data_start(packet);
-	ether->dmac = ether->smac;
-	ether->smac = mac;
+    struct pv_ethernet* ether = (struct pv_ethernet*)pv_packet_data_start(packet);
+    ether->dmac = ether->smac;
+    ether->smac = mac;
 
-	if(ether->type != PV_ETH_TYPE_IPv4)
-		return 0;
+    if(ether->type != PV_ETH_TYPE_IPv4)
+        return 0;
 
-	struct pv_ipv4* ip = (struct pv_ipv4*)PV_ETH_PAYLOAD(ether);
-	uint32_t src_ip = ip->src;
-	ip->src = ip->dst;
-	ip->dst = src_ip;
-	ip->checksum = 0;
+    struct pv_ipv4* ip = (struct pv_ipv4*)PV_ETH_PAYLOAD(ether);
+    uint32_t src_ip = ip->src;
+    ip->src = ip->dst;
+    ip->dst = src_ip;
+    ip->checksum = 0;
 
-	return 0;
+    return 0;
 }
 
 int main(int argc, char** argv) {
-	int ret = pv_init();
-	if(ret != 0) {
-		printf("Failed to init pv\n");
-		return ret;
-	}
+    int ret = pv_init();
+    if(ret != 0) {
+        printf("Failed to init pv\n");
+        return ret;
+    }
 
-	pv_nic_get_mac(0, &mac);
-	printf("mac: %lx\n", mac);
+    pv_nic_get_mac(0, &mac);
+    printf("mac: %lx\n", mac);
 
-	struct pv_packet* pkt_buf[1024] = {};
+    struct pv_packet* pkt_buf[1024] = {};
 
-	while(1) {
-		uint16_t nrecv = pv_nic_rx_burst(0, 0, pkt_buf, 1024);
-		if(nrecv == 0) {
-			continue;
-		}
+    while(1) {
+        uint16_t nrecv = pv_nic_rx_burst(0, 0, pkt_buf, 1024);
+        if(nrecv == 0) {
+            continue;
+        }
 
-		for(uint16_t i = 0; i < nrecv; i++) {
-			process(pkt_buf[i]);
-		}
+        for(uint16_t i = 0; i < nrecv; i++) {
+            process(pkt_buf[i]);
+        }
 
-		uint16_t nsent = pv_nic_tx_burst(0, 0, pkt_buf, nrecv);
-		if(nsent == 0) {
-			printf("nsent is 0\n");
-		}
+        uint16_t nsent = pv_nic_tx_burst(0, 0, pkt_buf, nrecv);
+        if(nsent == 0) {
+            printf("nsent is 0\n");
+        }
 
-	}
+    }
 
-	return 0;
+    return 0;
 }
