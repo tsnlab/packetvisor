@@ -8,17 +8,17 @@
 #include <pv/set.h>
 
 struct pv_nic {
-	uint16_t dpdk_port_id;
+    uint16_t dpdk_port_id;
 
-	uint64_t mac_addr;
-	uint32_t ipv4_addr;
+    uint64_t mac_addr;
+    uint32_t ipv4_addr;
 
-	uint32_t rx_offload_mask;
-	uint32_t tx_offload_mask;
-	
-	uint32_t rx_offload_capa;
-	uint32_t tx_offload_capa;
-	struct pv_set* vlan_ids;
+    uint32_t rx_offload_mask;
+    uint32_t tx_offload_mask;
+    
+    uint32_t rx_offload_capa;
+    uint32_t tx_offload_capa;
+    struct pv_set* vlan_ids;
 };
 
 bool pv_nic_get_mac(uint16_t nic_id, uint64_t* mac_addr);
@@ -89,7 +89,7 @@ bool pv_nic_vlan_filter_off(uint16_t nic_id, uint16_t id);
  *   true if enabled
  */
 bool inline pv_nic_is_tx_offload_enabled(const struct pv_nic* nic, uint32_t feature) {
-	return nic->tx_offload_mask & feature;
+    return nic->tx_offload_mask & feature;
 }
 
 /**
@@ -99,7 +99,7 @@ bool inline pv_nic_is_tx_offload_enabled(const struct pv_nic* nic, uint32_t feat
  *   true if supported by hardware
  */
 bool inline pv_nic_is_tx_offload_supported(const struct pv_nic* nic, uint32_t feature) {
-	return nic->tx_offload_capa & feature;
+    return nic->tx_offload_capa & feature;
 }
 
 /**
@@ -109,7 +109,7 @@ bool inline pv_nic_is_tx_offload_supported(const struct pv_nic* nic, uint32_t fe
  *   true if enabled
  */
 bool inline pv_nic_is_rx_offload_enabled(const struct pv_nic* nic, uint32_t feature) {
-	return nic->rx_offload_mask & feature;
+    return nic->rx_offload_mask & feature;
 }
 
 /**
@@ -119,7 +119,7 @@ bool inline pv_nic_is_rx_offload_enabled(const struct pv_nic* nic, uint32_t feat
  *   true if supported by hardware
  */
 bool inline pv_nic_is_rx_offload_supported(const struct pv_nic* nic, uint32_t feature) {
-	return nic->rx_offload_capa & feature;
+    return nic->rx_offload_capa & feature;
 }
 
 #endif /* __PV_NIC_H__ */
