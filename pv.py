@@ -1,10 +1,10 @@
 #!/bin/python3
-import subprocess
-import pprint
-import yaml
-import sys
 import os
 import signal
+import subprocess
+import sys
+
+import yaml
 
 # ------ User config starts ------
 
@@ -12,7 +12,10 @@ PMD = "uio_pci_generic"
 HUGE_PAGE_SIZE = 2 * 1024 * 1024  # 2MiB
 
 # External libraries for network and memory
-external_libs = ['/usr/local/lib/x86_64-linux-gnu/librte_net_e1000.so', '/usr/local/lib/x86_64-linux-gnu/librte_mempool_ring.so']
+external_libs = [
+    '/usr/local/lib/x86_64-linux-gnu/librte_net_e1000.so',
+    '/usr/local/lib/x86_64-linux-gnu/librte_mempool_ring.so',
+]
 
 # ------ User config ends ------
 
@@ -23,6 +26,7 @@ cavium_pkx = {'Class': '08', 'Vendor': '177d', 'Device': 'a0dd,a049', 'SVendor':
 avp_vnic = {'Class': '05', 'Vendor': '1af4', 'Device': '1110', 'SVendor': None, 'SDevice': None}
 
 network_devices = [network_class, cavium_pkx, avp_vnic, ifpga_class]
+
 
 def device_type_match(dev, devices_type):
     for i in range(len(devices_type)):
@@ -85,6 +89,7 @@ def get_pci_devices():
                 .rstrip("]").lstrip("[")
 
     return devices
+
 
 def main(arg):
     if len(arg) == 1:
@@ -160,19 +165,22 @@ def main(arg):
 
     # mount and reserve hugepage
     print("PV: setup hugepages...")
-    subprocess.call([
+    exitcode = subprocess.call([
         "dpdk-hugepages.py",
         "-p", str(HUGE_PAGE_SIZE),
         "--setup", str(required_hugemem_size)
     ])
+    if exitcode != 0:
+        print('Failed to reserve hugepages')
+        exit(exitcode)
 
     # bind nics
     print("PV: load '" + PMD + "' module...")
-    subprocess.call(["sudo", "modprobe", PMD])
+    subprocess.call(["modprobe", PMD])
 
     print("PV: bind NIC...")
     for nic in config.get('nics'):
-        subprocess.call(["sudo", "dpdk-devbind.py", "-b=" + PMD, nic['dev']])
+        subprocess.call(["dpdk-devbind.py", "-b=" + PMD, nic['dev']])
 
     # the 'PACKETVISOR_TMP_CONFIG' env created here will be parsed from app's pv_init()
     app_env = os.environ.copy()
@@ -181,7 +189,7 @@ def main(arg):
     # start app
     print("PV: start app...")
     print("\n------------------------------------------------------------\n")
-    proc = subprocess.Popen(["sudo", "-E", app_path], start_new_session=True, env=app_env)
+    proc = subprocess.Popen([app_path], start_new_session=True, env=app_env)
 
     def handler(signum, frame):
         proc.send_signal(signum)
@@ -194,12 +202,13 @@ def main(arg):
     print("\n------------------------------------------------------------\n")
     print("PV: unbind NIC...")
     for nic in config.get('nics'):
-        subprocess.call(["sudo", "dpdk-devbind.py", "-b=" + nic['module'], nic['dev']])
+        subprocess.call(["dpdk-devbind.py", "-b=" + nic['module'], nic['dev']])
 
     # clear unmount hugepage
     print("PV: clear hugepage...")
-    subprocess.call(["sudo", "dpdk-hugepages.py", "-c"])
-    subprocess.call(["sudo", "dpdk-hugepages.py", "-u"])
+    subprocess.call(["dpdk-hugepages.py", "-c"])
+    subprocess.call(["dpdk-hugepages.py", "-u"])
+
 
 if __name__ == "__main__":
     main(sys.argv)
