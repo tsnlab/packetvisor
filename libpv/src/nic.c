@@ -57,7 +57,7 @@ void pv_nic_finalize(void) {
 	free(nics);
 }
 
-int pv_nic_add(uint16_t nic_id, char* dev_name, uint16_t nb_rx_queue, uint16_t nb_tx_queue, 
+int pv_nic_add(uint16_t nic_id, char* dev_name, uint16_t nb_rx_queue, uint16_t nb_tx_queue,
 		uint16_t rx_queue_size, uint16_t tx_queue_size, uint32_t rx_offloads, uint32_t tx_offloads) {
 
 	// get dpdk port id
@@ -132,7 +132,7 @@ int pv_nic_add(uint16_t nic_id, char* dev_name, uint16_t nb_rx_queue, uint16_t n
 		printf("%s, Failed to configure dpdk dev\n", dev_name);
 		return ret;
 	}
-	
+
 	// rx queue setup
 	struct rte_eth_rxconf rxconf = dev_info.default_rxconf;
 	rxconf.offloads = port_conf.rxmode.offloads;
@@ -203,7 +203,7 @@ bool pv_nic_set_mac(uint16_t nic_id, uint64_t mac_addr) {
 bool pv_nic_get_ipv4(uint16_t nic_id, uint32_t* ipv4_addr) {
 	if(nic_id > nics_count)
 		return false;
-	
+
 	*ipv4_addr = nics[nic_id].ipv4_addr;
 	return true;
 }
@@ -274,7 +274,7 @@ uint16_t pv_nic_rx_burst(uint16_t nic_id, uint16_t queue_id, struct pv_packet** 
 		if(pv_nic_is_rx_offload_enabled(&nics[nic_id], DEV_RX_OFFLOAD_IPV4_CKSUM)) {
 			rx_offload_ipv4_checksum(&nics[nic_id], rx_buf[i]);
 		}
-		
+
 		if(pv_nic_is_rx_offload_enabled(&nics[nic_id], DEV_RX_OFFLOAD_VLAN_STRIP)) {
 			rx_offload_vlan_strip(&nics[nic_id], rx_buf[i]);
 		}
@@ -308,7 +308,7 @@ uint16_t pv_nic_tx_burst(uint16_t nic_id, uint16_t queue_id, struct pv_packet* p
 	for(uint16_t i = 0; i < nb_pkts; i++) {
 		// Must be before set tx_buf[i].
 		struct pv_packet* packet = pkts[i];
-		struct pv_ethernet* ether = (struct pv_ethernet *)pkts[i]->buffer;
+		struct pv_ethernet* ether = (struct pv_ethernet *)pv_packet_data_start(packet);
 
 		tx_buf[i] = pkts[i]->mbuf;
 
@@ -316,11 +316,11 @@ uint16_t pv_nic_tx_burst(uint16_t nic_id, uint16_t queue_id, struct pv_packet* p
 		if(ether->type == PV_ETH_TYPE_IPv4 && pv_nic_is_tx_offload_enabled(&nics[nic_id], DEV_TX_OFFLOAD_IPV4_CKSUM)) {
 			tx_offload_ipv4_checksum(&nics[nic_id], packet);
 		}
-		
+
 		if(pv_nic_is_tx_offload_enabled(&nics[nic_id], DEV_TX_OFFLOAD_VLAN_INSERT)) {
 			tx_offload_vlan_insert(&nics[nic_id], packet);
 		}
-		
+
 		packet->mbuf->data_off = packet->start;
 		packet->mbuf->data_len = pv_packet_data_len(packet);
 	}
