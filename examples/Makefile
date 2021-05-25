@@ -4,7 +4,7 @@ EXAMPLES=$(wildcard */.)
 
 all: ${EXAMPLES}
 	for dir in $^ ; do \
-		make -C $${dir} RELEASE=$(RELEASE) ; \
+		make -C $${dir} DEBUG=$(DEBUG) ; \
 	done
 
 clean: ${EXAMPLES}
