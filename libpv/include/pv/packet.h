@@ -20,15 +20,15 @@ struct pv_packet {
     struct rte_mbuf* mbuf;
 };
 
-inline uint8_t* pv_packet_data_start(const struct pv_packet* packet) {
+static inline uint8_t* pv_packet_data_start(const struct pv_packet* packet) {
     return packet->buffer + packet->start;
 }
 
-inline uint8_t* pv_packet_data_end(const struct pv_packet* packet) {
+static inline uint8_t* pv_packet_data_end(const struct pv_packet* packet) {
     return packet->buffer + packet->end;
 }
 
-inline uint32_t pv_packet_data_len(const struct pv_packet* packet) {
+static inline uint32_t pv_packet_data_len(const struct pv_packet* packet) {
     return packet->end - packet->start;
 }
 

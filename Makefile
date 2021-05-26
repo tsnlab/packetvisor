@@ -5,10 +5,10 @@ DEBUG ?= 1
 all: libpv.so examples
 
 libpv.so:
-	make -C libpv DEBUG=$(RELEASE)
+	make -C libpv DEBUG=$(DEBUG)
 
 examples:
-	make -C examples DEBUG=$(RELEASE)
+	make -C examples DEBUG=$(DEBUG)
 
 clean:
 	make -C examples clean
