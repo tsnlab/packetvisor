@@ -24,6 +24,7 @@ EXAMPLES := $(notdir $(patsubst %/., %, $(wildcard examples/*/.)))
 all: libpv.a
 	for example in $(EXAMPLES); do \
 		$(MAKE) -C examples/$$example; \
+		cp examples/$$example/$$example .; \
 	done
 
 bind:
