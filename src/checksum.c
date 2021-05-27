@@ -7,7 +7,7 @@ uint16_t pv_checksum(const void* start, uint32_t size) {
     return pv_checksum_finalise(checksum);
 }
 
-uint16_t pv_checksum_partial(const void* start, uint32_t size) {
+uint32_t pv_checksum_partial(const void* start, uint32_t size) {
     uint32_t checksum = 0;
     const uint16_t* buffer = start;
 
