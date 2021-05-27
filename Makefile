@@ -1,4 +1,4 @@
-.PHONY: all clean bind unbind
+.PHONY: all clean bind unbind examples
 
 CC ?= gcc
 AR ?= ar
@@ -19,9 +19,12 @@ endif
 SRCS := $(wildcard src/*.c)
 OBJS := $(patsubst src/%.c, obj/%.o, $(SRCS))
 DEPS := $(patsubst src/%.c, obj/%.d, $(SRCS))
-EXAMPLES := $(notdir $(wildcard examples/*))
+EXAMPLES := $(notdir $(patsubst %/., %, $(wildcard examples/*/.)))
 
-all: libpv.a $(EXAMPLES)
+all: libpv.a
+	for example in $(EXAMPLES); do \
+		$(MAKE) -C examples/$$example; \
+	done
 
 bind:
 	sudo dpdk-hugepages.py -p $$(( 2 * 1024 * 1024 )) --setup $$(( 256 * 1024 * 1024 ))
@@ -32,10 +35,6 @@ unbind:
 	sudo dpdk-devbind.py -u 00:08.0
 	sudo dpdk-hugepages.py -c
 	sudo dpdk-hugepages.py -u
-
-$(EXAMPLES):
-	$(MAKE) -C examples/$@
-	cp examples/$@/$@ .
 
 clean:
 	for example in $(EXAMPLES); do \
