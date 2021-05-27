@@ -3,3 +3,4 @@ examples/dump/dump
 dump
 obj/
 libpv.a
+src/ver.h
