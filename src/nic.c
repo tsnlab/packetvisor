@@ -13,7 +13,7 @@ uint64_t pv_nic_get_mac(uint16_t nic_id) {
         return 0;
     }
 
-    return ((uint64_t)addr.addr_bytes[0]) << 48 | ((uint64_t)addr.addr_bytes[1]) << 32 |
+    return ((uint64_t)addr.addr_bytes[0]) << 40 | ((uint64_t)addr.addr_bytes[1]) << 32 |
            ((uint64_t)addr.addr_bytes[2]) << 24 | ((uint64_t)addr.addr_bytes[3]) << 16 |
            ((uint64_t)addr.addr_bytes[4]) << 8 | ((uint64_t)addr.addr_bytes[5]) << 0;
 }
