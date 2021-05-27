@@ -25,8 +25,8 @@ APP := $(notdir $(CURDIR))
 
 all: $(APP)
 
-$(APP): $(OBJS)
-	$(CC) $(CFLAGS) -o $@ $^ $(LIBS)
+$(APP): $(OBJS) $(PV_LIB_PATH)/libpv.a
+	$(CC) $(CFLAGS) -o $@ $(filter %.o, $^) $(LIBS)
 
 clean:
 	rm -rf obj

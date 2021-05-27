@@ -1,5 +1,9 @@
 .PHONY: all clean bind unbind examples
 
+USER_CLFAGS=$(CFLAGS)
+USER_CC=$(CC)
+USER_DEBUG=$(DEBUG)
+
 CC ?= gcc
 AR ?= ar
 DEBUG ?= 1
@@ -11,7 +15,7 @@ endif
 override CFLAGS += $(shell pkg-config --cflags libdpdk) -Iinclude -Wall
 
 ifeq ($(DEBUG), 1)
-	override CFLAGS += -pg -O0 -g -DDEBUG=1 -fsanitize=address
+	override CFLAGS += -O0 -g -DDEBUG=1 -fsanitize=address
 else
 	override CFLAGS += -O3
 endif
@@ -23,7 +27,7 @@ EXAMPLES := $(notdir $(patsubst %/., %, $(wildcard examples/*/.)))
 
 all: libpv.a
 	for example in $(EXAMPLES); do \
-		$(MAKE) -C examples/$$example; \
+		$(MAKE) -C examples/$$example DEBUG="$(USER_DEBUG)" CFLAGS="$(USER_CFLAGS)" CC="$(USER_CC)"; \
 		cp examples/$$example/$$example .; \
 	done
 
