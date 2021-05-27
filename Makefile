@@ -51,11 +51,14 @@ libpv.a: $(OBJS)
 src/ver.h:
 	bin/ver.sh
 
-obj/%.d: $(SRCS) src/ver.h
-	mkdir -p obj; $(CC) $(CFLAGS) -M $< > $@
+obj:
+	mkdir -p obj
+
+obj/%.d: src/%.c | obj
+	$(CC) $(CFLAGS) -M $< -MT $(@:.d=.o) -MF $@
 
 obj/%.o: src/%.c
-	$(CC) $(CFLAGS) -c -o $@ $^
+	$(CC) $(CFLAGS) -c -o $@ $<
 
 ifneq (clean,$(filter clean, $(MAKECMDGOALS)))
 -include $(DEPS)
