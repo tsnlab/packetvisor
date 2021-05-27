@@ -3,12 +3,8 @@
 ## Prerequisite
 
 ### DPDK
-- Install DPDK
-- Tested on DPDK 21.02.0-rc0
-
-### libfyaml
-- Refer to 'https://github.com/pantoniou/libfyaml'
-- After installation, might need to run 'ldconfig' at libfyaml project root directory.
+- Install DPDK LTS
+- Tested on DPDK 20.11.1
 
 ## Build
 Run 'make' at project root directory.
@@ -36,3 +32,6 @@ recv: abcd
 # If you want to set source port
 $ ./examples/udp_echo/echo_cli 192.168.1.11 8080 --bind 9999
 ```
+
+# License
+This software is licensed under GPLv3
