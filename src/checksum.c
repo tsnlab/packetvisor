@@ -4,7 +4,7 @@
 
 uint16_t pv_checksum(const void* start, uint32_t size) {
     uint32_t checksum = pv_checksum_partial(start, size);
-    return pv_checksum_finalise(checksum);
+    return pv_checksum_finalize(checksum);
 }
 
 uint32_t pv_checksum_partial(const void* start, uint32_t size) {
@@ -30,7 +30,7 @@ uint32_t pv_checksum_partial(const void* start, uint32_t size) {
     return checksum;
 }
 
-uint16_t pv_checksum_finalise(uint32_t checksum) {
+uint16_t pv_checksum_finalize(uint32_t checksum) {
     checksum = (checksum >> 16) + (checksum & 0xffff);
     checksum = (checksum >> 16) + (checksum & 0xffff);
 
