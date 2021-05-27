@@ -1,5 +1,7 @@
 #include <rte_ethdev.h>
+
 #include <pv/nic.h>
+
 #include "internal.h"
 
 uint16_t pv_nic_count() {
@@ -51,7 +53,7 @@ uint16_t pv_nic_tx_burst(uint16_t nic_id, uint16_t queue_id, struct pv_packet** 
     return nb_tx;
 }
 
-uint16_t pv_nic_tx(uint16_t nic_id, uint16_t queue_id, struct pv_packet * packet) {
-    struct pv_packet * array[1] = {packet};
+uint16_t pv_nic_tx(uint16_t nic_id, uint16_t queue_id, struct pv_packet* packet) {
+    struct pv_packet* array[1] = {packet};
     return pv_nic_tx_burst(nic_id, queue_id, array, 1);
 }

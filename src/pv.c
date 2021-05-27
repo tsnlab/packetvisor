@@ -94,7 +94,9 @@ int pv_init() {
     unsigned int nb_ports;
     uint16_t portid;
 
-    char* argv[] = { "xxx", };
+    char* argv[] = {
+        "xxx",
+    };
     int argc = sizeof(argv) / sizeof(argv[0]);
 
     int ret = rte_eal_init(argc, argv);

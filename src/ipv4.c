@@ -1,5 +1,5 @@
-#include <pv/net/ipv4.h>
 #include <pv/checksum.h>
+#include <pv/net/ipv4.h>
 
 void pv_ipv4_checksum(struct pv_ipv4* ipv4) {
     ipv4->checksum = 0;
