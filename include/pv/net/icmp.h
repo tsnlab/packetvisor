@@ -20,6 +20,8 @@ struct pv_icmp {
     uint16_t checksum;
 } __attribute__((packed, scalar_storage_order("big-endian")));
 
+void pv_icmp_checksum(struct pv_icmp * icmp, uint16_t size);
+
 #ifdef __cplusplus
 }
 #endif
