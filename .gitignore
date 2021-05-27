@@ -1,6 +1,2 @@
-examples/arp_request/arp_request
-examples/basic_echo/basic_echo
-examples/*/build/
-
-libpv/obj/
-libpv/libpv.so
+obj/
+libpv.a
