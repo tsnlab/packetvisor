@@ -1,6 +1,8 @@
 examples/*/obj
 examples/dump/dump
 dump
+examples/echo/echo
+echo
 obj/
 libpv.a
 src/ver.h

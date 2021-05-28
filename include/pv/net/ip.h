@@ -4,7 +4,9 @@
 extern "C" {
 #endif
 
-/* Common ip header */
+/**
+ * IP protocols.
+ */
 enum pv_ip_protocol {
     PV_IP_PROTO_HOPOPT = 0,            ///< IPv6 Hop-by-Hop Option
     PV_IP_PROTO_ICMP = 1,              ///< Internet Control Message

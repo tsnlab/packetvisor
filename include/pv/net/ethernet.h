@@ -6,9 +6,21 @@ extern "C" {
 
 #include <stdint.h>
 
+/**
+ * Ethernet header length is 14 bytes.
+ */
 #define PV_ETH_HDR_LEN (sizeof(struct pv_ethernet))
+/**
+ * Get start pointer of payload from Ethernet data structure.
+ *
+ * @param ethernet  ethernet data structure.
+ * @return start pointer of payload in void* type.
+ */
 #define PV_ETH_PAYLOAD(ethernet) (void*)((uint8_t*)(ethernet) + PV_ETH_HDR_LEN)
 
+/**
+ * Ethernet types.
+ */
 enum pv_ethernet_type {
     PV_ETH_TYPE_IPv4 = 0x0800,
     PV_ETH_TYPE_ARP = 0x0806,
@@ -16,6 +28,9 @@ enum pv_ethernet_type {
     PV_ETH_TYPE_VLAN = 0x8100,
 };
 
+/**
+ * Ethernet data structure.
+ */
 struct pv_ethernet {
     uint64_t dmac : 48;
     uint64_t smac : 48;
