@@ -2,6 +2,7 @@
 #include <rte_ethdev.h>
 #include <rte_mbuf.h>
 #include <pv/pv.h>
+#include "zf_log.h"
 
 #define RX_RING_SIZE 1024
 #define TX_RING_SIZE 1024
@@ -32,7 +33,7 @@ static inline int port_init(uint16_t port, struct rte_mempool* mbuf_pool) {
 
     retval = rte_eth_dev_info_get(port, &dev_info);
     if(retval != 0) {
-        printf("Error during getting device (port %u) info: %s\n", port, strerror(-retval));
+        ZF_LOGE("Error during getting device (port %u) info: %s\n", port, strerror(-retval));
         return retval;
     }
 
@@ -78,7 +79,7 @@ static inline int port_init(uint16_t port, struct rte_mempool* mbuf_pool) {
         return retval;
     }
 
-    printf("Port %u MAC: %02x:%02x:%02x:%02x:%02x:%02x\n", port, addr.addr_bytes[0], addr.addr_bytes[1],
+    ZF_LOGI("Port %u MAC: %02x:%02x:%02x:%02x:%02x:%02x\n", port, addr.addr_bytes[0], addr.addr_bytes[1],
            addr.addr_bytes[2], addr.addr_bytes[3], addr.addr_bytes[4], addr.addr_bytes[5]);
 
     retval = rte_eth_promiscuous_enable(port);
@@ -105,8 +106,8 @@ int pv_init() {
     }
 
     nb_ports = rte_eth_dev_count_avail();
-    printf("Available ports: %d\n", nb_ports);
-    printf("Available cores: %d\n", rte_lcore_count());
+    ZF_LOGI("Available ports: %d\n", nb_ports);
+    ZF_LOGI("Available cores: %d\n", rte_lcore_count());
 
     mbuf_mempool = rte_pktmbuf_pool_create("MBUF_POOL", NUM_MBUFS * nb_ports, MBUF_CACHE_SIZE, 0,
                                            RTE_MBUF_DEFAULT_BUF_SIZE, rte_socket_id());
@@ -125,7 +126,7 @@ int pv_init() {
 
     RTE_ETH_FOREACH_DEV(port) {
         if(rte_eth_dev_socket_id(port) > 0 && rte_eth_dev_socket_id(port) != (int)rte_socket_id()) {
-            printf("WARNING, port %u is on remote NUMA node to "
+            ZF_LOGW("WARNING, port %u is on remote NUMA node to "
                    "polling thread.\n\tPerformance will "
                    "not be optimal.\n",
                    port);
