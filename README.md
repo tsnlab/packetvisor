@@ -55,3 +55,51 @@ $ python bin/udp\_echo\_cli.py [ip address] 7 # UDP echo test, 7 is the port num
 
 # License
 This software is distributed under GPLv3
+
+
+## Config
+
+Packetvisor is using *yaml* as it's configuration file.
+
+Configuration will be flattened into key-value dictionary.
+
+For example:
+
+```yaml
+users:
+  - name: "Jeong Arm"
+    email: "jarm@802.11ac.net"
+
+log_level: debug
+promisc: true
+```
+
+will be converted into
+
+- `:type` dict
+- `:keys/:length` 2
+  - `:keys[0]/:type` str
+  - `:keys[0]` users
+  - `:keys[1]/:type` str
+  - `:keys[1]` users
+  - `:keys[2]/:type` str
+  - `:keys[2]` promisc
+- `users/:type` list
+- `users/:length` 1
+  - `users[0]/:type` dict
+  - `users[0]/:keys/:length` 2
+    - `users[0]/:keys[0]` name
+    - `users[0]/:keys[1]` email
+  - `users[0]/name` Jeong Arm
+  - `users[0]/email` jarm@802.11ac.net
+- `log_level/:type` str
+- `log_level` debug
+- `promisc/:type` bool
+- `promisc` 1
+
+### Available types
+- str: literal string
+- num: literal number
+- bool: `1` if true else `0`
+- dict: keys are stored into `:keys` with list type
+- list: 0 based list. `:length` is length with num type
