@@ -1,5 +1,11 @@
+import re
+
 from typing import Union
 
+
+def is_valid_keyname(key: str) -> bool:
+    pattern = re.compile(r'^[^:/\[\] ][^/\[\] ]*$')
+    return pattern.match(key) is not None
 
 def convert(config: Union[int, float, str, bool, dict], root='') -> str:
     res = []
@@ -17,24 +23,20 @@ def convert(config: Union[int, float, str, bool, dict], root='') -> str:
         # Check duplicated keys during all keys are converted to str
         if len(config.keys()) != len(set(map(str, config.keys()))):
             raise ValueError('Same keyname as str is not allowed')
-        if any(key.startswith(':') for key in config.keys()):
-            raise ValueError('Key name starts with ":" is not allowed')
+        for key in config.keys():
+            if not is_valid_keyname(key):
+                raise ValueError(f'Key name "{key}" is not allowed')
 
         res.append(f'{root}/:type dict')
         res.append(f'{root}/:length {len(config.keys())}')
-        # keys = []
-        # values = []
         for index, (key, val) in enumerate(sorted(config.items())):
             res.append(f'{root}/:keys[{index}] {key}')
             res.extend(convert(val, f'{root}/{key}'))
-        # res.extend(keys)
-        # res.extend(values)
     elif isinstance(config, list):
         res.append(f'{root}/:type list')
         res.append(f'{root}/:length {len(config)}')
         for index, val in enumerate(config):
             res.extend(convert(val, f'{root}[{index}]'))
-
 
     return res if root else '\n'.join(res)
 
