@@ -1,6 +1,5 @@
-#!/usr/bin/env python3
-
 from typing import Union
+
 
 def convert(config: Union[int, float, str, bool, dict], root='') -> str:
     res = []

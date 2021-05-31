@@ -17,7 +17,7 @@ override CFLAGS += $(shell pkg-config --cflags libdpdk) -Iinclude -Wall
 ifeq ($(DEBUG), 1)
 	override CFLAGS += -O0 -g -DDEBUG=1 -fsanitize=address
 else
-	override CFLAGS += -O3
+	override CFLAGS += -O3 -DNDEBUG=1
 endif
 
 SRCS := $(wildcard src/*.c)
@@ -25,7 +25,7 @@ OBJS := $(patsubst src/%.c, obj/%.o, $(SRCS))
 DEPS := $(patsubst src/%.c, obj/%.d, $(SRCS))
 EXAMPLES := $(notdir $(patsubst %/., %, $(wildcard examples/*/.)))
 
-all: libpv.a
+all: libpv.a bin/pv
 	for example in $(EXAMPLES); do \
 		$(MAKE) -C examples/$$example DEBUG="$(USER_DEBUG)" CFLAGS="$(USER_CFLAGS)" CC="$(USER_CC)"; \
 		cp examples/$$example/$$example .; \
@@ -37,7 +37,7 @@ bind:
 	sudo dpdk-devbind.py -b uio_pci_generic 00:08.0
 
 unbind:
-	sudo dpdk-devbind.py -u 00:08.0
+	sudo dpdk-devbind.py -b e1000 00:08.0
 	sudo dpdk-hugepages.py -c
 	sudo dpdk-hugepages.py -u
 
@@ -63,6 +63,9 @@ obj/%.d: src/%.c | obj
 
 obj/%.o: src/%.c
 	$(CC) $(CFLAGS) -c -o $@ $<
+
+bin/pv: $(wildcard pypv/*.py)
+	python3 -m zipapp -c -o bin/pv pypv -p '/usr/bin/env -S python3 -u'
 
 ifneq (clean,$(filter clean, $(MAKECMDGOALS)))
 -include $(DEPS)

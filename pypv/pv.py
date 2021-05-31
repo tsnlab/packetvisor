@@ -1,5 +1,3 @@
-#!/usr/bin/env -S python3 -u -X faulthandler
-
 import os
 import re
 import shlex
@@ -7,10 +5,13 @@ import shutil
 import signal
 import subprocess
 import sys
+import tempfile
 
 from contextlib import ExitStack
 from collections import namedtuple
 from typing import Dict, List
+
+from config import convert
 
 import yaml
 
@@ -129,7 +130,13 @@ def main(args: List[str]) -> int:
             run_cmd(f"dpdk-devbind.py -b {DRIVER_NAME} {nic['dev']}")
 
         app_env = os.environ.copy()
-        app_env['PACKETVISOR_CONFIG'] = yaml.dump(config, default_flow_style=True)
+
+        # Setup config
+        with tempfile.NamedTemporaryFile(mode='w', delete=False) as config_file:
+            print(f'TMP Config using {config_file.name}')
+            estack.callback(lambda: os.unlink(config_file.name))
+            config_file.write(convert(config))
+            app_env['PV_CONFIG'] = config_file.name
 
         print('Starting app')
         print('\n' + '=' * TTY_WIDTH)
