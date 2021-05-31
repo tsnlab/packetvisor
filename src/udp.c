@@ -19,7 +19,11 @@ void pv_udp_checksum_ipv4(struct pv_udp* udp, struct pv_ipv4* ipv4) {
         .length = udp->length,
     };
 
+    udp->checksum = 0;
+
     uint32_t checksum1 = pv_checksum_partial(&pseudo_header, sizeof(pseudo_header));
     uint32_t checksum2 = pv_checksum_partial(udp, udp->length);
-    return pv_checksum_finalize(checksum1 + checksum2);
+    uint16_t checksum = pv_checksum_finalize(checksum1 + checksum2);
+
+    udp->checksum = checksum;
 }
