@@ -67,39 +67,51 @@ For example:
 
 ```yaml
 users:
-  - name: "Jeong Arm"
-    email: "jarm@802.11ac.net"
-
+  - name: Jeong Arm
+    email: jarm@802.11ac.net
 log_level: debug
 promisc: true
+tau: 6.28
+ids: [1, 2]
 ```
 
 will be converted into
 
-- `:type` dict
-- `:keys/:length` 2
-  - `:keys[0]/:type` str
-  - `:keys[0]` users
-  - `:keys[1]/:type` str
-  - `:keys[1]` users
-  - `:keys[2]/:type` str
-  - `:keys[2]` promisc
-- `users/:type` list
-- `users/:length` 1
-  - `users[0]/:type` dict
-  - `users[0]/:keys/:length` 2
-    - `users[0]/:keys[0]` name
-    - `users[0]/:keys[1]` email
-  - `users[0]/name` Jeong Arm
-  - `users[0]/email` jarm@802.11ac.net
-- `log_level/:type` str
-- `log_level` debug
-- `promisc/:type` bool
-- `promisc` 1
+```
+/:type dict
+/:length 5
+/:keys[0] ids
+/ids/:type list
+/ids/:length 2
+/ids[0]/:type num
+/ids[0]/ 1
+/ids[1]/:type num
+/ids[1]/ 2
+/:keys[1] log_level
+/log_level/:type str
+/log_level/ debug
+/:keys[2] promisc
+/promisc/:type bool
+/promisc/ 1
+/:keys[3] tau
+/tau/:type num
+/tau/ 6.28
+/:keys[4] users
+/users/:type list
+/users/:length 1
+/users[0]/:type dict
+/users[0]/:length 2
+/users[0]/:keys[0] email
+/users[0]/email/:type str
+/users[0]/email/ jarm@802.11ac.net
+/users[0]/:keys[1] name
+/users[0]/name/:type str
+/users[0]/name/ Jeong Arm
+```
 
 ### Available types
 - str: literal string
 - num: literal number
 - bool: `1` if true else `0`
-- dict: keys are stored into `:keys` with list type
+- dict: keys are stored into `:keys` with list type, `:length` contains keys size
 - list: 0 based list. `:length` is length with num type
