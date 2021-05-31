@@ -7,6 +7,7 @@ def is_valid_keyname(key: str) -> bool:
     pattern = re.compile(r'^[^:/\[\] ][^/\[\] ]*$')
     return pattern.match(key) is not None
 
+
 def convert(config: Union[int, float, str, bool, dict], root='') -> str:
     res = []
 
