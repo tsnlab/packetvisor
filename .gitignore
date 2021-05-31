@@ -4,3 +4,7 @@ dump
 obj/
 libpv.a
 src/ver.h
+
+bin/pv
+*.pyc
+__pycache__
