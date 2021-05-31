@@ -2,6 +2,7 @@
 #include <rte_ethdev.h>
 #include <rte_mbuf.h>
 #include <pv/pv.h>
+#include <pv/config.h>
 #include "zf_log.h"
 
 #define RX_RING_SIZE 1024
@@ -95,6 +96,11 @@ int pv_init() {
     unsigned int nb_ports;
     uint16_t portid;
 
+    struct pv_config* config = pv_config_create();
+    if(config == NULL) {
+        ZF_LOGE("ERRORRERRORR");
+    }
+
     char* argv[] = {
         "xxx",
     };
@@ -133,6 +139,7 @@ int pv_init() {
         }
     }
 
+    pv_config_destroy(config);
     return ret;
 }
 
