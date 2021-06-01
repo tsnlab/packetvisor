@@ -5,8 +5,9 @@
 #include <pv/config.h>
 #include <pv/pv.h>
 
-#define RX_RING_SIZE 1024
-#define TX_RING_SIZE 1024
+#include <cl/collection.h>
+#include <cl/map.h>
+
 #define NUM_MBUFS 8191
 #define MBUF_CACHE_SIZE 250
 #define BURST_SIZE 32
@@ -18,11 +19,16 @@ static const struct rte_eth_conf port_conf_default = {
         },
 };
 
-static inline int port_init(uint16_t port, struct rte_mempool* mbuf_pool) {
+struct map* create_devmap();
+
+void destroy_devmap(struct map* devmap);
+
+static inline int port_init(uint16_t port, struct rte_mempool* mbuf_pool, struct pv_config_nic* nic_config) {
     struct rte_eth_conf port_conf = port_conf_default;
+    // FIXME: Implement multiple rx/tx queue
     const uint16_t rx_rings = 1, tx_rings = 1;
-    uint16_t nb_rxd = RX_RING_SIZE;
-    uint16_t nb_txd = RX_RING_SIZE;
+    uint16_t nb_rxd = nic_config->rx_queue;
+    uint16_t nb_txd = nic_config->tx_queue;
     int retval;
     uint16_t q;
     struct rte_eth_dev_info dev_info;
@@ -94,7 +100,6 @@ static inline int port_init(uint16_t port, struct rte_mempool* mbuf_pool) {
 int pv_init() {
     struct rte_mempool* mbuf_mempool;
     unsigned int nb_ports;
-    uint16_t portid;
 
     struct pv_config* config = pv_config_create();
     if(config == NULL) {
@@ -122,11 +127,19 @@ int pv_init() {
         rte_exit(1, "Cannot create mbuf pool\n");
     }
 
-    RTE_ETH_FOREACH_DEV(portid) {
-        if(port_init(portid, mbuf_mempool) != 0) {
-            rte_exit(1, "Cannot init port %d\n", portid);
+    struct map* dev_map = create_devmap();
+
+    for(int i = 0; i < config->nics_count; i += 1) {
+        if(!map_has(dev_map, config->nics[i].dev)) {
+            ZF_LOGE("Cannot found portid for dev %s", config->nics[i].dev);
+            return -1;
         }
+
+        uint16_t portid = to_i16(map_get(dev_map, config->nics[i].dev));
+        port_init(portid, mbuf_mempool, &config->nics[i]);
     }
+
+    destroy_devmap(dev_map);
 
     uint16_t port;
 
@@ -144,4 +157,36 @@ int pv_init() {
 }
 
 void pv_finalize() {
+}
+
+struct map* create_devmap() {
+    struct map* map = map_create(10, string_hash, string_compare);
+    assert(map != NULL);
+
+    uint16_t portid;
+
+    RTE_ETH_FOREACH_DEV(portid) {
+        struct rte_eth_dev_info devinfo;
+        if(rte_eth_dev_info_get(portid, &devinfo) != 0) {
+            rte_exit(1, "Cannot get devinfo");
+        }
+
+        map_put(map, strdup(devinfo.device->name), from_u16(portid));
+    }
+
+    return map;
+}
+
+void destroy_devmap(struct map* devmap) {
+    assert(devmap != NULL);
+
+    struct map_iterator iter;
+
+    map_iterator_init(&iter, devmap);
+    while(map_iterator_has_next(&iter)) {
+        struct map_entry* entry = map_iterator_next(&iter);
+        free(entry->key);
+    }
+
+    map_destroy(devmap);
 }
