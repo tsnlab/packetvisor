@@ -17,10 +17,10 @@ static const struct rte_eth_conf port_conf_default = {
         },
 };
 
-bool is_config_fine(const struct pv_config* config);
+static bool is_config_fine(const struct pv_config* config);
 
-struct map* create_devmap();
-void destroy_devmap(struct map* devmap);
+static struct map* create_devmap();
+static void destroy_devmap(struct map* devmap);
 
 static inline int port_init(uint16_t port, struct rte_mempool* mbuf_pool, struct pv_config_nic* nic_config) {
     struct rte_eth_conf port_conf = port_conf_default;
@@ -166,7 +166,7 @@ int pv_init() {
 void pv_finalize() {
 }
 
-bool is_config_fine(const struct pv_config* config) {
+static bool is_config_fine(const struct pv_config* config) {
     if(config->cores_count <= 0) {
         ZF_LOGE("At least 1 core required");
         return false;
@@ -191,7 +191,7 @@ bool is_config_fine(const struct pv_config* config) {
     return true;
 }
 
-struct map* create_devmap() {
+static struct map* create_devmap() {
     struct map* map = map_create(10, string_hash, string_compare);
     assert(map != NULL);
 
@@ -209,7 +209,7 @@ struct map* create_devmap() {
     return map;
 }
 
-void destroy_devmap(struct map* devmap) {
+static void destroy_devmap(struct map* devmap) {
     assert(devmap != NULL);
 
     struct map_iterator iter;

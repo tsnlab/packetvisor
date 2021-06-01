@@ -15,7 +15,7 @@
 #define ENV_NAME "PV_CONFIG"
 #define MAX_LINE_LENGTH 200
 
-void fill_pv_config(struct pv_config* config);
+static void fill_pv_config(struct pv_config* config);
 
 struct pv_config* pv_config_create() {
     struct pv_config* config = malloc(sizeof(struct pv_config));
@@ -55,7 +55,7 @@ struct pv_config* pv_config_create() {
     return config;
 }
 
-void fill_pv_config(struct pv_config* config) {
+static void fill_pv_config(struct pv_config* config) {
     struct map* map = config->config_map;
     if(map_has(map, "/cores/:type")) {
         config->cores_count = atoi(map_get(map, "/cores/:length"));
