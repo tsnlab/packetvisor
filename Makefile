@@ -1,4 +1,4 @@
-.PHONY: all clean bind unbind examples
+.PHONY: all clean bind unbind examples libs
 
 USER_CLFAGS=$(CFLAGS)
 USER_CC=$(CC)
@@ -12,7 +12,7 @@ ifneq ($(shell pkg-config --exists libdpdk && echo 0),0)
 $(error "DPDK not found")
 endif
 
-override CFLAGS += $(shell pkg-config --cflags libdpdk) -Iinclude -Wall
+override CFLAGS += $(shell pkg-config --cflags libdpdk) -L lib/libcollection -llibcl -Ilib/libcollection/include -Iinclude -Wall
 
 ifeq ($(DEBUG), 1)
 	override CFLAGS += -O0 -g -DDEBUG=1 -fsanitize=address
@@ -22,6 +22,7 @@ endif
 
 SRCS := $(wildcard src/*.c)
 OBJS := $(patsubst src/%.c, obj/%.o, $(SRCS))
+LIBS := lib/libcollection/libcl.a
 DEPS := $(patsubst src/%.c, obj/%.d, $(SRCS))
 EXAMPLES := $(notdir $(patsubst %/., %, $(wildcard examples/*/.)))
 
@@ -49,8 +50,11 @@ clean:
 	rm -f $(EXAMPLES)
 	rm -f libpv.a
 
-libpv.a: $(OBJS)
-	$(AR) rcs $@ $^
+libpv.a: $(OBJS) $(LIBS)
+	$(AR) -rcT $@ $^
+
+libs:
+	make -C lib/libcollection/ DEBUG=0
 
 src/ver.h:
 	bin/ver.sh

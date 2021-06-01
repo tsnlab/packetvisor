@@ -1,9 +1,9 @@
 #include <rte_eal.h>
 #include <rte_ethdev.h>
 #include <rte_mbuf.h>
-#include <pv/pv.h>
-#include <pv/config.h>
 #include "zf_log.h"
+#include <pv/config.h>
+#include <pv/pv.h>
 
 #define RX_RING_SIZE 1024
 #define TX_RING_SIZE 1024
@@ -81,7 +81,7 @@ static inline int port_init(uint16_t port, struct rte_mempool* mbuf_pool) {
     }
 
     ZF_LOGI("Port %u MAC: %02x:%02x:%02x:%02x:%02x:%02x\n", port, addr.addr_bytes[0], addr.addr_bytes[1],
-           addr.addr_bytes[2], addr.addr_bytes[3], addr.addr_bytes[4], addr.addr_bytes[5]);
+            addr.addr_bytes[2], addr.addr_bytes[3], addr.addr_bytes[4], addr.addr_bytes[5]);
 
     retval = rte_eth_promiscuous_enable(port);
     if(retval != 0) {
@@ -133,9 +133,9 @@ int pv_init() {
     RTE_ETH_FOREACH_DEV(port) {
         if(rte_eth_dev_socket_id(port) > 0 && rte_eth_dev_socket_id(port) != (int)rte_socket_id()) {
             ZF_LOGW("WARNING, port %u is on remote NUMA node to "
-                   "polling thread.\n\tPerformance will "
-                   "not be optimal.\n",
-                   port);
+                    "polling thread.\n\tPerformance will "
+                    "not be optimal.\n",
+                    port);
         }
     }
 

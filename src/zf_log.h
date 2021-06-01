@@ -14,9 +14,9 @@
  */
 #define ZF_LOG_VERSION 4
 #if defined(ZF_LOG_VERSION_REQUIRED)
-	#if ZF_LOG_VERSION_REQUIRED != ZF_LOG_VERSION
-		#error different zf_log version required
-	#endif
+#if ZF_LOG_VERSION_REQUIRED != ZF_LOG_VERSION
+#error different zf_log version required
+#endif
 #endif
 
 /* Log level guideline:
@@ -41,12 +41,12 @@
  * providing short and self descriptive log message.
  */
 #define ZF_LOG_VERBOSE 1
-#define ZF_LOG_DEBUG   2
-#define ZF_LOG_INFO    3
-#define ZF_LOG_WARN    4
-#define ZF_LOG_ERROR   5
-#define ZF_LOG_FATAL   6
-#define ZF_LOG_NONE    0xFF
+#define ZF_LOG_DEBUG 2
+#define ZF_LOG_INFO 3
+#define ZF_LOG_WARN 4
+#define ZF_LOG_ERROR 5
+#define ZF_LOG_FATAL 6
+#define ZF_LOG_NONE 0xFF
 
 /* "Current" log level is a compile time check and has no runtime overhead. Log
  * level that is below current log level it said to be "disabled". Otherwise,
@@ -73,15 +73,15 @@
  * otherwise (NDEBUG is not defined).
  */
 #if defined(ZF_LOG_LEVEL)
-	#define _ZF_LOG_LEVEL ZF_LOG_LEVEL
+#define _ZF_LOG_LEVEL ZF_LOG_LEVEL
 #elif defined(ZF_LOG_DEF_LEVEL)
-	#define _ZF_LOG_LEVEL ZF_LOG_DEF_LEVEL
+#define _ZF_LOG_LEVEL ZF_LOG_DEF_LEVEL
 #else
-	#ifdef NDEBUG
-		#define _ZF_LOG_LEVEL ZF_LOG_INFO
-	#else
-		#define _ZF_LOG_LEVEL ZF_LOG_DEBUG
-	#endif
+#ifdef NDEBUG
+#define _ZF_LOG_LEVEL ZF_LOG_INFO
+#else
+#define _ZF_LOG_LEVEL ZF_LOG_DEBUG
+#endif
 #endif
 
 /* "Output" log level is a runtime check. When log level is below output log
@@ -143,9 +143,9 @@
  * overhead even further.
  */
 #if defined(ZF_LOG_OUTPUT_LEVEL)
-	#define _ZF_LOG_OUTPUT_LEVEL ZF_LOG_OUTPUT_LEVEL
+#define _ZF_LOG_OUTPUT_LEVEL ZF_LOG_OUTPUT_LEVEL
 #else
-	#define _ZF_LOG_OUTPUT_LEVEL _zf_log_global_output_lvl
+#define _ZF_LOG_OUTPUT_LEVEL _zf_log_global_output_lvl
 #endif
 
 /* "Tag" is a compound string that could be associated with a log message. It
@@ -187,11 +187,11 @@
  *                                    +- tag prefix (e.g. process name)
  */
 #if defined(ZF_LOG_TAG)
-	#define _ZF_LOG_TAG ZF_LOG_TAG
+#define _ZF_LOG_TAG ZF_LOG_TAG
 #elif defined(ZF_LOG_DEF_TAG)
-	#define _ZF_LOG_TAG ZF_LOG_DEF_TAG
+#define _ZF_LOG_TAG ZF_LOG_DEF_TAG
 #else
-	#define _ZF_LOG_TAG 0
+#define _ZF_LOG_TAG 0
 #endif
 
 /* Source location is part of a log line that describes location (function or
@@ -204,9 +204,9 @@
  * - ZF_LOG_SRCLOC_LONG - add source location in long form (function or method
  *   name, file and line number, e.g. "runloop@main.cpp:68").
  */
-#define ZF_LOG_SRCLOC_NONE  0
+#define ZF_LOG_SRCLOC_NONE 0
 #define ZF_LOG_SRCLOC_SHORT 1
-#define ZF_LOG_SRCLOC_LONG  2
+#define ZF_LOG_SRCLOC_LONG 2
 
 /* Source location format is configured per compilation module (.c/.cpp/.m
  * file) by defining ZF_LOG_DEF_SRCLOC or ZF_LOG_SRCLOC. ZF_LOG_SRCLOC has
@@ -230,20 +230,20 @@
  * ZF_LOG_SRCLOC_LONG otherwise (NDEBUG is not defined).
  */
 #if defined(ZF_LOG_SRCLOC)
-	#define _ZF_LOG_SRCLOC ZF_LOG_SRCLOC
+#define _ZF_LOG_SRCLOC ZF_LOG_SRCLOC
 #elif defined(ZF_LOG_DEF_SRCLOC)
-	#define _ZF_LOG_SRCLOC ZF_LOG_DEF_SRCLOC
+#define _ZF_LOG_SRCLOC ZF_LOG_DEF_SRCLOC
 #else
-	#ifdef NDEBUG
-		#define _ZF_LOG_SRCLOC ZF_LOG_SRCLOC_NONE
-	#else
-		#define _ZF_LOG_SRCLOC ZF_LOG_SRCLOC_LONG
-	#endif
+#ifdef NDEBUG
+#define _ZF_LOG_SRCLOC ZF_LOG_SRCLOC_NONE
+#else
+#define _ZF_LOG_SRCLOC ZF_LOG_SRCLOC_LONG
+#endif
 #endif
 #if ZF_LOG_SRCLOC_LONG == _ZF_LOG_SRCLOC
-	#define _ZF_LOG_SRCLOC_FUNCTION _ZF_LOG_FUNCTION
+#define _ZF_LOG_SRCLOC_FUNCTION _ZF_LOG_FUNCTION
 #else
-	#define _ZF_LOG_SRCLOC_FUNCTION 0
+#define _ZF_LOG_SRCLOC_FUNCTION 0
 #endif
 
 /* Censoring provides conditional logging of secret information, also known as
@@ -253,7 +253,7 @@
  * "secrets" will be ignored and will have zero overhead (arguments also will
  * not be evaluated).
  */
-#define ZF_LOG_CENSORED   1
+#define ZF_LOG_CENSORED 1
 #define ZF_LOG_UNCENSORED 0
 
 /* Censoring is configured per compilation module (.c/.cpp/.m file) by defining
@@ -278,15 +278,15 @@
  * ZF_LOG_UNCENSORED otherwise (NDEBUG is not defined).
  */
 #if defined(ZF_LOG_CENSORING)
-	#define _ZF_LOG_CENSORING ZF_LOG_CENSORING
+#define _ZF_LOG_CENSORING ZF_LOG_CENSORING
 #elif defined(ZF_LOG_DEF_CENSORING)
-	#define _ZF_LOG_CENSORING ZF_LOG_DEF_CENSORING
+#define _ZF_LOG_CENSORING ZF_LOG_DEF_CENSORING
 #else
-	#ifdef NDEBUG
-		#define _ZF_LOG_CENSORING ZF_LOG_CENSORED
-	#else
-		#define _ZF_LOG_CENSORING ZF_LOG_UNCENSORED
-	#endif
+#ifdef NDEBUG
+#define _ZF_LOG_CENSORING ZF_LOG_CENSORED
+#else
+#define _ZF_LOG_CENSORING ZF_LOG_UNCENSORED
+#endif
 #endif
 
 /* Check censoring at compile time. Evaluates to true when censoring is disabled
@@ -338,7 +338,7 @@
  * corresponding ZF_LOG_DEFINE_XXX macro MUST be used exactly once somewhere.
  * Otherwise build will fail with link error (undefined symbol).
  */
-#define ZF_LOG_DEFINE_TAG_PREFIX const char *_zf_log_tag_prefix
+#define ZF_LOG_DEFINE_TAG_PREFIX const char* _zf_log_tag_prefix
 #define ZF_LOG_DEFINE_GLOBAL_FORMAT zf_log_format _zf_log_global_format
 #define ZF_LOG_DEFINE_GLOBAL_OUTPUT zf_log_output _zf_log_global_output
 #define ZF_LOG_DEFINE_GLOBAL_OUTPUT_LEVEL int _zf_log_global_output_lvl
@@ -351,7 +351,7 @@
  *   const zf_log_spec g_spec = {ZF_LOG_GLOBAL_FORMAT, &g_output};
  *   ZF_LOGI_AUX(&g_spec, "Hello");
  */
-#define ZF_LOG_GLOBAL_FORMAT ((const zf_log_format *)&_zf_log_global_format)
+#define ZF_LOG_GLOBAL_FORMAT ((const zf_log_format*)&_zf_log_global_format)
 
 /* Pointer to global output variable. Direct modification is not allowed. Use
  * zf_log_set_output_v() or zf_log_set_output_p() instead. Could be used to
@@ -361,7 +361,7 @@
  *   const zf_log_spec g_spec = {g_format, ZF_LOG_GLOBAL_OUTPUT};
  *   ZF_LOGI_AUX(&g_spec, "Hello");
  */
-#define ZF_LOG_GLOBAL_OUTPUT ((const zf_log_output *)&_zf_log_global_output)
+#define ZF_LOG_GLOBAL_OUTPUT ((const zf_log_output*)&_zf_log_global_output)
 
 /* When defined, all library symbols produced by linker will be prefixed with
  * provided value. That allows to use zf_log library privately in another
@@ -400,63 +400,53 @@
  * will have their own log level, output facility, format options etc.
  */
 #ifdef ZF_LOG_LIBRARY_PREFIX
-	#define _ZF_LOG_DECOR__(prefix, name) prefix ## name
-	#define _ZF_LOG_DECOR_(prefix, name) _ZF_LOG_DECOR__(prefix, name)
-	#define _ZF_LOG_DECOR(name) _ZF_LOG_DECOR_(ZF_LOG_LIBRARY_PREFIX, name)
+#define _ZF_LOG_DECOR__(prefix, name) prefix##name
+#define _ZF_LOG_DECOR_(prefix, name) _ZF_LOG_DECOR__(prefix, name)
+#define _ZF_LOG_DECOR(name) _ZF_LOG_DECOR_(ZF_LOG_LIBRARY_PREFIX, name)
 
-	#define zf_log_set_tag_prefix _ZF_LOG_DECOR(zf_log_set_tag_prefix)
-	#define zf_log_set_mem_width _ZF_LOG_DECOR(zf_log_set_mem_width)
-	#define zf_log_set_output_level _ZF_LOG_DECOR(zf_log_set_output_level)
-	#define zf_log_set_output_v _ZF_LOG_DECOR(zf_log_set_output_v)
-	#define zf_log_set_output_p _ZF_LOG_DECOR(zf_log_set_output_p)
-	#define zf_log_out_stderr_callback _ZF_LOG_DECOR(zf_log_out_stderr_callback)
-	#define _zf_log_tag_prefix _ZF_LOG_DECOR(_zf_log_tag_prefix)
-	#define _zf_log_global_format _ZF_LOG_DECOR(_zf_log_global_format)
-	#define _zf_log_global_output _ZF_LOG_DECOR(_zf_log_global_output)
-	#define _zf_log_global_output_lvl _ZF_LOG_DECOR(_zf_log_global_output_lvl)
-	#define _zf_log_write_d _ZF_LOG_DECOR(_zf_log_write_d)
-	#define _zf_log_write_aux_d _ZF_LOG_DECOR(_zf_log_write_aux_d)
-	#define _zf_log_write _ZF_LOG_DECOR(_zf_log_write)
-	#define _zf_log_write_aux _ZF_LOG_DECOR(_zf_log_write_aux)
-	#define _zf_log_write_mem_d _ZF_LOG_DECOR(_zf_log_write_mem_d)
-	#define _zf_log_write_mem_aux_d _ZF_LOG_DECOR(_zf_log_write_mem_aux_d)
-	#define _zf_log_write_mem _ZF_LOG_DECOR(_zf_log_write_mem)
-	#define _zf_log_write_mem_aux _ZF_LOG_DECOR(_zf_log_write_mem_aux)
-	#define _zf_log_stderr_spec _ZF_LOG_DECOR(_zf_log_stderr_spec)
+#define zf_log_set_tag_prefix _ZF_LOG_DECOR(zf_log_set_tag_prefix)
+#define zf_log_set_mem_width _ZF_LOG_DECOR(zf_log_set_mem_width)
+#define zf_log_set_output_level _ZF_LOG_DECOR(zf_log_set_output_level)
+#define zf_log_set_output_v _ZF_LOG_DECOR(zf_log_set_output_v)
+#define zf_log_set_output_p _ZF_LOG_DECOR(zf_log_set_output_p)
+#define zf_log_out_stderr_callback _ZF_LOG_DECOR(zf_log_out_stderr_callback)
+#define _zf_log_tag_prefix _ZF_LOG_DECOR(_zf_log_tag_prefix)
+#define _zf_log_global_format _ZF_LOG_DECOR(_zf_log_global_format)
+#define _zf_log_global_output _ZF_LOG_DECOR(_zf_log_global_output)
+#define _zf_log_global_output_lvl _ZF_LOG_DECOR(_zf_log_global_output_lvl)
+#define _zf_log_write_d _ZF_LOG_DECOR(_zf_log_write_d)
+#define _zf_log_write_aux_d _ZF_LOG_DECOR(_zf_log_write_aux_d)
+#define _zf_log_write _ZF_LOG_DECOR(_zf_log_write)
+#define _zf_log_write_aux _ZF_LOG_DECOR(_zf_log_write_aux)
+#define _zf_log_write_mem_d _ZF_LOG_DECOR(_zf_log_write_mem_d)
+#define _zf_log_write_mem_aux_d _ZF_LOG_DECOR(_zf_log_write_mem_aux_d)
+#define _zf_log_write_mem _ZF_LOG_DECOR(_zf_log_write_mem)
+#define _zf_log_write_mem_aux _ZF_LOG_DECOR(_zf_log_write_mem_aux)
+#define _zf_log_stderr_spec _ZF_LOG_DECOR(_zf_log_stderr_spec)
 #endif
 
 #if defined(__printflike)
-	#define _ZF_LOG_PRINTFLIKE(str_index, first_to_check) \
-		__printflike(str_index, first_to_check)
+#define _ZF_LOG_PRINTFLIKE(str_index, first_to_check) __printflike(str_index, first_to_check)
 #elif defined(__GNUC__)
-	#define _ZF_LOG_PRINTFLIKE(str_index, first_to_check) \
-		__attribute__((format(__printf__, str_index, first_to_check)))
+#define _ZF_LOG_PRINTFLIKE(str_index, first_to_check) __attribute__((format(__printf__, str_index, first_to_check)))
 #else
-	#define _ZF_LOG_PRINTFLIKE(str_index, first_to_check)
+#define _ZF_LOG_PRINTFLIKE(str_index, first_to_check)
 #endif
 
-#if (defined(_WIN32) || defined(_WIN64)) && !defined(__GNUC__)
-	#define _ZF_LOG_FUNCTION __FUNCTION__
+#if(defined(_WIN32) || defined(_WIN64)) && !defined(__GNUC__)
+#define _ZF_LOG_FUNCTION __FUNCTION__
 #else
-	#define _ZF_LOG_FUNCTION __func__
+#define _ZF_LOG_FUNCTION __func__
 #endif
 
 #if defined(_MSC_VER) && !defined(__INTEL_COMPILER)
-	#define _ZF_LOG_INLINE __inline
-	#define _ZF_LOG_IF(cond) \
-		__pragma(warning(push)) \
-		__pragma(warning(disable:4127)) \
-		if(cond) \
-		__pragma(warning(pop))
-	#define _ZF_LOG_WHILE(cond) \
-		__pragma(warning(push)) \
-		__pragma(warning(disable:4127)) \
-		while(cond) \
-		__pragma(warning(pop))
+#define _ZF_LOG_INLINE __inline
+#define _ZF_LOG_IF(cond) __pragma(warning(push)) __pragma(warning(disable : 4127)) if(cond) __pragma(warning(pop))
+#define _ZF_LOG_WHILE(cond) __pragma(warning(push)) __pragma(warning(disable : 4127)) while(cond) __pragma(warning(pop))
 #else
-	#define _ZF_LOG_INLINE inline
-	#define _ZF_LOG_IF(cond) if(cond)
-	#define _ZF_LOG_WHILE(cond) while(cond)
+#define _ZF_LOG_INLINE inline
+#define _ZF_LOG_IF(cond) if(cond)
+#define _ZF_LOG_WHILE(cond) while(cond)
 #endif
 #define _ZF_LOG_NEVER _ZF_LOG_IF(0)
 #define _ZF_LOG_ONCE _ZF_LOG_WHILE(0)
@@ -473,7 +463,7 @@ extern "C" {
  * ZF_LOG_DEFINE_TAG_PREFIX for a way to set it before entering main() function.
  * See ZF_LOG_TAG for more information about tag and tag prefix.
  */
-void zf_log_set_tag_prefix(const char *const prefix);
+void zf_log_set_tag_prefix(const char* const prefix);
 
 /* Set number of bytes per log line in memory (ASCII-HEX) output. Example:
  *
@@ -496,27 +486,24 @@ void zf_log_set_output_level(const int lvl);
  * Note about ZF_LOG_PUT_SRC: it will be added only in debug builds (NDEBUG is
  * not defined).
  */
-enum
-{
-	ZF_LOG_PUT_CTX = 1 << 0, /* context (time, pid, tid, log level) */
-	ZF_LOG_PUT_TAG = 1 << 1, /* tag (including tag prefix) */
-	ZF_LOG_PUT_SRC = 1 << 2, /* source location (file, line, function) */
-	ZF_LOG_PUT_MSG = 1 << 3, /* message text (formatted string) */
-	ZF_LOG_PUT_STD = 0xffff, /* everything (default) */
+enum {
+    ZF_LOG_PUT_CTX = 1 << 0, /* context (time, pid, tid, log level) */
+    ZF_LOG_PUT_TAG = 1 << 1, /* tag (including tag prefix) */
+    ZF_LOG_PUT_SRC = 1 << 2, /* source location (file, line, function) */
+    ZF_LOG_PUT_MSG = 1 << 3, /* message text (formatted string) */
+    ZF_LOG_PUT_STD = 0xffff, /* everything (default) */
 };
 
-typedef struct zf_log_message
-{
-	int lvl; /* Log level of the message */
-	const char *tag; /* Associated tag (without tag prefix) */
-	char *buf; /* Buffer start */
-	char *e; /* Buffer end (last position where EOL with 0 could be written) */
-	char *p; /* Buffer content end (append position) */
-	char *tag_b; /* Prefixed tag start */
-	char *tag_e; /* Prefixed tag end (if != tag_b, points to msg separator) */
-	char *msg_b; /* Message start (expanded format string) */
-}
-zf_log_message;
+typedef struct zf_log_message {
+    int lvl;         /* Log level of the message */
+    const char* tag; /* Associated tag (without tag prefix) */
+    char* buf;       /* Buffer start */
+    char* e;         /* Buffer end (last position where EOL with 0 could be written) */
+    char* p;         /* Buffer content end (append position) */
+    char* tag_b;     /* Prefixed tag start */
+    char* tag_e;     /* Prefixed tag end (if != tag_b, points to msg separator) */
+    char* msg_b;     /* Message start (expanded format string) */
+} zf_log_message;
 
 /* Type of output callback function. It will be called for each log line allowed
  * by both "current" and "output" log levels ("enabled" and "turned on").
@@ -524,36 +511,30 @@ zf_log_message;
  * msg, but it's not allowed to modify any of msg fields. Buffer pointed by msg
  * is UTF-8 encoded (no BOM mark).
  */
-typedef void (*zf_log_output_cb)(const zf_log_message *msg, void *arg);
+typedef void (*zf_log_output_cb)(const zf_log_message* msg, void* arg);
 
 /* Format options. For more details see zf_log_set_mem_width().
  */
-typedef struct zf_log_format
-{
-	unsigned mem_width; /* Bytes per line in memory (ASCII-HEX) dump */
-}
-zf_log_format;
+typedef struct zf_log_format {
+    unsigned mem_width; /* Bytes per line in memory (ASCII-HEX) dump */
+} zf_log_format;
 
 /* Output facility.
  */
-typedef struct zf_log_output
-{
-	unsigned mask; /* What to put into log line buffer (see ZF_LOG_PUT_XXX) */
-	void *arg; /* User provided output callback argument */
-	zf_log_output_cb callback; /* Output callback function */
-}
-zf_log_output;
+typedef struct zf_log_output {
+    unsigned mask;             /* What to put into log line buffer (see ZF_LOG_PUT_XXX) */
+    void* arg;                 /* User provided output callback argument */
+    zf_log_output_cb callback; /* Output callback function */
+} zf_log_output;
 
 /* Set output callback function.
  *
  * Mask allows to control what information will be added to the log line buffer
  * before callback function is invoked. Default mask value is ZF_LOG_PUT_STD.
  */
-void zf_log_set_output_v(const unsigned mask, void *const arg,
-						 const zf_log_output_cb callback);
-static _ZF_LOG_INLINE void zf_log_set_output_p(const zf_log_output *const output)
-{
-	zf_log_set_output_v(output->mask, output->arg, output->callback);
+void zf_log_set_output_v(const unsigned mask, void* const arg, const zf_log_output_cb callback);
+static _ZF_LOG_INLINE void zf_log_set_output_p(const zf_log_output* const output) {
+    zf_log_set_output_v(output->mask, output->arg, output->callback);
 }
 
 /* Used with _AUX macros and allows to override global format and output
@@ -570,12 +551,10 @@ static _ZF_LOG_INLINE void zf_log_set_output_p(const zf_log_output *const output
  *
  * See ZF_LOGF_AUX and ZF_LOGF_MEM_AUX for details.
  */
-typedef struct zf_log_spec
-{
-	const zf_log_format *format;
-	const zf_log_output *output;
-}
-zf_log_spec;
+typedef struct zf_log_spec {
+    const zf_log_format* format;
+    const zf_log_output* output;
+} zf_log_spec;
 
 #ifdef __cplusplus
 }
@@ -591,7 +570,13 @@ zf_log_spec;
  * and can have noticeable performance overhead. Try to limit conditions to
  * expressions that can be evaluated at compile time.
  */
-#define ZF_LOG_IF(cond, f) do { _ZF_LOG_IF((cond)) { f; } } _ZF_LOG_ONCE
+#define ZF_LOG_IF(cond, f)   \
+    do {                     \
+        _ZF_LOG_IF((cond)) { \
+            f;               \
+        }                    \
+    }                        \
+    _ZF_LOG_ONCE
 
 /* Mark log statement as "secret". Log statements that are marked as secrets
  * will NOT be executed when censoring is enabled (see ZF_LOG_CENSORED).
@@ -617,13 +602,13 @@ zf_log_spec;
  *
  * See ZF_LOG_LEVEL for details.
  */
-#define ZF_LOG_ENABLED(lvl)     ((lvl) >= _ZF_LOG_LEVEL)
-#define ZF_LOG_ENABLED_VERBOSE  ZF_LOG_ENABLED(ZF_LOG_VERBOSE)
-#define ZF_LOG_ENABLED_DEBUG    ZF_LOG_ENABLED(ZF_LOG_DEBUG)
-#define ZF_LOG_ENABLED_INFO     ZF_LOG_ENABLED(ZF_LOG_INFO)
-#define ZF_LOG_ENABLED_WARN     ZF_LOG_ENABLED(ZF_LOG_WARN)
-#define ZF_LOG_ENABLED_ERROR    ZF_LOG_ENABLED(ZF_LOG_ERROR)
-#define ZF_LOG_ENABLED_FATAL    ZF_LOG_ENABLED(ZF_LOG_FATAL)
+#define ZF_LOG_ENABLED(lvl) ((lvl) >= _ZF_LOG_LEVEL)
+#define ZF_LOG_ENABLED_VERBOSE ZF_LOG_ENABLED(ZF_LOG_VERBOSE)
+#define ZF_LOG_ENABLED_DEBUG ZF_LOG_ENABLED(ZF_LOG_DEBUG)
+#define ZF_LOG_ENABLED_INFO ZF_LOG_ENABLED(ZF_LOG_INFO)
+#define ZF_LOG_ENABLED_WARN ZF_LOG_ENABLED(ZF_LOG_WARN)
+#define ZF_LOG_ENABLED_ERROR ZF_LOG_ENABLED(ZF_LOG_ERROR)
+#define ZF_LOG_ENABLED_FATAL ZF_LOG_ENABLED(ZF_LOG_FATAL)
 
 /* Check "output" log level at run time (taking into account "current" log
  * level as well). Evaluates to true when specified log level is turned on AND
@@ -638,57 +623,42 @@ zf_log_spec;
  *
  * See ZF_LOG_OUTPUT_LEVEL for details.
  */
-#define ZF_LOG_ON(lvl) \
-		(ZF_LOG_ENABLED((lvl)) && (lvl) >= _ZF_LOG_OUTPUT_LEVEL)
-#define ZF_LOG_ON_VERBOSE   ZF_LOG_ON(ZF_LOG_VERBOSE)
-#define ZF_LOG_ON_DEBUG     ZF_LOG_ON(ZF_LOG_DEBUG)
-#define ZF_LOG_ON_INFO      ZF_LOG_ON(ZF_LOG_INFO)
-#define ZF_LOG_ON_WARN      ZF_LOG_ON(ZF_LOG_WARN)
-#define ZF_LOG_ON_ERROR     ZF_LOG_ON(ZF_LOG_ERROR)
-#define ZF_LOG_ON_FATAL     ZF_LOG_ON(ZF_LOG_FATAL)
+#define ZF_LOG_ON(lvl) (ZF_LOG_ENABLED((lvl)) && (lvl) >= _ZF_LOG_OUTPUT_LEVEL)
+#define ZF_LOG_ON_VERBOSE ZF_LOG_ON(ZF_LOG_VERBOSE)
+#define ZF_LOG_ON_DEBUG ZF_LOG_ON(ZF_LOG_DEBUG)
+#define ZF_LOG_ON_INFO ZF_LOG_ON(ZF_LOG_INFO)
+#define ZF_LOG_ON_WARN ZF_LOG_ON(ZF_LOG_WARN)
+#define ZF_LOG_ON_ERROR ZF_LOG_ON(ZF_LOG_ERROR)
+#define ZF_LOG_ON_FATAL ZF_LOG_ON(ZF_LOG_FATAL)
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-extern const char *_zf_log_tag_prefix;
+extern const char* _zf_log_tag_prefix;
 extern zf_log_format _zf_log_global_format;
 extern zf_log_output _zf_log_global_output;
 extern int _zf_log_global_output_lvl;
 extern const zf_log_spec _zf_log_stderr_spec;
 
-void _zf_log_write_d(
-		const char *const func, const char *const file, const unsigned line,
-		const int lvl, const char *const tag,
-		const char *const fmt, ...) _ZF_LOG_PRINTFLIKE(6, 7);
-void _zf_log_write_aux_d(
-		const char *const func, const char *const file, const unsigned line,
-		const zf_log_spec *const log, const int lvl, const char *const tag,
-		const char *const fmt, ...) _ZF_LOG_PRINTFLIKE(7, 8);
-void _zf_log_write(
-		const int lvl, const char *const tag,
-		const char *const fmt, ...) _ZF_LOG_PRINTFLIKE(3, 4);
-void _zf_log_write_aux(
-		const zf_log_spec *const log, const int lvl, const char *const tag,
-		const char *const fmt, ...) _ZF_LOG_PRINTFLIKE(4, 5);
-void _zf_log_write_mem_d(
-		const char *const func, const char *const file, const unsigned line,
-		const int lvl, const char *const tag,
-		const void *const d, const unsigned d_sz,
-		const char *const fmt, ...) _ZF_LOG_PRINTFLIKE(8, 9);
-void _zf_log_write_mem_aux_d(
-		const char *const func, const char *const file, const unsigned line,
-		const zf_log_spec *const log, const int lvl, const char *const tag,
-		const void *const d, const unsigned d_sz,
-		const char *const fmt, ...) _ZF_LOG_PRINTFLIKE(9, 10);
-void _zf_log_write_mem(
-		const int lvl, const char *const tag,
-		const void *const d, const unsigned d_sz,
-		const char *const fmt, ...) _ZF_LOG_PRINTFLIKE(5, 6);
-void _zf_log_write_mem_aux(
-		const zf_log_spec *const log, const int lvl, const char *const tag,
-		const void *const d, const unsigned d_sz,
-		const char *const fmt, ...) _ZF_LOG_PRINTFLIKE(6, 7);
+void _zf_log_write_d(const char* const func, const char* const file, const unsigned line, const int lvl,
+                     const char* const tag, const char* const fmt, ...) _ZF_LOG_PRINTFLIKE(6, 7);
+void _zf_log_write_aux_d(const char* const func, const char* const file, const unsigned line,
+                         const zf_log_spec* const log, const int lvl, const char* const tag, const char* const fmt, ...)
+    _ZF_LOG_PRINTFLIKE(7, 8);
+void _zf_log_write(const int lvl, const char* const tag, const char* const fmt, ...) _ZF_LOG_PRINTFLIKE(3, 4);
+void _zf_log_write_aux(const zf_log_spec* const log, const int lvl, const char* const tag, const char* const fmt, ...)
+    _ZF_LOG_PRINTFLIKE(4, 5);
+void _zf_log_write_mem_d(const char* const func, const char* const file, const unsigned line, const int lvl,
+                         const char* const tag, const void* const d, const unsigned d_sz, const char* const fmt, ...)
+    _ZF_LOG_PRINTFLIKE(8, 9);
+void _zf_log_write_mem_aux_d(const char* const func, const char* const file, const unsigned line,
+                             const zf_log_spec* const log, const int lvl, const char* const tag, const void* const d,
+                             const unsigned d_sz, const char* const fmt, ...) _ZF_LOG_PRINTFLIKE(9, 10);
+void _zf_log_write_mem(const int lvl, const char* const tag, const void* const d, const unsigned d_sz,
+                       const char* const fmt, ...) _ZF_LOG_PRINTFLIKE(5, 6);
+void _zf_log_write_mem_aux(const zf_log_spec* const log, const int lvl, const char* const tag, const void* const d,
+                           const unsigned d_sz, const char* const fmt, ...) _ZF_LOG_PRINTFLIKE(6, 7);
 
 #ifdef __cplusplus
 }
@@ -749,152 +719,137 @@ void _zf_log_write_mem_aux(
  * string itself.
  */
 #if ZF_LOG_SRCLOC_NONE == _ZF_LOG_SRCLOC
-	#define ZF_LOG_WRITE(lvl, tag, ...) \
-			do { \
-				if (ZF_LOG_ON(lvl)) \
-					_zf_log_write(lvl, tag, __VA_ARGS__); \
-			} _ZF_LOG_ONCE
-	#define ZF_LOG_WRITE_MEM(lvl, tag, d, d_sz, ...) \
-			do { \
-				if (ZF_LOG_ON(lvl)) \
-					_zf_log_write_mem(lvl, tag, d, d_sz, __VA_ARGS__); \
-			} _ZF_LOG_ONCE
-	#define ZF_LOG_WRITE_AUX(log, lvl, tag, ...) \
-			do { \
-				if (ZF_LOG_ON(lvl)) \
-					_zf_log_write_aux(log, lvl, tag, __VA_ARGS__); \
-			} _ZF_LOG_ONCE
-	#define ZF_LOG_WRITE_MEM_AUX(log, lvl, tag, d, d_sz, ...) \
-			do { \
-				if (ZF_LOG_ON(lvl)) \
-					_zf_log_write_mem_aux(log, lvl, tag, d, d_sz, __VA_ARGS__); \
-			} _ZF_LOG_ONCE
+#define ZF_LOG_WRITE(lvl, tag, ...)               \
+    do {                                          \
+        if(ZF_LOG_ON(lvl))                        \
+            _zf_log_write(lvl, tag, __VA_ARGS__); \
+    }                                             \
+    _ZF_LOG_ONCE
+#define ZF_LOG_WRITE_MEM(lvl, tag, d, d_sz, ...)               \
+    do {                                                       \
+        if(ZF_LOG_ON(lvl))                                     \
+            _zf_log_write_mem(lvl, tag, d, d_sz, __VA_ARGS__); \
+    }                                                          \
+    _ZF_LOG_ONCE
+#define ZF_LOG_WRITE_AUX(log, lvl, tag, ...)               \
+    do {                                                   \
+        if(ZF_LOG_ON(lvl))                                 \
+            _zf_log_write_aux(log, lvl, tag, __VA_ARGS__); \
+    }                                                      \
+    _ZF_LOG_ONCE
+#define ZF_LOG_WRITE_MEM_AUX(log, lvl, tag, d, d_sz, ...)               \
+    do {                                                                \
+        if(ZF_LOG_ON(lvl))                                              \
+            _zf_log_write_mem_aux(log, lvl, tag, d, d_sz, __VA_ARGS__); \
+    }                                                                   \
+    _ZF_LOG_ONCE
 #else
-	#define ZF_LOG_WRITE(lvl, tag, ...) \
-			do { \
-				if (ZF_LOG_ON(lvl)) \
-					_zf_log_write_d(_ZF_LOG_SRCLOC_FUNCTION, __FILE__, __LINE__, \
-							lvl, tag, __VA_ARGS__); \
-			} _ZF_LOG_ONCE
-	#define ZF_LOG_WRITE_MEM(lvl, tag, d, d_sz, ...) \
-			do { \
-				if (ZF_LOG_ON(lvl)) \
-					_zf_log_write_mem_d(_ZF_LOG_SRCLOC_FUNCTION, __FILE__, __LINE__, \
-							lvl, tag, d, d_sz, __VA_ARGS__); \
-			} _ZF_LOG_ONCE
-	#define ZF_LOG_WRITE_AUX(log, lvl, tag, ...) \
-			do { \
-				if (ZF_LOG_ON(lvl)) \
-					_zf_log_write_aux_d(_ZF_LOG_SRCLOC_FUNCTION, __FILE__, __LINE__, \
-							log, lvl, tag, __VA_ARGS__); \
-			} _ZF_LOG_ONCE
-	#define ZF_LOG_WRITE_MEM_AUX(log, lvl, tag, d, d_sz, ...) \
-			do { \
-				if (ZF_LOG_ON(lvl)) \
-					_zf_log_write_mem_aux_d(_ZF_LOG_SRCLOC_FUNCTION, __FILE__, __LINE__, \
-							log, lvl, tag, d, d_sz, __VA_ARGS__); \
-			} _ZF_LOG_ONCE
+#define ZF_LOG_WRITE(lvl, tag, ...)                                                              \
+    do {                                                                                         \
+        if(ZF_LOG_ON(lvl))                                                                       \
+            _zf_log_write_d(_ZF_LOG_SRCLOC_FUNCTION, __FILE__, __LINE__, lvl, tag, __VA_ARGS__); \
+    }                                                                                            \
+    _ZF_LOG_ONCE
+#define ZF_LOG_WRITE_MEM(lvl, tag, d, d_sz, ...)                                                              \
+    do {                                                                                                      \
+        if(ZF_LOG_ON(lvl))                                                                                    \
+            _zf_log_write_mem_d(_ZF_LOG_SRCLOC_FUNCTION, __FILE__, __LINE__, lvl, tag, d, d_sz, __VA_ARGS__); \
+    }                                                                                                         \
+    _ZF_LOG_ONCE
+#define ZF_LOG_WRITE_AUX(log, lvl, tag, ...)                                                              \
+    do {                                                                                                  \
+        if(ZF_LOG_ON(lvl))                                                                                \
+            _zf_log_write_aux_d(_ZF_LOG_SRCLOC_FUNCTION, __FILE__, __LINE__, log, lvl, tag, __VA_ARGS__); \
+    }                                                                                                     \
+    _ZF_LOG_ONCE
+#define ZF_LOG_WRITE_MEM_AUX(log, lvl, tag, d, d_sz, ...)                                                              \
+    do {                                                                                                               \
+        if(ZF_LOG_ON(lvl))                                                                                             \
+            _zf_log_write_mem_aux_d(_ZF_LOG_SRCLOC_FUNCTION, __FILE__, __LINE__, log, lvl, tag, d, d_sz, __VA_ARGS__); \
+    }                                                                                                                  \
+    _ZF_LOG_ONCE
 #endif
 
-static _ZF_LOG_INLINE void _zf_log_unused(const int dummy, ...) {(void)dummy;}
+static _ZF_LOG_INLINE void _zf_log_unused(const int dummy, ...) {
+    (void)dummy;
+}
 
-#define _ZF_LOG_UNUSED(...) \
-		do { _ZF_LOG_NEVER _zf_log_unused(0, __VA_ARGS__); } _ZF_LOG_ONCE
+#define _ZF_LOG_UNUSED(...)                           \
+    do {                                              \
+        _ZF_LOG_NEVER _zf_log_unused(0, __VA_ARGS__); \
+    }                                                 \
+    _ZF_LOG_ONCE
 
 #if ZF_LOG_ENABLED_VERBOSE
-	#define ZF_LOGV(...) \
-			ZF_LOG_WRITE(ZF_LOG_VERBOSE, _ZF_LOG_TAG, __VA_ARGS__)
-	#define ZF_LOGV_AUX(log, ...) \
-			ZF_LOG_WRITE_AUX(log, ZF_LOG_VERBOSE, _ZF_LOG_TAG, __VA_ARGS__)
-	#define ZF_LOGV_MEM(d, d_sz, ...) \
-			ZF_LOG_WRITE_MEM(ZF_LOG_VERBOSE, _ZF_LOG_TAG, d, d_sz, __VA_ARGS__)
-	#define ZF_LOGV_MEM_AUX(log, d, d_sz, ...) \
-			ZF_LOG_WRITE_MEM(log, ZF_LOG_VERBOSE, _ZF_LOG_TAG, d, d_sz, __VA_ARGS__)
+#define ZF_LOGV(...) ZF_LOG_WRITE(ZF_LOG_VERBOSE, _ZF_LOG_TAG, __VA_ARGS__)
+#define ZF_LOGV_AUX(log, ...) ZF_LOG_WRITE_AUX(log, ZF_LOG_VERBOSE, _ZF_LOG_TAG, __VA_ARGS__)
+#define ZF_LOGV_MEM(d, d_sz, ...) ZF_LOG_WRITE_MEM(ZF_LOG_VERBOSE, _ZF_LOG_TAG, d, d_sz, __VA_ARGS__)
+#define ZF_LOGV_MEM_AUX(log, d, d_sz, ...) ZF_LOG_WRITE_MEM(log, ZF_LOG_VERBOSE, _ZF_LOG_TAG, d, d_sz, __VA_ARGS__)
 #else
-	#define ZF_LOGV(...) _ZF_LOG_UNUSED(__VA_ARGS__)
-	#define ZF_LOGV_AUX(...) _ZF_LOG_UNUSED(__VA_ARGS__)
-	#define ZF_LOGV_MEM(...) _ZF_LOG_UNUSED(__VA_ARGS__)
-	#define ZF_LOGV_MEM_AUX(...) _ZF_LOG_UNUSED(__VA_ARGS__)
+#define ZF_LOGV(...) _ZF_LOG_UNUSED(__VA_ARGS__)
+#define ZF_LOGV_AUX(...) _ZF_LOG_UNUSED(__VA_ARGS__)
+#define ZF_LOGV_MEM(...) _ZF_LOG_UNUSED(__VA_ARGS__)
+#define ZF_LOGV_MEM_AUX(...) _ZF_LOG_UNUSED(__VA_ARGS__)
 #endif
 
 #if ZF_LOG_ENABLED_DEBUG
-	#define ZF_LOGD(...) \
-			ZF_LOG_WRITE(ZF_LOG_DEBUG, _ZF_LOG_TAG, __VA_ARGS__)
-	#define ZF_LOGD_AUX(log, ...) \
-			ZF_LOG_WRITE_AUX(log, ZF_LOG_DEBUG, _ZF_LOG_TAG, __VA_ARGS__)
-	#define ZF_LOGD_MEM(d, d_sz, ...) \
-			ZF_LOG_WRITE_MEM(ZF_LOG_DEBUG, _ZF_LOG_TAG, d, d_sz, __VA_ARGS__)
-	#define ZF_LOGD_MEM_AUX(log, d, d_sz, ...) \
-			ZF_LOG_WRITE_MEM_AUX(log, ZF_LOG_DEBUG, _ZF_LOG_TAG, d, d_sz, __VA_ARGS__)
+#define ZF_LOGD(...) ZF_LOG_WRITE(ZF_LOG_DEBUG, _ZF_LOG_TAG, __VA_ARGS__)
+#define ZF_LOGD_AUX(log, ...) ZF_LOG_WRITE_AUX(log, ZF_LOG_DEBUG, _ZF_LOG_TAG, __VA_ARGS__)
+#define ZF_LOGD_MEM(d, d_sz, ...) ZF_LOG_WRITE_MEM(ZF_LOG_DEBUG, _ZF_LOG_TAG, d, d_sz, __VA_ARGS__)
+#define ZF_LOGD_MEM_AUX(log, d, d_sz, ...) ZF_LOG_WRITE_MEM_AUX(log, ZF_LOG_DEBUG, _ZF_LOG_TAG, d, d_sz, __VA_ARGS__)
 #else
-	#define ZF_LOGD(...) _ZF_LOG_UNUSED(__VA_ARGS__)
-	#define ZF_LOGD_AUX(...) _ZF_LOG_UNUSED(__VA_ARGS__)
-	#define ZF_LOGD_MEM(...) _ZF_LOG_UNUSED(__VA_ARGS__)
-	#define ZF_LOGD_MEM_AUX(...) _ZF_LOG_UNUSED(__VA_ARGS__)
+#define ZF_LOGD(...) _ZF_LOG_UNUSED(__VA_ARGS__)
+#define ZF_LOGD_AUX(...) _ZF_LOG_UNUSED(__VA_ARGS__)
+#define ZF_LOGD_MEM(...) _ZF_LOG_UNUSED(__VA_ARGS__)
+#define ZF_LOGD_MEM_AUX(...) _ZF_LOG_UNUSED(__VA_ARGS__)
 #endif
 
 #if ZF_LOG_ENABLED_INFO
-	#define ZF_LOGI(...) \
-			ZF_LOG_WRITE(ZF_LOG_INFO, _ZF_LOG_TAG, __VA_ARGS__)
-	#define ZF_LOGI_AUX(log, ...) \
-			ZF_LOG_WRITE_AUX(log, ZF_LOG_INFO, _ZF_LOG_TAG, __VA_ARGS__)
-	#define ZF_LOGI_MEM(d, d_sz, ...) \
-			ZF_LOG_WRITE_MEM(ZF_LOG_INFO, _ZF_LOG_TAG, d, d_sz, __VA_ARGS__)
-	#define ZF_LOGI_MEM_AUX(log, d, d_sz, ...) \
-			ZF_LOG_WRITE_MEM_AUX(log, ZF_LOG_INFO, _ZF_LOG_TAG, d, d_sz, __VA_ARGS__)
+#define ZF_LOGI(...) ZF_LOG_WRITE(ZF_LOG_INFO, _ZF_LOG_TAG, __VA_ARGS__)
+#define ZF_LOGI_AUX(log, ...) ZF_LOG_WRITE_AUX(log, ZF_LOG_INFO, _ZF_LOG_TAG, __VA_ARGS__)
+#define ZF_LOGI_MEM(d, d_sz, ...) ZF_LOG_WRITE_MEM(ZF_LOG_INFO, _ZF_LOG_TAG, d, d_sz, __VA_ARGS__)
+#define ZF_LOGI_MEM_AUX(log, d, d_sz, ...) ZF_LOG_WRITE_MEM_AUX(log, ZF_LOG_INFO, _ZF_LOG_TAG, d, d_sz, __VA_ARGS__)
 #else
-	#define ZF_LOGI(...) _ZF_LOG_UNUSED(__VA_ARGS__)
-	#define ZF_LOGI_AUX(...) _ZF_LOG_UNUSED(__VA_ARGS__)
-	#define ZF_LOGI_MEM(...) _ZF_LOG_UNUSED(__VA_ARGS__)
-	#define ZF_LOGI_MEM_AUX(...) _ZF_LOG_UNUSED(__VA_ARGS__)
+#define ZF_LOGI(...) _ZF_LOG_UNUSED(__VA_ARGS__)
+#define ZF_LOGI_AUX(...) _ZF_LOG_UNUSED(__VA_ARGS__)
+#define ZF_LOGI_MEM(...) _ZF_LOG_UNUSED(__VA_ARGS__)
+#define ZF_LOGI_MEM_AUX(...) _ZF_LOG_UNUSED(__VA_ARGS__)
 #endif
 
 #if ZF_LOG_ENABLED_WARN
-	#define ZF_LOGW(...) \
-			ZF_LOG_WRITE(ZF_LOG_WARN, _ZF_LOG_TAG, __VA_ARGS__)
-	#define ZF_LOGW_AUX(log, ...) \
-			ZF_LOG_WRITE_AUX(log, ZF_LOG_WARN, _ZF_LOG_TAG, __VA_ARGS__)
-	#define ZF_LOGW_MEM(d, d_sz, ...) \
-			ZF_LOG_WRITE_MEM(ZF_LOG_WARN, _ZF_LOG_TAG, d, d_sz, __VA_ARGS__)
-	#define ZF_LOGW_MEM_AUX(log, d, d_sz, ...) \
-			ZF_LOG_WRITE_MEM_AUX(log, ZF_LOG_WARN, _ZF_LOG_TAG, d, d_sz, __VA_ARGS__)
+#define ZF_LOGW(...) ZF_LOG_WRITE(ZF_LOG_WARN, _ZF_LOG_TAG, __VA_ARGS__)
+#define ZF_LOGW_AUX(log, ...) ZF_LOG_WRITE_AUX(log, ZF_LOG_WARN, _ZF_LOG_TAG, __VA_ARGS__)
+#define ZF_LOGW_MEM(d, d_sz, ...) ZF_LOG_WRITE_MEM(ZF_LOG_WARN, _ZF_LOG_TAG, d, d_sz, __VA_ARGS__)
+#define ZF_LOGW_MEM_AUX(log, d, d_sz, ...) ZF_LOG_WRITE_MEM_AUX(log, ZF_LOG_WARN, _ZF_LOG_TAG, d, d_sz, __VA_ARGS__)
 #else
-	#define ZF_LOGW(...) _ZF_LOG_UNUSED(__VA_ARGS__)
-	#define ZF_LOGW_AUX(...) _ZF_LOG_UNUSED(__VA_ARGS__)
-	#define ZF_LOGW_MEM(...) _ZF_LOG_UNUSED(__VA_ARGS__)
-	#define ZF_LOGW_MEM_AUX(...) _ZF_LOG_UNUSED(__VA_ARGS__)
+#define ZF_LOGW(...) _ZF_LOG_UNUSED(__VA_ARGS__)
+#define ZF_LOGW_AUX(...) _ZF_LOG_UNUSED(__VA_ARGS__)
+#define ZF_LOGW_MEM(...) _ZF_LOG_UNUSED(__VA_ARGS__)
+#define ZF_LOGW_MEM_AUX(...) _ZF_LOG_UNUSED(__VA_ARGS__)
 #endif
 
 #if ZF_LOG_ENABLED_ERROR
-	#define ZF_LOGE(...) \
-			ZF_LOG_WRITE(ZF_LOG_ERROR, _ZF_LOG_TAG, __VA_ARGS__)
-	#define ZF_LOGE_AUX(log, ...) \
-			ZF_LOG_WRITE_AUX(log, ZF_LOG_ERROR, _ZF_LOG_TAG, __VA_ARGS__)
-	#define ZF_LOGE_MEM(d, d_sz, ...) \
-			ZF_LOG_WRITE_MEM(ZF_LOG_ERROR, _ZF_LOG_TAG, d, d_sz, __VA_ARGS__)
-	#define ZF_LOGE_MEM_AUX(log, d, d_sz, ...) \
-			ZF_LOG_WRITE_MEM_AUX(log, ZF_LOG_ERROR, _ZF_LOG_TAG, d, d_sz, __VA_ARGS__)
+#define ZF_LOGE(...) ZF_LOG_WRITE(ZF_LOG_ERROR, _ZF_LOG_TAG, __VA_ARGS__)
+#define ZF_LOGE_AUX(log, ...) ZF_LOG_WRITE_AUX(log, ZF_LOG_ERROR, _ZF_LOG_TAG, __VA_ARGS__)
+#define ZF_LOGE_MEM(d, d_sz, ...) ZF_LOG_WRITE_MEM(ZF_LOG_ERROR, _ZF_LOG_TAG, d, d_sz, __VA_ARGS__)
+#define ZF_LOGE_MEM_AUX(log, d, d_sz, ...) ZF_LOG_WRITE_MEM_AUX(log, ZF_LOG_ERROR, _ZF_LOG_TAG, d, d_sz, __VA_ARGS__)
 #else
-	#define ZF_LOGE(...) _ZF_LOG_UNUSED(__VA_ARGS__)
-	#define ZF_LOGE_AUX(...) _ZF_LOG_UNUSED(__VA_ARGS__)
-	#define ZF_LOGE_MEM(...) _ZF_LOG_UNUSED(__VA_ARGS__)
-	#define ZF_LOGE_MEM_AUX(...) _ZF_LOG_UNUSED(__VA_ARGS__)
+#define ZF_LOGE(...) _ZF_LOG_UNUSED(__VA_ARGS__)
+#define ZF_LOGE_AUX(...) _ZF_LOG_UNUSED(__VA_ARGS__)
+#define ZF_LOGE_MEM(...) _ZF_LOG_UNUSED(__VA_ARGS__)
+#define ZF_LOGE_MEM_AUX(...) _ZF_LOG_UNUSED(__VA_ARGS__)
 #endif
 
 #if ZF_LOG_ENABLED_FATAL
-	#define ZF_LOGF(...) \
-			ZF_LOG_WRITE(ZF_LOG_FATAL, _ZF_LOG_TAG, __VA_ARGS__)
-	#define ZF_LOGF_AUX(log, ...) \
-			ZF_LOG_WRITE_AUX(log, ZF_LOG_FATAL, _ZF_LOG_TAG, __VA_ARGS__)
-	#define ZF_LOGF_MEM(d, d_sz, ...) \
-			ZF_LOG_WRITE_MEM(ZF_LOG_FATAL, _ZF_LOG_TAG, d, d_sz, __VA_ARGS__)
-	#define ZF_LOGF_MEM_AUX(log, d, d_sz, ...) \
-			ZF_LOG_WRITE_MEM_AUX(log, ZF_LOG_FATAL, _ZF_LOG_TAG, d, d_sz, __VA_ARGS__)
+#define ZF_LOGF(...) ZF_LOG_WRITE(ZF_LOG_FATAL, _ZF_LOG_TAG, __VA_ARGS__)
+#define ZF_LOGF_AUX(log, ...) ZF_LOG_WRITE_AUX(log, ZF_LOG_FATAL, _ZF_LOG_TAG, __VA_ARGS__)
+#define ZF_LOGF_MEM(d, d_sz, ...) ZF_LOG_WRITE_MEM(ZF_LOG_FATAL, _ZF_LOG_TAG, d, d_sz, __VA_ARGS__)
+#define ZF_LOGF_MEM_AUX(log, d, d_sz, ...) ZF_LOG_WRITE_MEM_AUX(log, ZF_LOG_FATAL, _ZF_LOG_TAG, d, d_sz, __VA_ARGS__)
 #else
-	#define ZF_LOGF(...) _ZF_LOG_UNUSED(__VA_ARGS__)
-	#define ZF_LOGF_AUX(...) _ZF_LOG_UNUSED(__VA_ARGS__)
-	#define ZF_LOGF_MEM(...) _ZF_LOG_UNUSED(__VA_ARGS__)
-	#define ZF_LOGF_MEM_AUX(...) _ZF_LOG_UNUSED(__VA_ARGS__)
+#define ZF_LOGF(...) _ZF_LOG_UNUSED(__VA_ARGS__)
+#define ZF_LOGF_AUX(...) _ZF_LOG_UNUSED(__VA_ARGS__)
+#define ZF_LOGF_MEM(...) _ZF_LOG_UNUSED(__VA_ARGS__)
+#define ZF_LOGF_MEM_AUX(...) _ZF_LOG_UNUSED(__VA_ARGS__)
 #endif
 
 #define ZF_LOGV_STR(s) ZF_LOGV("%s", (s))
@@ -921,7 +876,7 @@ extern "C" {
  *   zf_log_set_output_v(ZF_LOG_OUT_STDERR);
  */
 enum { ZF_LOG_OUT_STDERR_MASK = ZF_LOG_PUT_STD };
-void zf_log_out_stderr_callback(const zf_log_message *const msg, void *arg);
+void zf_log_out_stderr_callback(const zf_log_message* const msg, void* arg);
 #define ZF_LOG_OUT_STDERR ZF_LOG_OUT_STDERR_MASK, 0, zf_log_out_stderr_callback
 
 /* Predefined spec for stderr. Uses global format options (ZF_LOG_GLOBAL_FORMAT)
