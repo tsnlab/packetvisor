@@ -8,9 +8,7 @@
 #include <cl/collection.h>
 #include <cl/map.h>
 
-#define NUM_MBUFS 8191
 #define MBUF_CACHE_SIZE 250
-#define BURST_SIZE 32
 
 static const struct rte_eth_conf port_conf_default = {
     .rxmode =
@@ -19,8 +17,9 @@ static const struct rte_eth_conf port_conf_default = {
         },
 };
 
-struct map* create_devmap();
+bool is_config_fine(const struct pv_config* config);
 
+struct map* create_devmap();
 void destroy_devmap(struct map* devmap);
 
 static inline int port_init(uint16_t port, struct rte_mempool* mbuf_pool, struct pv_config_nic* nic_config) {
@@ -106,6 +105,12 @@ int pv_init() {
         ZF_LOGE("ERRORRERRORR");
     }
 
+    if(!is_config_fine(config)) {
+        ZF_LOGE("Config is not Fine");
+        pv_config_destroy(config);
+        return -1;
+    }
+
     char* argv[] = {
         "xxx",
     };
@@ -120,8 +125,10 @@ int pv_init() {
     ZF_LOGI("Available ports: %d\n", nb_ports);
     ZF_LOGI("Available cores: %d\n", rte_lcore_count());
 
-    mbuf_mempool = rte_pktmbuf_pool_create("MBUF_POOL", NUM_MBUFS * nb_ports, MBUF_CACHE_SIZE, 0,
-                                           RTE_MBUF_DEFAULT_BUF_SIZE, rte_socket_id());
+    uint32_t num_mbufs = config->memory.packet_pool;
+
+    mbuf_mempool =
+        rte_pktmbuf_pool_create("MBUF_POOL", num_mbufs, MBUF_CACHE_SIZE, 0, RTE_MBUF_DEFAULT_BUF_SIZE, rte_socket_id());
 
     if(mbuf_mempool == NULL) {
         rte_exit(1, "Cannot create mbuf pool\n");
@@ -157,6 +164,31 @@ int pv_init() {
 }
 
 void pv_finalize() {
+}
+
+bool is_config_fine(const struct pv_config* config) {
+    if(config->cores_count <= 0) {
+        ZF_LOGE("At least 1 core required");
+        return false;
+    }
+
+    if(config->nics_count <= 0) {
+        ZF_LOGE("At least 1 nic required");
+        return false;
+    }
+
+    uint32_t pool_size = config->memory.packet_pool;
+    uint32_t min_size = 0;
+    for(int i = 0; i < config->nics_count; i += 1) {
+        min_size += config->nics[i].rx_queue;
+    }
+
+    if(pool_size <= min_size) {
+        ZF_LOGE("packet_pool(%u) must gt total rx_queue(%u)", pool_size, min_size);
+        return false;
+    }
+
+    return true;
 }
 
 struct map* create_devmap() {

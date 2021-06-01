@@ -77,7 +77,7 @@ void fill_pv_config(struct pv_config* config) {
 
         if(map_has(map, "/memory/shared_memory/")) {
             config->memory.shared_memory = atoi(map_get(map, "/memory/shared_memory/"));
-            ZF_LOGD("packet pool: %d", config->memory.shared_memory);
+            ZF_LOGD("shared memory: %d", config->memory.shared_memory);
         }
     }
 
@@ -120,7 +120,7 @@ void fill_pv_config(struct pv_config* config) {
                                        ((strtoul(mac + (4 * 3), NULL, 16) & 0xff) << (8 * 1)) |
                                        ((strtoul(mac + (5 * 3), NULL, 16) & 0xff) << (8 * 0)));
 
-                ZF_LOGD("MAC: %012lx", config->nics[i].mac);
+                ZF_LOGD("nic[%lu]/mac: %012lx", i, config->nics[i].mac);
             }
 
             snprintf(key, 200, "/nics[%lu]/ipv4/", i);
