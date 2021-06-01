@@ -1,3 +1,4 @@
+#include <arpa/inet.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -13,6 +14,8 @@
 
 #define ENV_NAME "PV_CONFIG"
 #define MAX_LINE_LENGTH 200
+
+void fill_pv_config(struct pv_config* config);
 
 struct pv_config* pv_config_create() {
     struct pv_config* config = malloc(sizeof(struct pv_config));
@@ -41,12 +44,113 @@ struct pv_config* pv_config_create() {
         char* mapkey = strdup(line);
         char* mapval = strdup(value);
 
-        ZF_LOGD("Put config %s with value %s", mapkey, mapval);
+        ZF_LOGV("Put config %s with value %s", mapkey, mapval);
         map_put(config_map, mapkey, mapval);
     }
 
     config->config_map = config_map;
+
+    fill_pv_config(config);
+
     return config;
+}
+
+void fill_pv_config(struct pv_config* config) {
+    struct map* map = config->config_map;
+    if(map_has(map, "/cores/:type")) {
+        config->cores_count = atoi(map_get(map, "/cores/:length"));
+        config->cores = calloc(config->cores_count, sizeof(config->cores[0]));
+        assert(config->cores);
+
+        for(size_t i = 0; i < config->cores_count; i += 1) {
+            char key[200];
+            snprintf(key, sizeof(key) / sizeof(char), "/cores[%lu]/", i);
+            config->cores[i] = atoi(map_get(map, key));
+        }
+    }
+
+    if(map_has(map, "/memory/:type")) {
+        if(map_has(map, "/memory/packet_pool/")) {
+            config->memory.packet_pool = atoi(map_get(map, "/memory/packet_pool/"));
+            ZF_LOGD("packet pool: %d", config->memory.packet_pool);
+        }
+
+        if(map_has(map, "/memory/shared_memory/")) {
+            config->memory.shared_memory = atoi(map_get(map, "/memory/shared_memory/"));
+            ZF_LOGD("packet pool: %d", config->memory.shared_memory);
+        }
+    }
+
+    if(map_has(map, "/log_level/:type")) {
+        char* log_level = (char*)map_get(map, "/log_level/");
+
+        if(strcasecmp(log_level, "verbose") == 0) {
+            config->loglevel = PV_LOGLEVEL_VERBOSE;
+        } else if(strcasecmp(log_level, "debug") == 0) {
+            config->loglevel = PV_LOGLEVEL_DEBUG;
+        } else if(strcasecmp(log_level, "info") == 0) {
+            config->loglevel = PV_LOGLEVEL_INFO;
+        } else if(strcasecmp(log_level, "warning") == 0) {
+            config->loglevel = PV_LOGLEVEL_WARNING;
+        } else if(strcasecmp(log_level, "error") == 0) {
+            config->loglevel = PV_LOGLEVEL_ERROR;
+        } else {
+            ZF_LOGE("log level %s is not available", log_level);
+        }
+    }
+
+    if(map_has(map, "/nics/:type")) {
+        config->nics_count = atoi(map_get(map, "/nics/:length"));
+        config->nics = calloc(config->nics_count, sizeof(config->nics[0]));
+        assert(config->nics != NULL);
+        char key[200];
+
+        for(size_t i = 0; i < config->nics_count; i += 1) {
+            snprintf(key, 200, "/nics[%lu]/dev/", i);
+            char* dev = map_get(map, key);
+            config->nics[i].dev = dev;
+
+            snprintf(key, 200, "/nics[%lu]/mac/", i);
+            char* mac = map_get(map, key);
+            if(mac != NULL) {
+                config->nics[i].mac = (((strtoul(mac + (0 * 3), NULL, 16) & 0xff) << (8 * 5)) |
+                                       ((strtoul(mac + (1 * 3), NULL, 16) & 0xff) << (8 * 4)) |
+                                       ((strtoul(mac + (2 * 3), NULL, 16) & 0xff) << (8 * 3)) |
+                                       ((strtoul(mac + (3 * 3), NULL, 16) & 0xff) << (8 * 2)) |
+                                       ((strtoul(mac + (4 * 3), NULL, 16) & 0xff) << (8 * 1)) |
+                                       ((strtoul(mac + (5 * 3), NULL, 16) & 0xff) << (8 * 0)));
+
+                ZF_LOGD("MAC: %012lx", config->nics[i].mac);
+            }
+
+            snprintf(key, 200, "/nics[%lu]/ipv4/", i);
+            char* ipv4 = map_get(map, key);
+            if(ipv4 != NULL) {
+                config->nics[i].ipv4 = ntohl(inet_addr(ipv4));
+            }
+
+            snprintf(key, 200, "/nics[%lu]/rx_queue/", i);
+            char* rx_queue = map_get(map, key);
+            if(rx_queue != NULL) {
+                config->nics[i].rx_queue = atoi(rx_queue);
+            }
+
+            snprintf(key, 200, "/nics[%lu]/tx_queue/", i);
+            char* tx_queue = map_get(map, key);
+            if(tx_queue != NULL) {
+                config->nics[i].tx_queue = atoi(tx_queue);
+            }
+
+            // TODO: Offload flags
+
+            snprintf(key, 200, "/nics[%lu]/promisc/", i);
+            char* promisc = map_get(map, key);
+            // Assume that promisc in ("0", "1")
+            if(promisc != NULL) {
+                config->nics[i].promisc = (promisc[0] == '1');
+            }
+        }
+    }
 }
 
 void pv_config_destroy(struct pv_config* config) {
@@ -57,7 +161,7 @@ void pv_config_destroy(struct pv_config* config) {
         map_iterator_init(&iter, config->config_map);
         while(map_iterator_has_next(&iter)) {
             struct map_entry* entry = map_iterator_next(&iter);
-            ZF_LOGD("Remove config %s %s", (char*)entry->key, (char*)entry->data);
+            ZF_LOGV("Remove config %s %s", (char*)entry->key, (char*)entry->data);
             free(entry->key);
             free(entry->data);
         }
@@ -65,7 +169,13 @@ void pv_config_destroy(struct pv_config* config) {
         map_destroy(config->config_map);
     }
 
-    free(config);
+    if(config->nics) {
+        free(config->nics);
+    }
 
-    // TODO: free all child components
+    if(config->cores) {
+        free(config->cores);
+    }
+
+    free(config);
 }
