@@ -40,9 +40,10 @@ struct pv_config {
     uint16_t nics_count;
 
     uint8_t loglevel; // See pv_config_loglevel
-
-    struct map* config_map;
 };
 
 struct pv_config* pv_config_create();
 void pv_config_destroy(struct pv_config* config);
+void pv_config_finalize();
+
+char* pv_config_get(const char* key);

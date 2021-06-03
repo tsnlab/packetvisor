@@ -164,6 +164,7 @@ int pv_init() {
 }
 
 void pv_finalize() {
+    pv_config_finalize();
 }
 
 static bool is_config_fine(const struct pv_config* config) {

@@ -15,6 +15,9 @@
 #define ENV_NAME "PV_CONFIG"
 #define MAX_LINE_LENGTH 200
 
+static struct map* config_map = NULL;
+
+static bool create_config();
 static void fill_pv_config(struct pv_config* config);
 
 struct pv_config* pv_config_create() {
@@ -24,9 +27,21 @@ struct pv_config* pv_config_create() {
         return NULL;
     }
 
-    // TODO: Implement this
-    struct map* config_map = map_create(10, string_hash, string_compare);
+    create_config();
+
+    fill_pv_config(config);
+
+    return config;
+}
+
+static bool create_config() {
+    if(config_map != NULL) {
+        return true;
+    }
+
+    config_map = map_create(10, string_hash, string_compare);
     FILE* config_file = fopen(getenv(ENV_NAME), "r");
+    // TODO: check file
     char line[MAX_LINE_LENGTH];
     while(fgets(line, MAX_LINE_LENGTH, config_file) != NULL) {
         char* space = strchr(line, ' ');
@@ -48,15 +63,12 @@ struct pv_config* pv_config_create() {
         map_put(config_map, mapkey, mapval);
     }
 
-    config->config_map = config_map;
-
-    fill_pv_config(config);
-
-    return config;
+    return true;
 }
 
 static void fill_pv_config(struct pv_config* config) {
-    struct map* map = config->config_map;
+    struct map* map = config_map;
+
     if(map_has(map, "/cores/:type")) {
         config->cores_count = atoi(map_get(map, "/cores/:length"));
         config->cores = calloc(config->cores_count, sizeof(config->cores[0]));
@@ -156,19 +168,6 @@ static void fill_pv_config(struct pv_config* config) {
 void pv_config_destroy(struct pv_config* config) {
     assert(config != NULL);
 
-    if(config->config_map != NULL) {
-        struct map_iterator iter;
-        map_iterator_init(&iter, config->config_map);
-        while(map_iterator_has_next(&iter)) {
-            struct map_entry* entry = map_iterator_next(&iter);
-            ZF_LOGV("Remove config %s %s", (char*)entry->key, (char*)entry->data);
-            free(entry->key);
-            free(entry->data);
-        }
-
-        map_destroy(config->config_map);
-    }
-
     if(config->nics) {
         free(config->nics);
     }
@@ -178,4 +177,26 @@ void pv_config_destroy(struct pv_config* config) {
     }
 
     free(config);
+}
+
+void pv_config_finalize() {
+    if(config_map != NULL) {
+        struct map_iterator iter;
+        map_iterator_init(&iter, config_map);
+        while(map_iterator_has_next(&iter)) {
+            struct map_entry* entry = map_iterator_next(&iter);
+            ZF_LOGV("Remove config %s %s", (char*)entry->key, (char*)entry->data);
+            free(entry->key);
+            free(entry->data);
+        }
+
+        map_destroy(config_map);
+    }
+}
+
+char* pv_config_get(const char* key) {
+    // TODO: implement this
+    create_config();
+
+    return NULL;
 }
