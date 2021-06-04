@@ -6,9 +6,21 @@ extern "C" {
 
 #include <stdint.h>
 
+/**
+ * TCP header length is 20 bytes.
+ */
 #define PV_TCP_HDR_LEN 20
+/**
+ * Get start pointer of payload from TCP data structure.
+ *
+ * @param tcp   TCP data structure
+ * @return start pointer of payload in void* type.
+ */
 #define PV_TCP_PAYLOAD(tcp) (void*)((uint8_t*)(tcp) + (tcp)->hdr_len * 4) // Get tcp data ptr
 
+/**
+ * TCP data structure.
+ */
 struct pv_tcp {
     uint16_t srcport;           // Source port
     uint16_t dstport;           // Destination port

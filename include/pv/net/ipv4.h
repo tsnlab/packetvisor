@@ -7,10 +7,31 @@ extern "C" {
 #include <stdint.h>
 #include <pv/net/ip.h>
 
+/**
+ * Get IPv4 header length including header options in bytes.
+ *
+ * @param ipv4  IPv4 data structure.
+ * @return IPv4 header length in bytes.
+ */
 #define PV_IPv4_HDR_LEN(ipv4) ((ipv4)->hdr_len * 4)
+/**
+ * Get start pointer of payload from IPv4 data structure.
+ *
+ * @param ipv4  IPv4 data structure.
+ * @return start pointer of payload in void* type.
+ */
 #define PV_IPv4_PAYLOAD(ipv4) (void*)((uint8_t*)(ipv4) + PV_IPv4_HDR_LEN(ipv4)) // Get ip data pointer
-#define PV_IPv4_PAYLOAD_LEN(ipv4) ((ipv4)->len - PV_IPv4_HDR_LEN(ipv4))         // Get ip body length
+/**
+ * Get IPv4 payload length in bytes.
+ *
+ * @param ipv4  IPv4 data structure.
+ * @return payload length in bytes.
+ */
+#define PV_IPv4_PAYLOAD_LEN(ipv4) ((ipv4)->len - PV_IPv4_HDR_LEN(ipv4)) // Get ip body length
 
+/**
+ * IPv4 data structure.
+ */
 struct pv_ipv4 {
     uint8_t version : 4;       // IP version, this is always equals to 4
     uint8_t hdr_len : 4;       // Internet Header Length
@@ -28,6 +49,11 @@ struct pv_ipv4 {
     uint8_t opt[0];            // Options
 } __attribute__((packed, scalar_storage_order("big-endian")));
 
+/**
+ * Calculate IPv4 header checksum. checksum field will be updated.
+ *
+ * @param ipv4  IPv4 data structure.
+ */
 void pv_ipv4_checksum(struct pv_ipv4* ipv4);
 
 #ifdef __cplusplus

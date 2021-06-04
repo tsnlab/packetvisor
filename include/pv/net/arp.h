@@ -4,10 +4,16 @@
 extern "C" {
 #endif
 
-#define PV_ARP_HDR_LEN 28
-
 #include <stdint.h>
 
+/**
+ * ARP header length is 28 bytes.
+ */
+#define PV_ARP_HDR_LEN 28
+
+/**
+ * ARP opcode.
+ */
 enum pv_arp_opcode {
     PV_ARP_OPCODE_ARP_REQUEST = 1,
     PV_ARP_OPCODE_ARP_REPLY = 2,
@@ -20,6 +26,9 @@ enum pv_arp_opcode {
     PV_ARP_OPCODE_INARP_REPLY = 9,
 };
 
+/**
+ * ARP data structure.
+ */
 struct pv_arp {
     uint16_t hw_type;     // Hardware type
     uint16_t proto_type;  // Protocol type

@@ -20,7 +20,7 @@ uint64_t pv_nic_get_mac(uint16_t nic_id) {
            ((uint64_t)addr.addr_bytes[4]) << 8 | ((uint64_t)addr.addr_bytes[5]) << 0;
 }
 
-bool pv_nic_get_promiscuous(uint16_t nic_id) {
+bool pv_nic_is_promiscuous(uint16_t nic_id) {
     return rte_eth_promiscuous_enable(nic_id) == 1;
 }
 
@@ -53,7 +53,7 @@ uint16_t pv_nic_tx_burst(uint16_t nic_id, uint16_t queue_id, struct pv_packet** 
     return nb_tx;
 }
 
-uint16_t pv_nic_tx(uint16_t nic_id, uint16_t queue_id, struct pv_packet* packet) {
+bool pv_nic_tx(uint16_t nic_id, uint16_t queue_id, struct pv_packet* packet) {
     struct pv_packet* array[1] = {packet};
-    return pv_nic_tx_burst(nic_id, queue_id, array, 1);
+    return pv_nic_tx_burst(nic_id, queue_id, array, 1) == 1;
 }
