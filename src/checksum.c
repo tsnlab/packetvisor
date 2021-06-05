@@ -21,7 +21,7 @@ uint32_t pv_checksum_partial(const void* start, uint32_t size) {
     }
 
     if(size > 0) {
-        checksum += *(uint8_t*)buffer;
+        checksum += *(uint8_t*)buffer << 8;
         if(checksum >> 16 > 0) {
             checksum = (checksum >> 16) + (checksum & 0xffff);
         }
