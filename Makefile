@@ -53,7 +53,8 @@ clean:
 libpv.a: $(OBJS) $(LIBS)
 	$(AR) -rcT $@ $^
 
-libs:
+
+lib/libcollection/libcl.a:
 	make -C lib/libcollection/ DEBUG=0
 
 src/ver.h:
