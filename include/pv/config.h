@@ -1,5 +1,7 @@
 #pragma once
 
+#include <netinet/in.h>
+
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -13,8 +15,8 @@ struct pv_config_memory {
 struct pv_config_nic {
     char* dev;     // *required* pci port num 0000:00:08.0
     uint64_t mac;  // c0:ff:ee:c0:ff:ee or NULL
-    uint32_t ipv4; // 192.168.0.1, NULL if auto
-    // char* ipv6;  // ::1, NULL if auto
+    struct in_addr ipv4; // 192.168.0.1, NULL if auto
+    struct in6_addr ipv6;  // ::1, NULL if auto
     uint16_t rx_queue;
     uint16_t tx_queue;
     uint32_t rx_offloads;
@@ -28,6 +30,15 @@ enum pv_config_loglevel {
     PV_LOGLEVEL_INFO,
     PV_LOGLEVEL_WARNING,
     PV_LOGLEVEL_ERROR,
+};
+
+enum pv_config_type {
+    PV_CONFIG_UNKNOWN,  // Not found, or unknown
+    PV_CONFIG_BOOL,
+    PV_CONFIG_NUM,
+    PV_CONFIG_STR,
+    PV_CONFIG_DICT,
+    PV_CONFIG_LIST,
 };
 
 struct pv_config {
@@ -46,4 +57,43 @@ struct pv_config* pv_config_create();
 void pv_config_destroy(struct pv_config* config);
 void pv_config_finalize();
 
-char* pv_config_get(const char* key);
+/**
+ * Check if config has value with given key.
+ * @param key key to look for
+ * @return true if found
+ */
+bool pv_config_has(const char* key);
+
+/**
+ * Get type of config value with given key.
+ * @param key key to look for
+ * @return type of config value. @see enum pv_config_type
+ */
+enum pv_config_type pv_config_get_type(const char* key);
+/**
+ * Get length of config value for dict/list type.
+ * @param key key to look for
+ * @return size of config. or -1 if key doesn't exists or not suitable type.
+ */
+size_t pv_config_get_size(const char* key);
+
+/**
+ * Get string value of config
+ * @param key key to look for
+ * @return a string. null if not found. @see pv_config_has
+ */
+char* pv_config_get_str(const char* key);
+
+/**
+ * Get string value of config
+ * @param key key to look for
+ * @return a number. -1 if not found. @see pv_config_has
+ */
+int pv_config_get_num(const char* key);
+
+/**
+ * Get bool value of config
+ * @param key key to look for
+ * @return a bool. false if not found. @see pv_config_has
+ */
+bool pv_config_get_bool(const char* key);

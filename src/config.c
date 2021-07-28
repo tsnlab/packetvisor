@@ -5,7 +5,7 @@
 
 #include <assert.h>
 
-#include <cl/collection.h>
+// #include <cl/collection.h>
 #include <cl/map.h>
 
 #include "zf_log.h"
@@ -138,7 +138,17 @@ static void fill_pv_config(struct pv_config* config) {
             snprintf(key, 200, "/nics[%lu]/ipv4/", i);
             char* ipv4 = map_get(map, key);
             if(ipv4 != NULL) {
-                config->nics[i].ipv4 = ntohl(inet_addr(ipv4));
+                struct sockaddr_in addr;
+                inet_pton(AF_INET, ipv4, &addr);
+                memcpy(&config->nics[i].ipv4, &addr.sin_addr, sizeof(addr.sin_addr));
+            }
+
+            snprintf(key, 200, "/nics[%lu]/ipv6/", i);
+            char* ipv6 = map_get(map, key);
+            if(ipv6 != NULL) {
+                struct sockaddr_in6 addr;
+                inet_pton(AF_INET, ipv6, &addr);
+                memcpy(&config->nics[i].ipv6, &addr.sin6_addr, sizeof(addr.sin6_addr));
             }
 
             snprintf(key, 200, "/nics[%lu]/rx_queue/", i);
@@ -194,9 +204,92 @@ void pv_config_finalize() {
     }
 }
 
-char* pv_config_get(const char* key) {
-    // TODO: implement this
+bool pv_config_has(const char* key) {
+    return pv_config_get_type(key) != PV_CONFIG_UNKNOWN;
+}
+
+enum pv_config_type pv_config_get_type(const char* key) {
+    size_t key_type_size = strlen(key) + strlen("/:type") + 1;
+    char* key_type = malloc(key_type_size);
+    snprintf(key_type, key_type_size, "%s/:type", key);
+
+    char* type = map_get(config_map, key_type);
+    free(key_type);
+
+    if (type == NULL) {
+        return PV_CONFIG_UNKNOWN;
+    }
+
+    if (strcasecmp(type, "str") == 0) {
+        return PV_CONFIG_STR;
+    } else if (strcasecmp(type, "num") == 0) {
+        return PV_CONFIG_NUM;
+    } else if (strcasecmp(type, "bool") == 0) {
+        return PV_CONFIG_BOOL;
+    } else if (strcasecmp(type, "dict") == 0) {
+        return PV_CONFIG_DICT;
+    } else if (strcasecmp(type, "list") == 0) {
+        return PV_CONFIG_LIST;
+    }
+
+    return PV_CONFIG_UNKNOWN;
+}
+
+size_t pv_config_get_size(const char* key) {
+    size_t key_length_size = strlen(key) + strlen("/:length") + 1;
+    char* key_length = malloc(key_length_size);
+    snprintf(key_length, key_length_size, "%s/:length", key);
+
+    char* length = map_get(config_map, key_length);
+    free(key_length);
+
+    if (length == NULL) {
+        return -1;
+    }
+
+    return atoi(length);
+}
+
+char* pv_config_get_str(const char* key) {
     create_config();
 
-    return NULL;
+    // Check type
+    if (pv_config_get_type(key) != PV_CONFIG_STR) {
+        return NULL;
+    }
+
+    char* value = map_get(config_map, key);
+    return value;
+}
+
+int pv_config_get_num(const char* key) {
+    create_config();
+
+    // Check type
+    if (pv_config_get_type(key) != PV_CONFIG_NUM) {
+        return -1;
+    }
+
+    char* value = map_get(config_map, key);
+    if (value == NULL) {
+        return -1;
+    }
+
+    return atoi(value);
+}
+
+bool pv_config_get_bool(const char* key) {
+    create_config();
+
+    // Check type
+    if (pv_config_get_type(key) != PV_CONFIG_BOOL) {
+        return false;
+    }
+
+    char* value = map_get(config_map, key);
+    if (value == NULL) {
+        return false;
+    }
+
+    return strcasecmp(value, "1") == 0;
 }

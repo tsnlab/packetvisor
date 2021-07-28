@@ -1,6 +1,7 @@
 #include <rte_ethdev.h>
 
 #include <pv/nic.h>
+#include <pv/config.h>
 
 #include "internal.h"
 
@@ -18,6 +19,24 @@ uint64_t pv_nic_get_mac(uint16_t nic_id) {
     return ((uint64_t)addr.addr_bytes[0]) << 40 | ((uint64_t)addr.addr_bytes[1]) << 32 |
            ((uint64_t)addr.addr_bytes[2]) << 24 | ((uint64_t)addr.addr_bytes[3]) << 16 |
            ((uint64_t)addr.addr_bytes[4]) << 8 | ((uint64_t)addr.addr_bytes[5]) << 0;
+}
+
+struct in_addr pv_nic_get_ipv4(uint16_t nic_id) {
+    // FIXME: allocate config everytime is very slow.
+    struct pv_config* config = pv_config_create();
+    struct in_addr res = config->nics[nic_id].ipv4;
+    pv_config_destroy(config);
+
+    return res;
+}
+
+struct in6_addr pv_nic_get_ipv6(uint16_t nic_id) {
+    // FIXME: allocate config everytime is very slow.
+    struct pv_config* config = pv_config_create();
+    struct in6_addr res = config->nics[nic_id].ipv6;
+    pv_config_destroy(config);
+
+    return res;
 }
 
 bool pv_nic_is_promiscuous(uint16_t nic_id) {
