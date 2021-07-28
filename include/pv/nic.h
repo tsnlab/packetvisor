@@ -26,6 +26,20 @@ uint16_t pv_nic_count();
 uint64_t pv_nic_get_mac(uint16_t nic_id);
 
 /**
+ * Get IPv4 address for a NIC.
+ * @param nic_id NIC ID.
+ * @return IPv4 address that is specified in configuration.
+ */
+struct in_addr pv_nic_get_ipv4(uint16_t nic_id);
+
+/**
+ * Get IPv4 address for a NIC.
+ * @param nic_id NIC ID.
+ * @return IPv4 address that is specified in configuration.
+ */
+struct in6_addr pv_nic_get_ipv6(uint16_t nic_id);
+
+/**
  * Check the NIC is in promiscuous mode or not.
  *
  * @param nic_id    NIC ID.
