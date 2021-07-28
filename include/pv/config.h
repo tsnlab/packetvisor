@@ -1,5 +1,7 @@
 #pragma once
 
+#include <netinet/in.h>
+
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -13,8 +15,8 @@ struct pv_config_memory {
 struct pv_config_nic {
     char* dev;     // *required* pci port num 0000:00:08.0
     uint64_t mac;  // c0:ff:ee:c0:ff:ee or NULL
-    uint32_t ipv4; // 192.168.0.1, NULL if auto
-    // char* ipv6;  // ::1, NULL if auto
+    struct in_addr ipv4; // 192.168.0.1, NULL if auto
+    struct in6_addr ipv6;  // ::1, NULL if auto
     uint16_t rx_queue;
     uint16_t tx_queue;
     uint32_t rx_offloads;

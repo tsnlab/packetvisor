@@ -138,7 +138,17 @@ static void fill_pv_config(struct pv_config* config) {
             snprintf(key, 200, "/nics[%lu]/ipv4/", i);
             char* ipv4 = map_get(map, key);
             if(ipv4 != NULL) {
-                config->nics[i].ipv4 = ntohl(inet_addr(ipv4));
+                struct sockaddr_in addr;
+                inet_pton(AF_INET, ipv4, &addr);
+                memcpy(&config->nics[i].ipv4, &addr.sin_addr, sizeof(addr.sin_addr));
+            }
+
+            snprintf(key, 200, "/nics[%lu]/ipv6/", i);
+            char* ipv6 = map_get(map, key);
+            if(ipv6 != NULL) {
+                struct sockaddr_in6 addr;
+                inet_pton(AF_INET, ipv6, &addr);
+                memcpy(&config->nics[i].ipv6, &addr.sin6_addr, sizeof(addr.sin6_addr));
             }
 
             snprintf(key, 200, "/nics[%lu]/rx_queue/", i);
