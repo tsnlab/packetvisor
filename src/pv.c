@@ -22,6 +22,8 @@ static bool is_config_fine(const struct pv_config* config);
 static struct map* create_devmap();
 static void destroy_devmap(struct map* devmap);
 
+static void error_with_rte(int code, const char* msg);
+
 static inline int port_init(uint16_t port, struct rte_mempool* mbuf_pool, struct pv_config_nic* nic_config) {
     struct rte_eth_conf port_conf = port_conf_default;
     // FIXME: Implement multiple rx/tx queue
@@ -118,7 +120,7 @@ int pv_init() {
 
     int ret = rte_eal_init(argc, argv);
     if(ret < 0) {
-        rte_exit(1, "Error with EAL initialization\n");
+        error_with_rte(1, "Error with EAL initialization\n");
     }
 
     nb_ports = rte_eth_dev_count_avail();
@@ -131,7 +133,7 @@ int pv_init() {
         rte_pktmbuf_pool_create("MBUF_POOL", num_mbufs, MBUF_CACHE_SIZE, 0, RTE_MBUF_DEFAULT_BUF_SIZE, rte_socket_id());
 
     if(mbuf_mempool == NULL) {
-        rte_exit(1, "Cannot create mbuf pool\n");
+        error_with_rte(1, "Cannot create mbuf pool\n");
     }
 
     struct map* dev_map = create_devmap();
@@ -201,7 +203,7 @@ static struct map* create_devmap() {
     RTE_ETH_FOREACH_DEV(portid) {
         struct rte_eth_dev_info devinfo;
         if(rte_eth_dev_info_get(portid, &devinfo) != 0) {
-            rte_exit(1, "Cannot get devinfo");
+            error_with_rte(1, "Cannot get devinfo");
         }
 
         map_put(map, strdup(devinfo.device->name), from_u16(portid));
@@ -222,4 +224,9 @@ static void destroy_devmap(struct map* devmap) {
     }
 
     map_destroy(devmap);
+}
+
+static void error_with_rte(int code, const char* msg) {
+    ZF_LOGE("RTE ERROR: %d, %s", rte_errno, rte_strerror(rte_errno));
+    rte_exit(code, "%s", msg);
 }
