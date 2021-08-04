@@ -40,6 +40,7 @@ def get_nic_info() -> Dict[str, DevInfo]:
 def calc_hugemem_size(config: Dict) -> int:
     size = (
         config['memory']['shared_memory'] +
+        350_000 +  # Some constant usage from mbuf_pool
         (
             (config['memory']['packet_pool'] * len(config['nics'])) +
             sum(
@@ -147,8 +148,9 @@ def main(args: List[str]) -> int:
             proc.send_signal(signal.SIGINT)
 
         default_handler = signal.signal(signal.SIGINT, handler)
-        proc.wait()
+        exitcode = proc.wait()
         signal.signal(signal.SIGINT, default_handler)
+        return exitcode
 
 
 if __name__ == '__main__':
