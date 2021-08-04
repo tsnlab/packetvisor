@@ -8,7 +8,8 @@
 #include <cl/collection.h>
 #include <cl/map.h>
 
-#define MBUF_CACHE_SIZE 250
+#define MBUF_CACHE_SIZE 32
+#define MBUF_BUF_SIZE (2048 - 200) // 200 is maybe overhead
 
 static const struct rte_eth_conf port_conf_default = {
     .rxmode =
