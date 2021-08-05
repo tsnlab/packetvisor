@@ -210,11 +210,10 @@ bool pv_config_has(const char* key) {
 
 enum pv_config_type pv_config_get_type(const char* key) {
     size_t key_type_size = strlen(key) + strlen("/:type") + 1;
-    char* key_type = malloc(key_type_size);
+    char key_type[key_type_size];
     snprintf(key_type, key_type_size, "%s/:type", key);
 
     char* type = map_get(config_map, key_type);
-    free(key_type);
 
     if (type == NULL) {
         return PV_CONFIG_UNKNOWN;
@@ -237,17 +236,30 @@ enum pv_config_type pv_config_get_type(const char* key) {
 
 size_t pv_config_get_size(const char* key) {
     size_t key_length_size = strlen(key) + strlen("/:length") + 1;
-    char* key_length = malloc(key_length_size);
+    char key_length[key_length_size];
     snprintf(key_length, key_length_size, "%s/:length", key);
 
     char* length = map_get(config_map, key_length);
-    free(key_length);
 
     if (length == NULL) {
         return -1;
     }
 
     return atoi(length);
+}
+
+char* pv_config_get_key(const char* dict, int key_index) {
+    if (pv_config_get_type(dict) != PV_CONFIG_DICT) {
+        return NULL;
+    }
+
+    const size_t key_value_size = strlen(dict) + strlen("/:keys[xx]") + 1;
+    char key_value[key_value_size];
+
+    snprintf(key_value, key_value_size, "%s/:keys[%d]", dict, key_index);
+    char* value = map_get(config_map, key_value);
+
+    return value;
 }
 
 char* pv_config_get_str(const char* key) {
@@ -258,12 +270,11 @@ char* pv_config_get_str(const char* key) {
         return NULL;
     }
 
-    size_t key_value_size = strlen(key) + 1 + 1;
-    char* key_value = malloc(key_value_size);
+    const size_t key_value_size = strlen(key) + 1 + 1;
+    char key_value[key_value_size];
     snprintf(key_value, key_value_size, "%s/", key);
 
     char* value = map_get(config_map, key_value);
-    free(key_value);
     return value;
 }
 
@@ -275,12 +286,11 @@ int pv_config_get_num(const char* key) {
         return -1;
     }
 
-    size_t key_value_size = strlen(key) + 1 + 1;
-    char* key_value = malloc(key_value_size);
+    const size_t key_value_size = strlen(key) + 1 + 1;
+    char key_value[key_value_size];
     snprintf(key_value, key_value_size, "%s/", key);
 
     char* value = map_get(config_map, key_value);
-    free(key_value);
     if (value == NULL) {
         return -1;
     }
@@ -296,12 +306,11 @@ bool pv_config_get_bool(const char* key) {
         return false;
     }
 
-    size_t key_value_size = strlen(key) + 1 + 1;
-    char* key_value = malloc(key_value_size);
+    const size_t key_value_size = strlen(key) + 1 + 1;
+    char key_value[key_value_size];
     snprintf(key_value, key_value_size, "%s/", key);
 
     char* value = map_get(config_map, key_value);
-    free(key_value);
     if (value == NULL) {
         return false;
     }

@@ -78,6 +78,14 @@ enum pv_config_type pv_config_get_type(const char* key);
 size_t pv_config_get_size(const char* key);
 
 /**
+ * Get the key name of given dict.
+ * @param dict key of dict object.
+ * @param key_index 0 based key index. @see pv_config_get_size
+ * @return key's name
+ */
+char* pv_config_get_key(const char* dict, int key_index);
+
+/**
  * Get string value of config
  * @param key key to look for
  * @return a string. null if not found. @see pv_config_has
