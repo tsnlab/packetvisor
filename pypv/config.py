@@ -25,6 +25,7 @@ def convert(config: Union[int, float, str, bool, dict], root='') -> str:
         if len(config.keys()) != len(set(map(str, config.keys()))):
             raise ValueError('Same keyname as str is not allowed')
         for key in config.keys():
+            key = str(key)
             if not is_valid_keyname(key):
                 raise ValueError(f'Key name "{key}" is not allowed')
 
