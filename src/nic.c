@@ -57,6 +57,7 @@ uint16_t pv_nic_rx_burst(uint16_t nic_id, uint16_t queue_id, struct pv_packet** 
 
     for(uint16_t i = 0; i < nb_rx; i++) {
         array[i] = _pv_mbuf_to_packet(mbufs[i], nic_id, queue_id);
+        array[i]->nic_id = nic_id;
     }
 
     return nb_rx;
