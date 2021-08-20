@@ -73,7 +73,7 @@ int pv_thread_run_at(int worker_function(void*), void* arg, unsigned lcore_id);
 /**
  * Join worker loop thread and make that core in WAIT state.
  * @param lcore_id to wait for
- * @return 0 if success and that core is in WAIT state from now.
+ * @return 0 if already in PV_THREAD_WAIT status, else return that process' return value
  */
 int pv_thread_wait_core(unsigned lcore_id);
 
