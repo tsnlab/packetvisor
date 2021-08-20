@@ -78,7 +78,7 @@ def main(args: List[str]) -> int:
     eal_params = config['eal_params']
 
     try:
-        cores = config.get('cores', 0)
+        cores = config.get('cores', [])
         if len(cores) == 0:
             raise ValueError('Invalid core count')
 

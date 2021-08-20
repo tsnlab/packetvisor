@@ -114,12 +114,7 @@ int pv_init() {
         return -1;
     }
 
-    char* argv[] = {
-        "xxx",
-    };
-    int argc = sizeof(argv) / sizeof(argv[0]);
-
-    int ret = rte_eal_init(argc, argv);
+    int ret = rte_eal_init(config->eal_argc, config->eal_argv);
     if(ret < 0) {
         error_with_rte(1, "Error with EAL initialization\n");
     }
