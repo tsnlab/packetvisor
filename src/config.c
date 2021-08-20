@@ -69,6 +69,17 @@ static bool create_config() {
 static void fill_pv_config(struct pv_config* config) {
     struct map* map = config_map;
 
+    if(map_has(map, "/eal_params/:type")) {
+        config->eal_argc = atoi(map_get(map, "/eal_params/:length"));
+        config->eal_argv = calloc(config->eal_argc, sizeof(char*));
+
+        for(size_t i = 0; i < config->eal_argc; i += 1) {
+            char key[200];
+            snprintf(key, sizeof(key) / sizeof(char), "/eal_params[%lu]/", i);
+            config->eal_argv[i] = map_get(map, key);
+        }
+    }
+
     if(map_has(map, "/cores/:type")) {
         config->cores_count = atoi(map_get(map, "/cores/:length"));
         config->cores = calloc(config->cores_count, sizeof(config->cores[0]));
@@ -203,6 +214,34 @@ void pv_config_finalize() {
         map_destroy(config_map);
     }
 }
+
+size_t pv_config_get_core_count() {
+    create_config();
+    struct map* map = config_map;
+    if(!map_has(map, "/cores/:type")) {
+        return 0;
+    }
+    return atoi(map_get(map, "/cores/:length"));
+}
+
+size_t pv_config_get_cores(int* cores, size_t max_count) {
+
+    assert(cores != NULL);
+
+    int cores_count = pv_config_get_core_count();
+    struct map* map = config_map;
+
+    size_t i;
+    for(i = 0; i < cores_count && i < max_count; i += 1) {
+        char key[200];
+        snprintf(key, sizeof(key) / sizeof(char), "/cores[%lu]/", i);
+        cores[i] = atoi(map_get(map, key));
+    }
+
+    return i;
+}
+
+// Below are for custom configs
 
 bool pv_config_has(const char* key) {
     return pv_config_get_type(key) != PV_CONFIG_UNKNOWN;

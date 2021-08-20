@@ -1,6 +1,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <pv/config.h>
 #include <pv/net/ethernet.h>
 #include <pv/nic.h>
 #include <pv/packet.h>
@@ -12,6 +13,15 @@ int main(int argc, char** argv) {
     }
 
     struct pv_packet* packets[64];
+
+    printf("Getting cores\n");
+    int cores[16];
+    size_t cores_count = pv_config_get_cores(cores, 16);
+    printf("There are %lu cores\n", cores_count);
+
+    for (int i = 0; i < cores_count; i += 1) {
+        printf("Core: %d\n", cores[i]);
+    }
 
     while(true) {
         uint16_t count = pv_nic_rx_burst(0, 0, packets, 64);

@@ -5,8 +5,6 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include <cl/map.h>
-
 struct pv_config_memory {
     uint32_t packet_pool;   // Count
     uint32_t shared_memory; // Bytes
@@ -45,6 +43,9 @@ struct pv_config {
     uint16_t* cores;
     uint16_t cores_count;
 
+    size_t eal_argc;
+    char** eal_argv;
+
     struct pv_config_memory memory;
 
     struct pv_config_nic* nics;
@@ -56,6 +57,22 @@ struct pv_config {
 struct pv_config* pv_config_create();
 void pv_config_destroy(struct pv_config* config);
 void pv_config_finalize();
+
+/**
+ * Get cores count that specified on config file.
+ * @return count of cores
+ */
+size_t pv_config_get_core_count();
+
+/**
+ * Get cores list from config file.
+ * @param cores array of int to store core ids.
+ * @param max_count maximum count to store core ids. if there are more than this value. they are ignored. @see pv_config_get_core_count
+ * @return count of cores that is returned from this function.
+ */
+size_t pv_config_get_cores(int* cores, size_t max_count);
+
+// Below are for custom configs
 
 /**
  * Check if config has value with given key.
