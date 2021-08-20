@@ -22,7 +22,7 @@ void pv_thread_lock_write_unlock(struct pv_thread_lock* lock) {
     rte_rwlock_write_unlock((rte_rwlock_t*)&lock);
 }
 
-int pv_thread_run_main(int main_function(void*), void* arg, bool call_main) {
+int pv_thread_run_all(int main_function(void*), void* arg, bool call_main) {
     return rte_eal_mp_remote_launch(main_function, arg, call_main ? CALL_MAIN : SKIP_MAIN);
 }
 
