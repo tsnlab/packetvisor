@@ -8,6 +8,8 @@
 #include <cl/collection.h>
 #include <cl/map.h>
 
+#include "internal.h"
+
 #define MBUF_CACHE_SIZE 32
 #define MBUF_BUF_SIZE (2048 - 200) // 200 is maybe overhead
 
@@ -131,6 +133,8 @@ int pv_init() {
     if(mbuf_mempool == NULL) {
         error_with_rte(1, "Cannot create mbuf pool\n");
     }
+
+    pv_packet_set_mbuf_pool(mbuf_mempool);
 
     struct map* dev_map = create_devmap();
 
