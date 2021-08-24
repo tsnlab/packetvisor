@@ -13,6 +13,10 @@ struct pv_packet* _pv_mbuf_to_packet(struct rte_mbuf* mbuf, uint16_t nic_id, uin
     return packet;
 }
 
+void pv_packet_set_mbuf_pool(struct rte_mempool* pool) {
+    _mbuf_pool = pool;
+}
+
 struct pv_packet* pv_packet_alloc() {
     struct rte_mbuf* mbuf = rte_pktmbuf_alloc(_mbuf_pool);
     if(mbuf == NULL)
