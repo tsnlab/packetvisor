@@ -26,6 +26,7 @@ enum pv_ethernet_type {
     PV_ETH_TYPE_ARP = 0x0806,
     PV_ETH_TYPE_IPv6 = 0x86DD,
     PV_ETH_TYPE_VLAN = 0x8100,
+    PV_ETH_TYPE_PTP = 0x88F7,
 };
 
 /**
@@ -36,6 +37,10 @@ struct pv_ethernet {
     uint64_t smac : 48;
     uint16_t type;
 } __attribute__((packed, scalar_storage_order("big-endian")));
+
+enum pv_ethernet_addr {
+    PV_ETH_ADDR_MULTICAST = 0x011b19000000,
+};
 
 #ifdef __cplusplus
 }

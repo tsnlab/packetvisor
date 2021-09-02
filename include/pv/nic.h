@@ -2,6 +2,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <time.h>
 #include <pv/packet.h>
 
 #ifdef __cplusplus
@@ -89,6 +90,39 @@ uint16_t pv_nic_tx_burst(uint16_t nic_id, uint16_t queue_id, struct pv_packet** 
  *         you must retransmit or free the packet.
  */
 bool pv_nic_tx(uint16_t nic_id, uint16_t queue_id, struct pv_packet* packet);
+
+/**
+ * Get RX timestamp used for IEEE1588
+ * @param portid port id to get timestamp from
+ * @param timestamp timespec struct to store timestamp
+ * @param timesync_flag timesync_flag @see pv_packet_get_timesync_flag
+ * @return true if success
+ */
+bool pv_nic_get_rx_timestamp(uint16_t nic_id, struct timespec* timestamp);
+
+/**
+ * Get TX timestamp used for IEEE1588
+ * @param portid port id to get timestamp from
+ * @param timestamp timespec struct to store timestamp
+ * @return true if success
+ */
+bool pv_nic_get_tx_timestamp(uint16_t nic_id, struct timespec* timestamp);
+
+/**
+ * Get current NIC's timestamp
+ * @param portid port id to get timestamp from
+ * @param timestamp timespec struct to store timestamp
+ * @return true if success
+ */
+bool pv_nic_get_timestamp(uint16_t nic_id, struct timespec* timestamp);
+
+/**
+ * Adjust NIC's time with delta
+ * @param nic_id port id to adjust time for
+ * @param delta delta in ns
+ * @return true if success
+ */
+bool pv_nic_timesync_adjust_time(uint16_t nic_id, int64_t delta);
 
 #ifdef __cplusplus
 }

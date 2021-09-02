@@ -28,3 +28,16 @@ struct pv_packet* pv_packet_alloc() {
 void pv_packet_free(struct pv_packet* packet) {
     rte_pktmbuf_free(packet->priv);
 }
+
+uint16_t pv_packet_get_timesync_flag(struct pv_packet* packet) {
+    struct rte_mbuf* mbuf = packet->priv;
+
+    return mbuf->timesync;
+}
+
+void pv_packet_set_offloads(struct pv_packet* pkt, uint64_t offloads) {
+    struct rte_mbuf* mbuf = pkt->priv;
+    if (offloads & PV_PKT_OFFLOAD_TX_TIMESTAMP != 0) {
+        mbuf->tx_offload |= PKT_TX_IEEE1588_TMST;
+    }
+}
