@@ -6,6 +6,10 @@ extern "C" {
 
 #include <stdint.h>
 
+enum pv_packet_offload {
+    PV_PKT_OFFLOAD_TX_TIMESTAMP,
+};
+
 /**
  * Get start pointer of payload from the packet data structure.
  *
@@ -77,6 +81,19 @@ struct pv_packet* pv_packet_alloc();
  * the packet is freed internally. So you MUST NOT free the packet when it is transmitted.
  */
 void pv_packet_free(struct pv_packet* packet);
+
+/**
+ * Get timesync flag from packet
+ * @see pv_nic_get_rx_timestamp
+ * @return timesync flag to use at @pv_nic_get_rx_timestamp
+ */
+uint16_t pv_packet_get_timesync_flag(struct pv_packet* packet);
+
+/**
+ * Set offload flags for packet
+ * @param offloads flags. @see enum pv_packet_offload
+ */
+void pv_packet_set_offloads(struct pv_packet* pkt, uint64_t offloads);
 
 #ifdef __cplusplus
 }

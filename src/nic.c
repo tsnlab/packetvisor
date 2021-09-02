@@ -77,3 +77,19 @@ bool pv_nic_tx(uint16_t nic_id, uint16_t queue_id, struct pv_packet* packet) {
     struct pv_packet* array[1] = {packet};
     return pv_nic_tx_burst(nic_id, queue_id, array, 1) == 1;
 }
+
+bool pv_nic_get_rx_timestamp(uint16_t nic_id, struct timespec* timestamp) {
+    // XXX: last argument is timestamp_flag.
+    // timestamp_flag is always 0 in igb/ixgbe.
+    // if use i40e, use pv_packet_get_timesync_flag and pass it.
+
+    return rte_eth_timesync_read_rx_timestamp(nic_id, timestamp, 0) == 0;
+}
+
+bool pv_nic_get_tx_timestamp(uint16_t nic_id, struct timespec* timestamp) {
+    return rte_eth_timesync_read_tx_timestamp(nic_id, timestamp) == 0;
+}
+
+bool pv_nic_timesync_adjust_time(uint16_t nic_id, int64_t delta) {
+    return rte_eth_timesync_adjust_time(nic_id, delta) == 0;
+}
