@@ -2,6 +2,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <time.h>
 #include <pv/packet.h>
 
 #ifdef __cplusplus
@@ -106,6 +107,14 @@ bool pv_nic_get_rx_timestamp(uint16_t nic_id, struct timespec* timestamp);
  * @return true if success
  */
 bool pv_nic_get_tx_timestamp(uint16_t nic_id, struct timespec* timestamp);
+
+/**
+ * Get current NIC's timestamp
+ * @param portid port id to get timestamp from
+ * @param timestamp timespec struct to store timestamp
+ * @return true if success
+ */
+bool pv_nic_get_timestamp(uint16_t nic_id, struct timespec* timestamp);
 
 /**
  * Adjust NIC's time with delta

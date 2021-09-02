@@ -90,6 +90,10 @@ bool pv_nic_get_tx_timestamp(uint16_t nic_id, struct timespec* timestamp) {
     return rte_eth_timesync_read_tx_timestamp(nic_id, timestamp) == 0;
 }
 
+bool pv_nic_get_timestamp(uint16_t nic_id, struct timespec* timestamp) {
+    return rte_eth_timesync_read_time(nic_id, timestamp) == 0;
+}
+
 bool pv_nic_timesync_adjust_time(uint16_t nic_id, int64_t delta) {
     return rte_eth_timesync_adjust_time(nic_id, delta) == 0;
 }
