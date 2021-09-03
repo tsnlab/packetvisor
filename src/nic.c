@@ -66,7 +66,7 @@ uint16_t pv_nic_rx_burst(uint16_t nic_id, uint16_t queue_id, struct pv_packet** 
 uint16_t pv_nic_tx_burst(uint16_t nic_id, uint16_t queue_id, struct pv_packet** array, uint16_t count) {
     struct rte_mbuf** mbufs = (struct rte_mbuf**)array;
     for(uint16_t i = 0; i < count; i += 1) {
-        mbufs[i] = array[i]->priv;
+        mbufs[i] = _pv_packet_to_mbuf(array[i], nic_id, queue_id);
     }
 
     const uint16_t nb_tx = rte_eth_tx_burst(nic_id, queue_id, mbufs, count);
