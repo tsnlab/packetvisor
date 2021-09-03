@@ -4,6 +4,16 @@ static struct rte_mempool* _mbuf_pool;
 
 struct pv_packet* _pv_mbuf_to_packet(struct rte_mbuf* mbuf, uint16_t nic_id, uint16_t queue_id) {
     struct pv_packet* packet = mbuf->buf_addr;
+    /*
+    | MBUF | pv_packet | head | pkt            | tail |
+           ^ mbuf.buf_addr
+                       ^ pkt.buffer
+                              ^ pkt.start
+                                               ^ pkt.end
+                              < pkt len        >
+           < mbuf.buf_len                             >
+                       < pkt.size                     >
+    */
     packet->start = mbuf->data_off - sizeof(struct pv_packet);
     packet->end = mbuf->data_off + mbuf->data_len - sizeof(struct pv_packet);
     packet->size = mbuf->buf_len - sizeof(struct pv_packet);
@@ -11,6 +21,15 @@ struct pv_packet* _pv_mbuf_to_packet(struct rte_mbuf* mbuf, uint16_t nic_id, uin
     packet->priv = mbuf;
 
     return packet;
+}
+
+struct rte_mbuf* _pv_packet_to_mbuf(struct pv_packet* pkt, uint16_t nic_id, uint16_t queue_id) {
+    struct rte_mbuf* mbuf = pkt->priv;
+    mbuf->data_off = pkt->start + sizeof(struct pv_packet);
+    mbuf->data_len = PV_PACKET_PAYLOAD_LEN(pkt);
+    mbuf->pkt_len = mbuf->data_len;
+
+    return mbuf;
 }
 
 void pv_packet_set_mbuf_pool(struct rte_mempool* pool) {
@@ -37,7 +56,7 @@ uint16_t pv_packet_get_timesync_flag(struct pv_packet* packet) {
 
 void pv_packet_set_offloads(struct pv_packet* pkt, uint64_t offloads) {
     struct rte_mbuf* mbuf = pkt->priv;
-    if (offloads & PV_PKT_OFFLOAD_TX_TIMESTAMP != 0) {
+    if ((offloads & PV_PKT_OFFLOAD_TX_TIMESTAMP) != 0) {
         mbuf->tx_offload |= PKT_TX_IEEE1588_TMST;
     }
 }
