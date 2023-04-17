@@ -22,7 +22,7 @@ The following is the usage of PV 3.0.
 ## Run examples
 You can use `set_veth.sh` to set veths for testing the application.
 After the script is executed, veth0(10.0.0.4) and veth1(10.0.0.5) are created.
-veth1 is created in test_namdespace but veth0 in local.
+veth1 is created in test_namespace but veth0 in local.
 
 to test ARP response, execute the following steps:
 1. `sudo set_veth.sh`
