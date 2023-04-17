@@ -1,117 +1,37 @@
-# Packetvisor 2.1
+# Packetvisor 3.0
 
 ## Prerequisite
 
-### DPDK
-PV 2.1 is tested on DPDK 20.11.1 LTS. Below is very short introduction to compile DPDK on Ubuntu 20.04.
+### bpftool & XDP-tools (submodules)
+PV 3.0 mainly uses XDP-tools lib and bpftool is used for compiling XDP-tools lib.
 
- 1. sudo apt install -qy meson ninja-build python3-pyelftools
- 2. On some AMD machines some kernel parameter is needed \
-    iommu=pt amd_iommu=on
- 3. meson build # In DPDK source directory
- 4. ninja -C build
- 5. sudo ninja -C build install
+The script, `build.sh`, includes submodule update so that you can do the next step.
 
 ## Build
-Just type make. It will build libpv.a and examples also.
+You can build PV 3.0 by executing `build.sh`
 
-$ make # Build libpv.a and examples \
-$ make clean # Clean the generated files
+`sudo sh build.sh`
 
-## Allocate some resources
-You need to allocate some reosurces before run applications.
+## Use
+Superuser is needed to execute PV 3.0.
 
-$ make bind
+The following is the usage of PV 3.0.
 
- 1. It will allocate huge pages
- 2. It will load uio kernel modules
- 3. It will bind kernel module to specific NIC
-
-## Deallocate resources
-$ make unbind
+`sudo ./pv <inferface name> <chunk size> <chunk count> <Filling ring size> <RX ring size> <Completion ring size> <TX ring size>`
 
 ## Run examples
-$ make bind
-$ sudo ./dump # Running dump example
-$ make unbind
+You can use `set_veth.sh` to set veths for testing the application.
+After the script is executed, veth0(10.0.0.4) and veth1(10.0.0.5) are created.
+veth1 is created in test_namespace but veth0 in local.
 
-## Examples
-### dump
-Dump example dumps all the received packets. It prints ethernet header and size of the packet received.
+to test ARP response, execute the following steps:
+1. `sudo set_veth.sh`
+2. edit opt_txsmac in main.c with veth0 MAC address.
+3. `sudo ./pv.c veth0 2048 1024 64 64 64 64`
+4. `ip netns exec test_namespace arping -I veth1 10.0.0.4`
 
-$ sudo ./dump
+to remove veths created by `set_veth.sh`, `unset_veth.sh` will remove them.
 
-### echo
-Echo example responses ARP, ICMPv4 and UDP.
-
-$ sudo ./echo [ip address]
-
-To test the example run below command from other computer. \
-$ arping [ip address] # ARP echo test \
-$ ping [ip address] # ICMP echo test \
-$ python bin/udp\_echo\_cli.py [ip address] 7 # UDP echo test, 7 is the port number \
-  send: [Input any message to send] \
-  recv: [Your message will be here]
 
 # License
-This software is distributed under GPLv3
-
-
-## Config
-
-Packetvisor is using *yaml* as it's configuration file.
-
-Configuration will be flattened into key-value dictionary.
-
-For example:
-
-```yaml
-users:
-  - name: Jeong Arm
-    email: jarm@802.11ac.net
-log_level: debug
-promisc: true
-tau: 6.28
-ids: [1, 2]
-```
-
-will be converted into
-
-```
-/:type dict
-/:length 5
-/:keys[0] ids
-/ids/:type list
-/ids/:length 2
-/ids[0]/:type num
-/ids[0]/ 1
-/ids[1]/:type num
-/ids[1]/ 2
-/:keys[1] log_level
-/log_level/:type str
-/log_level/ debug
-/:keys[2] promisc
-/promisc/:type bool
-/promisc/ 1
-/:keys[3] tau
-/tau/:type num
-/tau/ 6.28
-/:keys[4] users
-/users/:type list
-/users/:length 1
-/users[0]/:type dict
-/users[0]/:length 2
-/users[0]/:keys[0] email
-/users[0]/email/:type str
-/users[0]/email/ jarm@802.11ac.net
-/users[0]/:keys[1] name
-/users[0]/name/:type str
-/users[0]/name/ Jeong Arm
-```
-
-### Available types
-- str: literal string
-- num: literal number
-- bool: `1` if true else `0`
-- dict: keys are stored into `:keys` with list type, `:length` contains keys size
-- list: 0 based list. `:length` is length with num type
+This software is distributed under GPLv2
