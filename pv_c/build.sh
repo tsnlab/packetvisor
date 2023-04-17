@@ -3,6 +3,10 @@
 echo "update submodule"
 git submodule update --init --recursive
 
+echo "compile bpftool and copy it"
+make -C ../bpftool/src
+cp ../bpftool/src/bpftool /usr/sbin
+
 echo "compile xdp-tools libraries and utilities"
 make -C ../xdp-tools
 
