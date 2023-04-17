@@ -5,20 +5,17 @@
 ### bpftool & XDP-tools (submodules)
 PV 3.0 mainly uses XDP-tools lib and bpftool is used for compiling XDP-tools lib.
 
-Before build PV 3.0, update submodules.
-
-`git submodule update --init --recursive`
-
+The script, `build.sh`, includes submodule update so that you can do the next step.
 
 ## Build
-You can build PV 3.0 by executing build.sh
+You can build PV 3.0 by executing `build.sh`
 
 `sudo sh build.sh`
 
 ## Use
 Superuser is needed to execute PV 3.0.
 
-The following is the usage of PV 3.0
+The following is the usage of PV 3.0.
 
 `sudo ./pv <inferface name> <chunk size> <chunk count> <Filling ring size> <RX ring size> <Completion ring size> <TX ring size>`
 
