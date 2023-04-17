@@ -19,7 +19,7 @@ clang -Wall -O2 -g \
     -I../xdp-tools/lib/libbpf/src/root/usr/include \
     -L../xdp-tools/lib/libbpf/src \
     -L../xdp-tools/lib/libxdp/ \
-    -o pv3.0 \
+    -o pv \
     main.c arp.c pv.c \
     -l:libxdp.a -l:libbpf.a -lelf -lz
 echo "done"
