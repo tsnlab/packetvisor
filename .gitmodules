@@ -1,3 +1,0 @@
-[submodule "lib/libcollection"]
-	path = lib/libcollection
-	url = git@github.com:tsnlab/libcollection
