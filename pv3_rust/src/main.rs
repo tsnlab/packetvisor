@@ -1,6 +1,8 @@
+mod arp;
 mod pv;
 use std::{env, sync::Arc, sync::atomic::{Ordering, AtomicBool}};
 use crate::pv::*;
+use crate::arp::gen_arp_response_packet;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -32,7 +34,7 @@ fn main() {
 
     // println!("{} {} {} {} {} {} {}", if_name, chunk_size, chunk_count, rx_ring_size, tx_ring_size, filling_ring_size, completion_ring_size);
 
-    let pv_open_option: Option<PvNic> = pv::pv_open(if_name, chunk_size, chunk_count, rx_ring_size, tx_ring_size, filling_ring_size, completion_ring_size);
+    let pv_open_option: Option<PvNic> = pv::pv_open(&if_name, chunk_size, chunk_count, rx_ring_size, tx_ring_size, filling_ring_size, completion_ring_size);
 
     let mut nic: PvNic;
     if pv_open_option.is_some() {
@@ -52,13 +54,16 @@ fn main() {
     while !term.load(Ordering::Relaxed) {
         let received: u32 = pv_receive(&mut nic, &mut packets, rx_batch_size);
 
-        // [WIP]
         if received > 0 {
-            println!("received: {}", received);
-            // let processed: u32 = process_packets(&mut nic, &mut packets, received);
-            pv::pv_free(&mut nic, &mut packets);
-        }
+            let processed: u32 = process_packets(&mut nic, &mut packets, received);
+            let sent: u32 = pv_send(&mut nic, &mut packets, processed);
 
+            if sent == 0 {
+                for i in (0..processed).rev() {
+                    pv_free(&mut nic, &mut packets, i as usize);
+                }
+            }
+        }
     }
 
     pv::pv_close(nic);
@@ -66,29 +71,30 @@ fn main() {
     println!("PV END");
 }
 
-// [WIP]
 fn process_packets(nic: &mut PvNic, packets: &mut Vec<PvPacket>, batch_size: u32) -> u32 {
     let mut processed = 0;
 
-    for i in 0..batch_size {
+    for i in (0..batch_size).rev() {
+
         let payload_ptr = unsafe { packets[i as usize].buffer.add(packets[i as usize].start as usize).cast_const() };
 
         // analyze packet and create packet
         unsafe {
-            if (std::ptr::read(payload_ptr.offset(12)) == 0x08 &&
-                std::ptr::read(payload_ptr.offset(13)) == 0x06 &&
-                std::ptr::read(payload_ptr.offset(20)) == 0x00 &&
-                std::ptr::read(payload_ptr.offset(21)) == 0x01) // ARP request packet
+            if std::ptr::read(payload_ptr.offset(12)) == 0x08 &&
+               std::ptr::read(payload_ptr.offset(13)) == 0x06 &&
+               std::ptr::read(payload_ptr.offset(20)) == 0x00 &&
+               std::ptr::read(payload_ptr.offset(21)) == 0x01 // ARP request packet
             {
-                println!("ARP request");
-                processed += 1;
+                let result: Result<(), ()> = gen_arp_response_packet(&nic, &mut packets[i as usize]);
+
+                match result {
+                    Ok(()) => { processed += 1; },
+                    Err(()) => { pv_free(nic, packets, i as usize); }
+                }
             } else {
-                pv_free(nic, packets);
+                pv_free(nic, packets, i as usize);
             }
         }
-
-
     }
-
     processed
 }
