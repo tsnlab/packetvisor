@@ -186,12 +186,15 @@ fn _pv_free(nic: &mut PvNic, chunk_addr: u64) {
     nic.chunk_pool_idx += 1;
 }
 
-/* TODO: remove를 사용해서 벡터중 해당 요소만 제거하는 것으로 소스짜기 (WIP)*/
+/* TODO: packet_process() 구현하면서 remove를 사용해서 벡터중 해당 요소만 제거하는 것으로 소스짜기 (WIP)*/
 pub fn pv_free(nic: &mut PvNic, packets: &mut Vec<PvPacket>) {
     let packet_count: usize = packets.len();
 
-    _pv_free(nic, packets[packet_count - 1].private as u64);
-    packets.remove(1); // WIP
+    for i in 0..packet_count {
+        _pv_free(nic, packets[packet_count - 1 - i].private as u64);
+    }
+    packets.clear();
+    // packets.remove(1); // WIP
 
 }
 

@@ -51,11 +51,14 @@ fn main() {
 
     while !term.load(Ordering::Relaxed) {
         let received: u32 = pv_receive(&mut nic, &mut packets, rx_batch_size);
+
+        // [WIP]
         if received > 0 {
             println!("received: {}", received);
-            let processed: u32 = process_packets(&mut nic, &mut packets, received);
+            // let processed: u32 = process_packets(&mut nic, &mut packets, received);
             pv::pv_free(&mut nic, &mut packets);
         }
+
     }
 
     pv::pv_close(nic);
@@ -63,6 +66,7 @@ fn main() {
     println!("PV END");
 }
 
+// [WIP]
 fn process_packets(nic: &mut PvNic, packets: &mut Vec<PvPacket>, batch_size: u32) -> u32 {
     let mut processed = 0;
 
