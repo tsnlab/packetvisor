@@ -106,7 +106,7 @@ pub struct PvNic {
 
 impl PvNic {
     // TODO: Change return type with Option<PvNic> for safety.
-    fn new(chunk_size_: u32, chunk_count_: i32) -> PvNic {
+    fn new(chunk_size: u32, chunk_count: i32) -> PvNic {
 
         let xsk_ptr;
         unsafe {
@@ -155,9 +155,9 @@ impl PvNic {
                 xsk: xsk_ptr.cast::<xsk_socket>(),
                 umem: umem_ptr.cast::<xsk_umem>(),   // umem is needed to be dealloc after using packetvisor library.
                 buffer: std::ptr::null_mut(),
-                chunk_size: chunk_size_,
-                chunk_pool: Vec::with_capacity(chunk_count_ as usize),
-                chunk_pool_idx: chunk_count_,
+                chunk_size: chunk_size,
+                chunk_pool: Vec::with_capacity(chunk_count as usize),
+                chunk_pool_idx: chunk_count,
                 fq: std::ptr::read(fq_ptr.cast::<xsk_ring_prod>()),
                 rx: std::ptr::read(rx_ptr.cast::<xsk_ring_cons>()),
                 cq: std::ptr::read(cq_ptr.cast::<xsk_ring_cons>()),
@@ -169,7 +169,7 @@ impl PvNic {
     }
 }
 
-fn _pv_alloc(nic: &mut PvNic) -> u64 {
+fn pv_alloc_(nic: &mut PvNic) -> u64 {
     if nic.chunk_pool_idx > 0 {
         nic.chunk_pool_idx -= 1;
         nic.chunk_pool[nic.chunk_pool_idx as usize]
@@ -198,7 +198,7 @@ pub fn pv_free(nic: &mut PvNic, packets: &mut Vec<PvPacket>) {
 
 }
 
-fn configure_umem(nic: &mut PvNic, chunk_size: u32, chunk_count: u32, fill_size: u32, complete_size: u32) -> i32 {
+fn configure_umem(nic: &mut PvNic, chunk_size: u32, chunk_count: u32, fill_size: u32, complete_size: u32) -> Result<(), i32> {
     let umem_buffer_size: usize = (chunk_count * chunk_size) as usize;
     let mmap_address = unsafe {
         libc::mmap(std::ptr::null_mut(), umem_buffer_size,
@@ -220,8 +220,16 @@ fn configure_umem(nic: &mut PvNic, chunk_size: u32, chunk_count: u32, fill_size:
         ret = xsk_umem__create(&mut nic.umem, mmap_address, umem_buffer_size as u64, &mut nic.fq, &mut nic.cq, &umem_cfg);
     }
 
-    nic.buffer = mmap_address;
-    ret
+    match ret {
+        0 => {
+            nic.buffer = mmap_address;
+            Ok(())
+        }
+        _ => {
+            unsafe { libc::munmap(mmap_address, umem_buffer_size); }
+            Err(ret)
+        }
+    }
 }
 
 pub fn pv_open(if_name: String, chunk_size: u32, chunk_count: u32,
@@ -238,7 +246,7 @@ pub fn pv_open(if_name: String, chunk_size: u32, chunk_count: u32,
 
     /* configure UMEM */
     let ret = configure_umem(&mut nic, chunk_size, chunk_count, filling_ring_size, completion_ring_size);
-    if ret != 0 {
+    if ret.is_err() {
         return None
     }
 
@@ -248,7 +256,7 @@ pub fn pv_open(if_name: String, chunk_size: u32, chunk_count: u32,
 
     for _ in 0..reserved {
         unsafe {
-            let pv_alloc = _pv_alloc(&mut nic);
+            let pv_alloc = pv_alloc_(&mut nic);
             *xsk_ring_prod__fill_addr(&mut nic.fq, fq_idx) = pv_alloc;
             fq_idx += 1;
         }
@@ -271,7 +279,7 @@ pub fn pv_open(if_name: String, chunk_size: u32, chunk_count: u32,
         if you need to load other XDP program, set 1 on this flag and use xdp_program__open_file(), xdp_program__attach() in libxdp. */
         __bindgen_anon_1: xsk_socket_config__bindgen_ty_1 { libxdp_flags: 0 },
         xdp_flags: 4,     // XDP_FLAGS_DRV_MODE (driver mode (Native mode))
-        bind_flags: 8       // XDP_USE_NEED_WAKEUP
+        bind_flags: XDP_USE_NEED_WAKEUP as u16,
     };
 
     let ret: c_int = unsafe { xsk_socket__create(&mut nic.xsk, if_name_ptr, 0, nic.umem, &mut nic.rx, &mut nic.tx, &xsk_cfg) };
@@ -300,7 +308,7 @@ pub fn pv_receive(nic: &mut PvNic, packets: &mut Vec<PvPacket>, batch_size: u32)
     let reserved: u32 = unsafe { xsk_ring_prod__reserve(&mut nic.fq, batch_size, &mut fq_idx)} ; // reserve slots in fq as much as **batch_size.
 
     for _ in 0.. reserved {
-        unsafe { *xsk_ring_prod__fill_addr(&mut nic.fq, fq_idx) = _pv_alloc(nic); } // reserve slots in fq as much as **batch_size.
+        unsafe { *xsk_ring_prod__fill_addr(&mut nic.fq, fq_idx) = pv_alloc_(nic); } // reserve slots in fq as much as **batch_size.
         fq_idx += 1;
     }
     unsafe { xsk_ring_prod__submit(&mut nic.fq, reserved); } // notify kernel of allocating UMEM chunks into fq as much as **reserved.
