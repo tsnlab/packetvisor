@@ -190,8 +190,8 @@ fn _pv_free(nic: &mut PvNic, chunk_addr: u64) {
 pub fn pv_free(nic: &mut PvNic, packets: &mut Vec<PvPacket>) {
     let packet_count: usize = packets.len();
 
-    for i in 0..packet_count {
-        _pv_free(nic, packets[packet_count - 1 - i].private as u64);
+    for i in 1..=packet_count {
+        _pv_free(nic, packets[packet_count - i].private as u64);
     }
     packets.clear();
     // packets.remove(1); // WIP
