@@ -10,6 +10,7 @@ include!("bindings.rs");
 use core::ffi::*;
 use std::ffi::{CString};
 use std::alloc::{alloc_zeroed, Layout};
+use pnet::datalink::{interfaces, NetworkInterface};
 
 const DEFAULT_HEADROOM: u32 = 256;
 
@@ -263,15 +264,20 @@ pub fn pv_open(if_name: String, chunk_size: u32, chunk_count: u32,
     }
     unsafe { xsk_ring_prod__submit(&mut nic.fq, reserved); }// notify kernel of allocating UMEM chunks into fq as much as **reserved.
 
-    /*setting xsk, RX ring, TX ring configuration */
-    let if_name = CString::new(if_name.as_str()).unwrap();
-    let if_name_ptr: *const c_char = if_name.as_ptr() as *const c_char;
-    let ret = unsafe { libc::if_nametoindex(if_name_ptr) };
+    /* check interface name to be attached XDP program is valid */
+    let all_interfaces: Vec<NetworkInterface> = interfaces();
+    let target_interface = all_interfaces
+                            .iter()
+                            .find(|element| element.name.as_str() == if_name.as_str());
 
-    if ret == 0 {
+    if target_interface.is_none() {
         return None
     }
 
+    let if_name = CString::new(if_name.as_str()).unwrap();
+    let if_name_ptr: *const c_char = if_name.as_ptr() as *const c_char;
+
+    /* setting xsk, RX ring, TX ring configuration */
     let xsk_cfg: xsk_socket_config = xsk_socket_config {
         rx_size: rx_ring_size,
         tx_size: tx_ring_size,
