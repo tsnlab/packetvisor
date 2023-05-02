@@ -191,12 +191,18 @@ pub fn pv_free(nic: &mut PvNic, packets: &mut Vec<PvPacket>, index: usize) {
 }
 
 fn configure_umem(nic: &mut PvNic, chunk_size: u32, chunk_count: u32, fill_size: u32, complete_size: u32) -> Result<(), i32> {
-    let umem_buffer_size: usize = (chunk_count * chunk_size) as usize;
+    let umem_buffer_size: usize = (chunk_count * chunk_size) as usize; // chunk_count is UMEM size.
+
+    /* Reserve memory for the UMEM. */
     let mmap_address = unsafe {
         libc::mmap(std::ptr::null_mut(), umem_buffer_size,
                     libc::PROT_READ | libc:: PROT_WRITE,
                 libc::MAP_PRIVATE | libc::MAP_ANONYMOUS, -1, 0)
     };
+
+    if mmap_address == libc::MAP_FAILED {
+        return Err(-1);
+    }
 
     let umem_cfg: xsk_umem_config = xsk_umem_config {
         fill_size: fill_size,
@@ -206,12 +212,7 @@ fn configure_umem(nic: &mut PvNic, chunk_size: u32, chunk_count: u32, fill_size:
         flags: XSK_UMEM__DEFAULT_FLAGS,
     };
 
-    let ret:c_int;
-
-    unsafe {
-        ret = xsk_umem__create(&mut nic.umem, mmap_address, umem_buffer_size as u64, &mut nic.fq, &mut nic.cq, &umem_cfg);
-    }
-
+    let ret:c_int = unsafe { xsk_umem__create(&mut nic.umem, mmap_address, umem_buffer_size as u64, &mut nic.fq, &mut nic.cq, &umem_cfg) };
     match ret {
         0 => {
             nic.buffer = mmap_address;
