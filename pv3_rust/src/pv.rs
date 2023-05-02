@@ -374,7 +374,9 @@ pub fn pv_send(nic: &mut PvNic, packets: &mut Vec<PvPacket>, batch_size: u32) ->
     let reserved: u32 = unsafe { xsk_ring_prod__reserve(&mut nic.tx, batch_size, &mut tx_idx) };
     // println!("packets len: {}, tx reserved: {}, tx_idx: {}", packets.len(), reserved, tx_idx);
 
-    /* send packets if TX ring has been reserved with **batch_size. if not, don't send packets and free them */
+    /* send packets if TX ring has been reserved with **batch_size (see part1). if not, don't send packets and free them (see part2) */
+
+    // (part2)
     if reserved < batch_size {
         /* in case that kernel lost interrupt signal in the previous sending packets procedure,
         repeat to interrupt kernel to send packets which ketnel could have still held.
@@ -387,7 +389,7 @@ pub fn pv_send(nic: &mut PvNic, packets: &mut Vec<PvPacket>, batch_size: u32) ->
         return 0;
     }
 
-    /* send packets */
+    /* (part1) send packets */
     let mut index_count: u32 = 0;
     for i in (0..reserved).rev() {
         /* insert packets to be send into TX ring (Enqueue) */
