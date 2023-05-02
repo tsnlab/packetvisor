@@ -204,7 +204,9 @@ fn configure_umem(nic: &mut PvNic, chunk_size: u32, chunk_count: u32, fill_size:
         return Err(-1);
     }
 
+    /* create UMEM, filling ring, completion ring for xsk */
     let umem_cfg: xsk_umem_config = xsk_umem_config {
+        // ring sizes aren't usually over 1024
         fill_size: fill_size,
         comp_size: complete_size,
         frame_size: chunk_size,
@@ -230,7 +232,7 @@ pub fn pv_open(if_name: &String, chunk_size: u32, chunk_count: u32,
                 completion_ring_size: u32) -> Option<PvNic>
 {
     /* create PvNic */
-    let mut nic: PvNic = PvNic::new(if_name, chunk_size, chunk_count as i32);
+    let mut nic: PvNic = PvNic::new(if_name, chunk_size, chunk_count as i32);   // **chunk_count is UMEM size
 
     /* initialize UMEM chunk information */
     for i in 0..chunk_count {
@@ -249,12 +251,11 @@ pub fn pv_open(if_name: &String, chunk_size: u32, chunk_count: u32,
 
     for _ in 0..reserved {
         unsafe {
-            let pv_alloc = pv_alloc_(&mut nic);
-            *xsk_ring_prod__fill_addr(&mut nic.fq, fq_idx) = pv_alloc;
+            *xsk_ring_prod__fill_addr(&mut nic.fq, fq_idx) = pv_alloc_(&mut nic); // allocation of UMEM chunks into fq.
             fq_idx += 1;
         }
     }
-    unsafe { xsk_ring_prod__submit(&mut nic.fq, reserved); }// notify kernel of allocating UMEM chunks into fq as much as **reserved.
+    unsafe { xsk_ring_prod__submit(&mut nic.fq, reserved); } // notify kernel of allocating UMEM chunks into fq as much as **reserved.
 
     /* check interface name to be attached XDP program is valid */
     let all_interfaces: Vec<NetworkInterface> = interfaces();
@@ -276,10 +277,11 @@ pub fn pv_open(if_name: &String, chunk_size: u32, chunk_count: u32,
         /* zero means loading default XDP program.
         if you need to load other XDP program, set 1 on this flag and use xdp_program__open_file(), xdp_program__attach() in libxdp. */
         __bindgen_anon_1: xsk_socket_config__bindgen_ty_1 { libxdp_flags: 0 },
-        xdp_flags: 4,     // XDP_FLAGS_DRV_MODE (driver mode (Native mode))
+        xdp_flags: 4,     // XDP_FLAGS_DRV_MODE in if_link.h (driver mode (Native mode))
         bind_flags: XDP_USE_NEED_WAKEUP as u16,
     };
 
+    /* create xsk socket */
     let ret: c_int = unsafe { xsk_socket__create(&mut nic.xsk, if_name_ptr, 0, nic.umem, &mut nic.rx, &mut nic.tx, &xsk_cfg) };
     if ret != 0 {
         return None;
@@ -289,7 +291,6 @@ pub fn pv_open(if_name: &String, chunk_size: u32, chunk_count: u32,
 }
 
 // move ownership of nic
-// 정상 동작 확인
 pub fn pv_close(nic: PvNic) -> c_int {
     /* xsk delete */
     unsafe { xsk_socket__delete(nic.xsk); }
@@ -304,26 +305,29 @@ pub fn pv_receive(nic: &mut PvNic, packets: &mut Vec<PvPacket>, batch_size: u32)
     /* pre-allocate UMEM chunks into fq as much as **batch_size to receive packets */
     let mut fq_idx: u32 = 0;
     let reserved: u32 = unsafe { xsk_ring_prod__reserve(&mut nic.fq, batch_size, &mut fq_idx)} ; // reserve slots in fq as much as **batch_size.
+
     // if fq_idx != 0 || reserved != 0 {
     //     println!("fq_idx: {}, reserved: {}", fq_idx, reserved);
     // }
+
     for _ in 0.. reserved {
-        unsafe { *xsk_ring_prod__fill_addr(&mut nic.fq, fq_idx) = pv_alloc_(nic); } // reserve slots in fq as much as **batch_size.
+        unsafe { *xsk_ring_prod__fill_addr(&mut nic.fq, fq_idx) = pv_alloc_(nic); } // allocate UMEM chunks into fq.
         fq_idx += 1;
     }
     unsafe { xsk_ring_prod__submit(&mut nic.fq, reserved); } // notify kernel of allocating UMEM chunks into fq as much as **reserved.
 
     /* save packet metadata from received packets in RX ring. */
     let mut rx_idx: u32 = 0;
-    let mut received: u32 = unsafe { xsk_ring_cons__peek(&mut nic.rx, batch_size, &mut rx_idx) };
+    let mut received: u32 = unsafe { xsk_ring_cons__peek(&mut nic.rx, batch_size, &mut rx_idx) }; // fetch the number of received packets in RX ring.
 
     if received > 0 {
         // println!("received: {}", received);
         let mut metadata_count: u32 = 0;
         while metadata_count < received {
+            /* create packet metadata */
             packets.push(PvPacket::new());
             // println!("rx_idx: {}", rx_idx);
-            let rx_desc_ptr: *const xdp_desc = unsafe { xsk_ring_cons__rx_desc(&mut nic.rx, rx_idx + metadata_count) };
+            let rx_desc_ptr: *const xdp_desc = unsafe { xsk_ring_cons__rx_desc(&mut nic.rx, rx_idx + metadata_count) }; // bringing information(packet address, packet length) of received packets through descriptors in RX ring
 
             /* save metadata */
             packets[metadata_count as usize].start = DEFAULT_HEADROOM;
@@ -336,7 +340,7 @@ pub fn pv_receive(nic: &mut PvNic, packets: &mut Vec<PvPacket>, batch_size: u32)
             metadata_count += 1;
         }
 
-        unsafe { xsk_ring_cons__release(&mut nic.rx, received); }
+        unsafe { xsk_ring_cons__release(&mut nic.rx, received); } // notify kernel of using filled slots in RX ring as much as **received
 
         if metadata_count != received {
             received = metadata_count;
@@ -353,6 +357,7 @@ pub fn pv_receive(nic: &mut PvNic, packets: &mut Vec<PvPacket>, batch_size: u32)
 }
 
 pub fn pv_send(nic: &mut PvNic, packets: &mut Vec<PvPacket>, batch_size: u32) -> u32 {
+    /* free packet metadata and UMEM chunks as much as the number of filled slots in cq. */
     let mut cq_idx: u32 = 0;
     let filled: u32 = unsafe{ xsk_ring_cons__peek(&mut nic.cq, batch_size, &mut cq_idx) }; // fetch the number of filled slots(the number of packets completely sent) in cq
 
@@ -394,8 +399,6 @@ pub fn pv_send(nic: &mut PvNic, packets: &mut Vec<PvPacket>, batch_size: u32) ->
         }
 
         // packet_dump(&packets[i as usize]);
-
-        // packets.remove(i as usize);   // free packet metadata of sent packets.
         packets.pop();   // free packet metadata of sent packets.
         index_count += 1;
     }
