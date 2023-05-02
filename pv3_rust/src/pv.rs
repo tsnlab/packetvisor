@@ -43,28 +43,6 @@ fn packet_dump(packet: &PvPacket) {
     println!("\n-------\n");
 }
 
-// TODO: 러스트로 포팅
-// struct pv_packet* pv_alloc(struct pv_nic* nic) {
-//     uint64_t idx = _pv_alloc(nic);
-//     if (idx == INVALID_CHUNK_INDEX) {
-//         return NULL;
-//     }
-
-//     struct pv_packet* packet = calloc(1, sizeof(struct pv_packet));
-//     if (packet == NULL) {
-//         return NULL;
-//     }
-
-//     packet->start = DEFAULT_HEADROOM;//테스트 필요
-//     packet->end = DEFAULT_HEADROOM;
-//     packet->size = nic->chunk_size;
-//     packet->buffer = xsk_umem__get_data(nic->buffer, idx);
-//     packet->priv = (void*)idx;
-
-//     return packet;
-// }
-
-
 #[derive(Debug)]
 pub struct PvPacket {
     pub start: u32,         // payload offset pointing the start of payload. ex. 256
@@ -181,6 +159,24 @@ fn pv_alloc_(nic: &mut PvNic) -> u64 {
     }
 }
 
+pub fn pv_alloc(nic: &mut PvNic) ->  Option<PvPacket> {
+    let idx: u64 = pv_alloc_(nic);
+
+    match idx {
+        u64::MAX => { None },
+        _ => {
+            let mut packet: PvPacket = PvPacket::new();
+            packet.start = DEFAULT_HEADROOM;
+            packet.end = DEFAULT_HEADROOM;
+            packet.size = nic.chunk_size;
+            packet.buffer = unsafe { xsk_umem__get_data(nic.buffer, idx).cast::<u8>() };
+            packet.private = idx as *mut c_void;
+
+            Some(packet)
+        }
+    }
+}
+
 fn pv_free_(nic: &mut PvNic, chunk_addr: u64) {
     // align **chunk_addr with chunk size
     let remainder = chunk_addr % (nic.chunk_size as u64);
@@ -189,7 +185,6 @@ fn pv_free_(nic: &mut PvNic, chunk_addr: u64) {
     nic.chunk_pool_idx += 1;
 }
 
-/* TODO: packet_process() 구현하면서 remove를 사용해서 벡터중 해당 요소만 제거하는 것으로 소스짜기 (WIP)*/
 pub fn pv_free(nic: &mut PvNic, packets: &mut Vec<PvPacket>, index: usize) {
     pv_free_(nic, packets[index].private as u64);
     packets.remove(index);
@@ -262,7 +257,7 @@ pub fn pv_open(if_name: &String, chunk_size: u32, chunk_count: u32,
 
     /* check interface name to be attached XDP program is valid */
     let all_interfaces: Vec<NetworkInterface> = interfaces();
-    let is_exist = all_interfaces
+    let is_exist: Option<&NetworkInterface> = all_interfaces
                             .iter()
                             .find(|element| element.name.as_str() == if_name.as_str());
 
@@ -308,7 +303,9 @@ pub fn pv_receive(nic: &mut PvNic, packets: &mut Vec<PvPacket>, batch_size: u32)
     /* pre-allocate UMEM chunks into fq as much as **batch_size to receive packets */
     let mut fq_idx: u32 = 0;
     let reserved: u32 = unsafe { xsk_ring_prod__reserve(&mut nic.fq, batch_size, &mut fq_idx)} ; // reserve slots in fq as much as **batch_size.
-
+    // if fq_idx != 0 || reserved != 0 {
+    //     println!("fq_idx: {}, reserved: {}", fq_idx, reserved);
+    // }
     for _ in 0.. reserved {
         unsafe { *xsk_ring_prod__fill_addr(&mut nic.fq, fq_idx) = pv_alloc_(nic); } // reserve slots in fq as much as **batch_size.
         fq_idx += 1;
@@ -320,6 +317,7 @@ pub fn pv_receive(nic: &mut PvNic, packets: &mut Vec<PvPacket>, batch_size: u32)
     let mut received: u32 = unsafe { xsk_ring_cons__peek(&mut nic.rx, batch_size, &mut rx_idx) };
 
     if received > 0 {
+        // println!("received: {}", received);
         let mut metadata_count: u32 = 0;
         while metadata_count < received {
             packets.push(PvPacket::new());
@@ -366,8 +364,9 @@ pub fn pv_send(nic: &mut PvNic, packets: &mut Vec<PvPacket>, batch_size: u32) ->
     }
 
      /* reserve TX ring as much as batch_size before sending packets. */
-    let mut tx_idx:u32 = 0;
+    let mut tx_idx: u32 = 0;
     let reserved: u32 = unsafe { xsk_ring_prod__reserve(&mut nic.tx, batch_size, &mut tx_idx) };
+    // println!("packets len: {}, tx reserved: {}, tx_idx: {}", packets.len(), reserved, tx_idx);
 
     /* send packets if TX ring has been reserved with **batch_size. if not, don't send packets and free them */
     if reserved < batch_size {
@@ -383,17 +382,21 @@ pub fn pv_send(nic: &mut PvNic, packets: &mut Vec<PvPacket>, batch_size: u32) ->
     }
 
     /* send packets */
+    let mut index_count: u32 = 0;
     for i in (0..reserved).rev() {
         /* insert packets to be send into TX ring (Enqueue) */
-        let rx_desc_ptr = unsafe { xsk_ring_prod__tx_desc(&mut nic.tx, tx_idx + i) } ;
+        let rx_desc_ptr = unsafe { xsk_ring_prod__tx_desc(&mut nic.tx, tx_idx + index_count) } ;
         unsafe {
             rx_desc_ptr.as_mut().unwrap().addr = packets[i as usize].private as u64 + packets[i as usize].start as u64;
             rx_desc_ptr.as_mut().unwrap().len = packets[i as usize].end - packets[i as usize].start;
+            // println!("ptr: {:?}, addr: {}, len: {}", rx_desc_ptr, rx_desc_ptr.as_mut().unwrap().addr, rx_desc_ptr.as_mut().unwrap().len);
         }
 
         // packet_dump(&packets[i as usize]);
 
-        packets.remove(i as usize);   // free packet metadata of sent packets.
+        // packets.remove(i as usize);   // free packet metadata of sent packets.
+        packets.pop();   // free packet metadata of sent packets.
+        index_count += 1;
     }
 
     unsafe {
