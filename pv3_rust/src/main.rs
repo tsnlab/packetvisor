@@ -3,6 +3,7 @@ mod pv;
 use std::{env, sync::Arc, sync::atomic::{Ordering, AtomicBool}};
 use crate::pv::*;
 use crate::arp::gen_arp_response_packet;
+use pnet::datalink::{interfaces, NetworkInterface, MacAddr};
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -45,35 +46,59 @@ fn main() {
 
     let rx_batch_size: u32 = 64;
     let mut packets: Vec<PvPacket> = Vec::with_capacity(rx_batch_size as usize);
-
+    let mut received_count = 0;
+    let mut processed_count = 0;
     let term = Arc::new(AtomicBool::new(false));
     signal_hook::flag::register(signal_hook::consts::SIGINT, Arc::clone(&term));
     signal_hook::flag::register(signal_hook::consts::SIGTERM, Arc::clone(&term));
     signal_hook::flag::register(signal_hook::consts::SIGABRT, Arc::clone(&term));
 
+
+    let all_interfaces: Vec<NetworkInterface> = interfaces();
+    let is_exist: Option<&NetworkInterface> = all_interfaces
+                            .iter()
+                            .find(|element| element.name.as_str() == nic.if_name.as_str());
+
+    let mut src_mac_address: MacAddr;
+    match is_exist {
+        Some(target_interface) => {
+                unsafe {
+                    let option: Option<MacAddr> = target_interface.mac;
+                    if option.is_none() {
+                        panic!("couldn't find source MAC address");
+                    }
+
+                    src_mac_address = option.unwrap();
+                }
+            },
+        None => { panic!("couldn't find source MAC address"); }
+    }
+
     while !term.load(Ordering::Relaxed) {
         let received: u32 = pv_receive(&mut nic, &mut packets, rx_batch_size);
 
         if received > 0 {
-            let processed: u32 = process_packets(&mut nic, &mut packets, received);
+            let processed: u32 = process_packets(&mut nic, &mut packets, received, &src_mac_address);
             let sent: u32 = pv_send(&mut nic, &mut packets, processed);
-
+            // println!("processed: {}, sent: {}", processed, sent);
             if sent == 0 {
                 for i in (0..processed).rev() {
+                    // println!("packet len:{}, i: {}", packets.len(), i);
                     pv_free(&mut nic, &mut packets, i as usize);
                 }
+                processed_count += processed;
             }
+            received_count += received;
         }
     }
 
     pv::pv_close(nic);
-
+    println!("total received packets: {}, total processed packets: {}", received_count, processed_count);
     println!("PV END");
 }
 
-fn process_packets(nic: &mut PvNic, packets: &mut Vec<PvPacket>, batch_size: u32) -> u32 {
+fn process_packets(nic: &mut PvNic, packets: &mut Vec<PvPacket>, batch_size: u32, src_mac_address: &MacAddr) -> u32 {
     let mut processed = 0;
-
     for i in (0..batch_size).rev() {
 
         let payload_ptr = unsafe { packets[i as usize].buffer.add(packets[i as usize].start as usize).cast_const() };
@@ -85,12 +110,9 @@ fn process_packets(nic: &mut PvNic, packets: &mut Vec<PvPacket>, batch_size: u32
                std::ptr::read(payload_ptr.offset(20)) == 0x00 &&
                std::ptr::read(payload_ptr.offset(21)) == 0x01 // ARP request packet
             {
-                let result: Result<(), ()> = gen_arp_response_packet(&nic, &mut packets[i as usize]);
+                gen_arp_response_packet(&mut packets[i as usize], src_mac_address);
+                processed += 1;
 
-                match result {
-                    Ok(()) => { processed += 1; },
-                    Err(()) => { pv_free(nic, packets, i as usize); }
-                }
             } else {
                 pv_free(nic, packets, i as usize);
             }

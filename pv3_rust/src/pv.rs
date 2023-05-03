@@ -195,7 +195,7 @@ fn configure_umem(nic: &mut PvNic, chunk_size: u32, chunk_count: u32, fill_size:
 
     /* Reserve memory for the UMEM. */
     let mmap_address = unsafe {
-        libc::mmap(std::ptr::null_mut(), umem_buffer_size,
+        libc::mmap(std::ptr::null_mut::<libc::c_void>(), umem_buffer_size,
                     libc::PROT_READ | libc:: PROT_WRITE,
                 libc::MAP_PRIVATE | libc::MAP_ANONYMOUS, -1, 0)
     };
@@ -244,15 +244,14 @@ pub fn pv_open(if_name: &String, chunk_size: u32, chunk_count: u32,
     if ret.is_err() {
         return None;
     }
-
+    // println!("nic: {:?}", nic);
     /* pre-allocate UMEM chunks into fq */
     let mut fq_idx: u32 = 0;
     let reserved: u32 = unsafe { xsk_ring_prod__reserve(&mut nic.fq, filling_ring_size, &mut fq_idx) };
-
-    for _ in 0..reserved {
+    // println!("fq_idx: {}, reserved: {}", fq_idx, reserved);
+    for i in 0..reserved {
         unsafe {
-            *xsk_ring_prod__fill_addr(&mut nic.fq, fq_idx) = pv_alloc_(&mut nic); // allocation of UMEM chunks into fq.
-            fq_idx += 1;
+            *xsk_ring_prod__fill_addr(&mut nic.fq, fq_idx + i) = pv_alloc_(&mut nic); // allocation of UMEM chunks into fq.
         }
     }
     unsafe { xsk_ring_prod__submit(&mut nic.fq, reserved); } // notify kernel of allocating UMEM chunks into fq as much as **reserved.
@@ -286,7 +285,7 @@ pub fn pv_open(if_name: &String, chunk_size: u32, chunk_count: u32,
     if ret != 0 {
         return None;
     }
-
+    // println!("nic: {:?}", nic);
     Some(nic)
 }
 
@@ -310,9 +309,12 @@ pub fn pv_receive(nic: &mut PvNic, packets: &mut Vec<PvPacket>, batch_size: u32)
     //     println!("fq_idx: {}, reserved: {}", fq_idx, reserved);
     // }
 
-    for _ in 0.. reserved {
-        unsafe { *xsk_ring_prod__fill_addr(&mut nic.fq, fq_idx) = pv_alloc_(nic); } // allocate UMEM chunks into fq.
-        fq_idx += 1;
+    for i in 0..reserved {
+        unsafe {
+            let a = pv_alloc_(nic);
+            *xsk_ring_prod__fill_addr(&mut nic.fq, fq_idx + i) = a;
+            // println!("alloc: {}", a);
+        } // allocate UMEM chunks into fq.
     }
     unsafe { xsk_ring_prod__submit(&mut nic.fq, reserved); } // notify kernel of allocating UMEM chunks into fq as much as **reserved.
 
@@ -349,7 +351,7 @@ pub fn pv_receive(nic: &mut PvNic, packets: &mut Vec<PvPacket>, batch_size: u32)
 
     unsafe {
         if xsk_ring_prod__needs_wakeup(&mut nic.fq) != 0 {
-            libc::recvfrom(xsk_socket__fd(nic.xsk), std::ptr::null_mut::<c_void>(), 0, libc::MSG_DONTWAIT, std::ptr::null_mut::<libc::sockaddr>(), std::ptr::null_mut::<u32>()) ;
+            libc::recvfrom(xsk_socket__fd(nic.xsk), std::ptr::null_mut::<libc::c_void>(), 0, libc::MSG_DONTWAIT, std::ptr::null_mut::<libc::sockaddr>(), std::ptr::null_mut::<u32>()) ;
         }
     }
 
@@ -357,25 +359,28 @@ pub fn pv_receive(nic: &mut PvNic, packets: &mut Vec<PvPacket>, batch_size: u32)
 }
 
 pub fn pv_send(nic: &mut PvNic, packets: &mut Vec<PvPacket>, batch_size: u32) -> u32 {
+    unsafe { libc::sendto(xsk_socket__fd(nic.xsk), std::ptr::null::<libc::c_void>(), 0 as libc::size_t, libc::MSG_DONTWAIT, std::ptr::null::<libc::sockaddr>(), 0 as libc::socklen_t); }
     /* free packet metadata and UMEM chunks as much as the number of filled slots in cq. */
     let mut cq_idx: u32 = 0;
     let filled: u32 = unsafe{ xsk_ring_cons__peek(&mut nic.cq, batch_size, &mut cq_idx) }; // fetch the number of filled slots(the number of packets completely sent) in cq
-
-    if filled > 0 {
+    // println!("cq_idx: {}, cq filled: {}", cq_idx, filled);
+    // println!("packets: {:?}", packets);
+    // if filled > 0 {
         for _ in 0..filled {
-            unsafe { pv_free_(nic, *xsk_ring_cons__comp_addr(&nic.cq, cq_idx)); } // free UMEM chunks as much as the number of sent packets (same as **filled)
+            let a = unsafe { *xsk_ring_cons__comp_addr(&nic.cq, cq_idx) };
+            unsafe { pv_free_(nic, a); } // free UMEM chunks as much as the number of sent packets (same as **filled)
             cq_idx += 1;
+            // println!("addr: {}", a);
         }
         unsafe { xsk_ring_cons__release(&mut nic.cq, filled); } // notify kernel that cq has empty slots with **filled (Dequeue)
-    }
-
+    // }
+    unsafe { libc::sendto(xsk_socket__fd(nic.xsk), std::ptr::null::<libc::c_void>(), 0 as libc::size_t, libc::MSG_DONTWAIT, std::ptr::null::<libc::sockaddr>(), 0 as libc::socklen_t); }
      /* reserve TX ring as much as batch_size before sending packets. */
     let mut tx_idx: u32 = 0;
     let reserved: u32 = unsafe { xsk_ring_prod__reserve(&mut nic.tx, batch_size, &mut tx_idx) };
-    // println!("packets len: {}, tx reserved: {}, tx_idx: {}", packets.len(), reserved, tx_idx);
+    // println!("packets len: {}, batch size: {}, tx reserved: {}, tx_idx: {}", packets.len(), batch_size, reserved, tx_idx);
 
     /* send packets if TX ring has been reserved with **batch_size (see part1). if not, don't send packets and free them (see part2) */
-
     // (part2)
     if reserved < batch_size {
         /* in case that kernel lost interrupt signal in the previous sending packets procedure,
@@ -383,7 +388,7 @@ pub fn pv_send(nic: &mut PvNic, packets: &mut Vec<PvPacket>, batch_size: u32) ->
         (this procedure is for clearing filled slots in cq, so that cq can be reserved as much as **batch_size in the next execution of pv_send(). */
         unsafe{
             if xsk_ring_prod__needs_wakeup(&mut nic.tx) != 0 {
-                libc::sendto(xsk_socket__fd(nic.xsk), std::ptr::null(), 0, libc::MSG_DONTWAIT, std::ptr::null(), 0);
+                libc::sendto(xsk_socket__fd(nic.xsk), std::ptr::null::<libc::c_void>(), 0 as libc::size_t, libc::MSG_DONTWAIT, std::ptr::null::<libc::sockaddr>(), 0 as libc::socklen_t);
             }
         }
         return 0;
@@ -401,15 +406,16 @@ pub fn pv_send(nic: &mut PvNic, packets: &mut Vec<PvPacket>, batch_size: u32) ->
         }
 
         // packet_dump(&packets[i as usize]);
-        packets.pop();   // free packet metadata of sent packets.
         index_count += 1;
     }
+    packets.clear(); // free packet metadata of sent packets.
 
+    // println!("reserved for submit: {}", reserved);
     unsafe {
         xsk_ring_prod__submit(&mut nic.tx, reserved);  // notify kernel of enqueuing TX ring as much as reserved.
 
         if xsk_ring_prod__needs_wakeup(&mut nic.tx) != 0 {
-            libc::sendto(xsk_socket__fd(nic.xsk), std::ptr::null(), 0, libc::MSG_DONTWAIT, std::ptr::null(), 0);   // interrupt kernel to send packets.
+            libc::sendto(xsk_socket__fd(nic.xsk), std::ptr::null::<libc::c_void>(), 0 as libc::size_t, libc::MSG_DONTWAIT, std::ptr::null::<libc::sockaddr>(), 0 as libc::socklen_t);   // interrupt kernel to send packets.
         }
     }
 
