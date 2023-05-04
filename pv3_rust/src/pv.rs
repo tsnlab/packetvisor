@@ -395,18 +395,17 @@ pub fn pv_send(nic: &mut PvNic, packets: &mut Vec<PvPacket>, batch_size: u32) ->
     }
 
     /* (part1) send packets */
-    let mut index_count: u32 = 0;
-    for i in (0..reserved).rev() {
+    for i in 0..reserved {
+        let pkt_index: usize = (reserved - i) as usize;
         /* insert packets to be send into TX ring (Enqueue) */
-        let rx_desc_ptr = unsafe { xsk_ring_prod__tx_desc(&mut nic.tx, tx_idx + index_count) } ;
+        let rx_desc_ptr = unsafe { xsk_ring_prod__tx_desc(&mut nic.tx, tx_idx + i) } ;
         unsafe {
-            rx_desc_ptr.as_mut().unwrap().addr = packets[i as usize].private as u64 + packets[i as usize].start as u64;
-            rx_desc_ptr.as_mut().unwrap().len = packets[i as usize].end - packets[i as usize].start;
+            rx_desc_ptr.as_mut().unwrap().addr = packets[pkt_index].private as u64 + packets[pkt_index].start as u64;
+            rx_desc_ptr.as_mut().unwrap().len = packets[pkt_index].end - packets[pkt_index].start;
             // println!("ptr: {:?}, addr: {}, len: {}", rx_desc_ptr, rx_desc_ptr.as_mut().unwrap().addr, rx_desc_ptr.as_mut().unwrap().len);
         }
-
-        // packet_dump(&packets[i as usize]);
-        index_count += 1;
+        // packet_dump(&packets[pkt_index]);
+        packets.pop();   // free packet metadata of sent packets.
     }
     packets.clear(); // free packet metadata of sent packets.
 
