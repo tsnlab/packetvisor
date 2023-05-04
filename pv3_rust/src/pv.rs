@@ -350,20 +350,18 @@ pub fn pv_receive(nic: &mut PvNic, packets: &mut Vec<PvPacket>, batch_size: u32)
 }
 
 pub fn pv_send(nic: &mut PvNic, packets: &mut Vec<PvPacket>, batch_size: u32) -> u32 {
-    unsafe { libc::sendto(xsk_socket__fd(nic.xsk), std::ptr::null::<libc::c_void>(), 0 as libc::size_t, libc::MSG_DONTWAIT, std::ptr::null::<libc::sockaddr>(), 0 as libc::socklen_t); }
     /* free packet metadata and UMEM chunks as much as the number of filled slots in cq. */
     let mut cq_idx: u32 = 0;
     let filled: u32 = unsafe{ xsk_ring_cons__peek(&mut nic.cq, batch_size, &mut cq_idx) }; // fetch the number of filled slots(the number of packets completely sent) in cq
 
-    // if filled > 0 {
+    if filled > 0 {
         for _ in 0..filled {
             let a = unsafe { *xsk_ring_cons__comp_addr(&nic.cq, cq_idx) };
             unsafe { pv_free_(nic, a); } // free UMEM chunks as much as the number of sent packets (same as **filled)
             cq_idx += 1;
         }
         unsafe { xsk_ring_cons__release(&mut nic.cq, filled); } // notify kernel that cq has empty slots with **filled (Dequeue)
-    // }
-    unsafe { libc::sendto(xsk_socket__fd(nic.xsk), std::ptr::null::<libc::c_void>(), 0 as libc::size_t, libc::MSG_DONTWAIT, std::ptr::null::<libc::sockaddr>(), 0 as libc::socklen_t); }
+    }
 
     /* reserve TX ring as much as batch_size before sending packets. */
     let mut tx_idx: u32 = 0;
@@ -385,7 +383,7 @@ pub fn pv_send(nic: &mut PvNic, packets: &mut Vec<PvPacket>, batch_size: u32) ->
 
     /* (part1) send packets */
     for i in 0..reserved {
-        let pkt_index: usize = (reserved - i) as usize;
+        let pkt_index: usize = (reserved - 1 - i) as usize;
         /* insert packets to be send into TX ring (Enqueue) */
         let rx_desc_ptr = unsafe { xsk_ring_prod__tx_desc(&mut nic.tx, tx_idx + i) } ;
         unsafe {
@@ -393,10 +391,8 @@ pub fn pv_send(nic: &mut PvNic, packets: &mut Vec<PvPacket>, batch_size: u32) ->
             rx_desc_ptr.as_mut().unwrap().len = packets[pkt_index].end - packets[pkt_index].start;
         }
         // packet_dump(&packets[pkt_index]);
-        // TODO: pop과 clear중 고치기
         packets.pop();   // free packet metadata of sent packets.
     }
-    packets.clear(); // free packet metadata of sent packets.
 
     unsafe {
         xsk_ring_prod__submit(&mut nic.tx, reserved);  // notify kernel of enqueuing TX ring as much as reserved.
