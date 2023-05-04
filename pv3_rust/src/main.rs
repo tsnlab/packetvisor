@@ -33,8 +33,6 @@ fn main() {
         }
     }
 
-    // println!("{} {} {} {} {} {} {}", if_name, chunk_size, chunk_count, rx_ring_size, tx_ring_size, filling_ring_size, completion_ring_size);
-
     let pv_open_option: Option<PvNic> = pv::pv_open(&if_name, chunk_size, chunk_count, rx_ring_size, tx_ring_size, filling_ring_size, completion_ring_size);
 
     let mut nic: PvNic;
@@ -80,10 +78,9 @@ fn main() {
         if received > 0 {
             let processed: u32 = process_packets(&mut nic, &mut packets, received, &src_mac_address);
             let sent: u32 = pv_send(&mut nic, &mut packets, processed);
-            // println!("processed: {}, sent: {}", processed, sent);
+
             if sent == 0 {
                 for i in (0..processed).rev() {
-                    // println!("packet len:{}, i: {}", packets.len(), i);
                     pv_free(&mut nic, &mut packets, i as usize);
                 }
                 processed_count += processed;
@@ -93,7 +90,6 @@ fn main() {
     }
 
     pv::pv_close(nic);
-    println!("total received packets: {}, total processed packets: {}", received_count, processed_count);
     println!("PV END");
 }
 

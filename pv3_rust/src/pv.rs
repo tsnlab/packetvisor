@@ -244,7 +244,7 @@ pub fn pv_open(if_name: &String, chunk_size: u32, chunk_count: u32,
     if ret.is_err() {
         return None;
     }
-    // println!("nic: {:?}", nic);
+
     /* pre-allocate UMEM chunks into fq */
     let mut fq_idx: u32 = 0;
     let reserved: u32 = unsafe { xsk_ring_prod__reserve(&mut nic.fq, filling_ring_size, &mut fq_idx) };
@@ -285,7 +285,7 @@ pub fn pv_open(if_name: &String, chunk_size: u32, chunk_count: u32,
     if ret != 0 {
         return None;
     }
-    // println!("nic: {:?}", nic);
+
     Some(nic)
 }
 
@@ -305,15 +305,10 @@ pub fn pv_receive(nic: &mut PvNic, packets: &mut Vec<PvPacket>, batch_size: u32)
     let mut fq_idx: u32 = 0;
     let reserved: u32 = unsafe { xsk_ring_prod__reserve(&mut nic.fq, batch_size, &mut fq_idx)} ; // reserve slots in fq as much as **batch_size.
 
-    // if fq_idx != 0 || reserved != 0 {
-    //     println!("fq_idx: {}, reserved: {}", fq_idx, reserved);
-    // }
-
     for i in 0..reserved {
         unsafe {
             let a = pv_alloc_(nic);
             *xsk_ring_prod__fill_addr(&mut nic.fq, fq_idx + i) = a;
-            // println!("alloc: {}", a);
         } // allocate UMEM chunks into fq.
     }
     unsafe { xsk_ring_prod__submit(&mut nic.fq, reserved); } // notify kernel of allocating UMEM chunks into fq as much as **reserved.
@@ -323,12 +318,10 @@ pub fn pv_receive(nic: &mut PvNic, packets: &mut Vec<PvPacket>, batch_size: u32)
     let mut received: u32 = unsafe { xsk_ring_cons__peek(&mut nic.rx, batch_size, &mut rx_idx) }; // fetch the number of received packets in RX ring.
 
     if received > 0 {
-        // println!("received: {}", received);
         let mut metadata_count: u32 = 0;
         while metadata_count < received {
             /* create packet metadata */
             packets.push(PvPacket::new());
-            // println!("rx_idx: {}", rx_idx);
             let rx_desc_ptr: *const xdp_desc = unsafe { xsk_ring_cons__rx_desc(&mut nic.rx, rx_idx + metadata_count) }; // bringing information(packet address, packet length) of received packets through descriptors in RX ring
 
             /* save metadata */
@@ -337,16 +330,14 @@ pub fn pv_receive(nic: &mut PvNic, packets: &mut Vec<PvPacket>, batch_size: u32)
             packets[metadata_count as usize].size = nic.chunk_size;
             packets[metadata_count as usize].buffer = unsafe { xsk_umem__get_data(nic.buffer, rx_desc_ptr.as_ref().unwrap().addr).cast::<u8>().sub(DEFAULT_HEADROOM as usize) };
             packets[metadata_count as usize].private = unsafe { (rx_desc_ptr.as_ref().unwrap().addr - DEFAULT_HEADROOM as u64) as *mut c_void };
-            // println!("packet: {:?}", packets[metadata_count as usize]);
+
             // packet_dump(&packets[metadata_count as usize]);
             metadata_count += 1;
         }
 
         unsafe { xsk_ring_cons__release(&mut nic.rx, received); } // notify kernel of using filled slots in RX ring as much as **received
 
-        if metadata_count != received {
-            received = metadata_count;
-        }
+        if metadata_count != received { received = metadata_count; }
     }
 
     unsafe {
@@ -363,22 +354,20 @@ pub fn pv_send(nic: &mut PvNic, packets: &mut Vec<PvPacket>, batch_size: u32) ->
     /* free packet metadata and UMEM chunks as much as the number of filled slots in cq. */
     let mut cq_idx: u32 = 0;
     let filled: u32 = unsafe{ xsk_ring_cons__peek(&mut nic.cq, batch_size, &mut cq_idx) }; // fetch the number of filled slots(the number of packets completely sent) in cq
-    // println!("cq_idx: {}, cq filled: {}", cq_idx, filled);
-    // println!("packets: {:?}", packets);
+
     // if filled > 0 {
         for _ in 0..filled {
             let a = unsafe { *xsk_ring_cons__comp_addr(&nic.cq, cq_idx) };
             unsafe { pv_free_(nic, a); } // free UMEM chunks as much as the number of sent packets (same as **filled)
             cq_idx += 1;
-            // println!("addr: {}", a);
         }
         unsafe { xsk_ring_cons__release(&mut nic.cq, filled); } // notify kernel that cq has empty slots with **filled (Dequeue)
     // }
     unsafe { libc::sendto(xsk_socket__fd(nic.xsk), std::ptr::null::<libc::c_void>(), 0 as libc::size_t, libc::MSG_DONTWAIT, std::ptr::null::<libc::sockaddr>(), 0 as libc::socklen_t); }
-     /* reserve TX ring as much as batch_size before sending packets. */
+
+    /* reserve TX ring as much as batch_size before sending packets. */
     let mut tx_idx: u32 = 0;
     let reserved: u32 = unsafe { xsk_ring_prod__reserve(&mut nic.tx, batch_size, &mut tx_idx) };
-    // println!("packets len: {}, batch size: {}, tx reserved: {}, tx_idx: {}", packets.len(), batch_size, reserved, tx_idx);
 
     /* send packets if TX ring has been reserved with **batch_size (see part1). if not, don't send packets and free them (see part2) */
     // (part2)
@@ -402,14 +391,13 @@ pub fn pv_send(nic: &mut PvNic, packets: &mut Vec<PvPacket>, batch_size: u32) ->
         unsafe {
             rx_desc_ptr.as_mut().unwrap().addr = packets[pkt_index].private as u64 + packets[pkt_index].start as u64;
             rx_desc_ptr.as_mut().unwrap().len = packets[pkt_index].end - packets[pkt_index].start;
-            // println!("ptr: {:?}, addr: {}, len: {}", rx_desc_ptr, rx_desc_ptr.as_mut().unwrap().addr, rx_desc_ptr.as_mut().unwrap().len);
         }
         // packet_dump(&packets[pkt_index]);
+        // TODO: pop과 clear중 고치기
         packets.pop();   // free packet metadata of sent packets.
     }
     packets.clear(); // free packet metadata of sent packets.
 
-    // println!("reserved for submit: {}", reserved);
     unsafe {
         xsk_ring_prod__submit(&mut nic.tx, reserved);  // notify kernel of enqueuing TX ring as much as reserved.
 
