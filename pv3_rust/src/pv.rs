@@ -85,68 +85,89 @@ pub struct PvNic {
 }
 
 impl PvNic {
-    // TODO: Change return type with Option<PvNic> for safety.
-    fn new(if_name: &String, chunk_size: u32, chunk_count: i32) -> PvNic {
+    fn new(if_name: &String, chunk_size: u32, chunk_count: i32) -> Option<PvNic> {
+        let mut is_creation_failed: bool = false;
 
         let xsk_ptr;
         unsafe {
             let xsk_layout = Layout::new::<xsk_socket>();
             xsk_ptr = alloc_zeroed(xsk_layout);
-            // TODO: Add if umem_ptr.is_null() to make it safe
+
+            if xsk_ptr.is_null() {
+                is_creation_failed = true;
+            }
         }
 
         let umem_ptr;
         unsafe {
             let umem_layout = Layout::new::<xsk_umem>();
             umem_ptr = alloc_zeroed(umem_layout);
-            // TODO: Add if umem_ptr.is_null() to make it safe
+
+            if umem_ptr.is_null() {
+                is_creation_failed = true;
+            }
         }
 
         let fq_ptr;
         unsafe {
             let fq_layout = Layout::new::<xsk_ring_prod>();
             fq_ptr = alloc_zeroed(fq_layout);
-            // TODO: Add if umem_ptr.is_null() to make it safe
+
+            if fq_ptr.is_null() {
+                is_creation_failed = true;
+            }
         }
 
         let rx_ptr;
         unsafe {
             let rx_layout = Layout::new::<xsk_ring_cons>();
             rx_ptr = alloc_zeroed(rx_layout);
-            // TODO: Add if umem_ptr.is_null() to make it safe
+
+            if rx_ptr.is_null() {
+                is_creation_failed = true;
+            }
         }
 
         let cq_ptr;
         unsafe {
             let cq_layout = Layout::new::<xsk_ring_cons>();
             cq_ptr = alloc_zeroed(cq_layout);
-            // TODO: Add if umem_ptr.is_null() to make it safe
+
+            if cq_ptr.is_null() {
+                is_creation_failed = true;
+            }
         }
 
         let tx_ptr;
         unsafe {
             let tx_layout = Layout::new::<xsk_ring_prod>();
             tx_ptr = alloc_zeroed(tx_layout);
-            // TODO: Add if umem_ptr.is_null() to make it safe
+
+            if tx_ptr.is_null() {
+                is_creation_failed = true;
+            }
         }
 
-        let a:PvNic = unsafe {
-            PvNic {
-                if_name: if_name.clone(),
-                xsk: xsk_ptr.cast::<xsk_socket>(),
-                umem: umem_ptr.cast::<xsk_umem>(),   // umem is needed to be dealloc after using packetvisor library.
-                buffer: std::ptr::null_mut(),
-                chunk_size: chunk_size,
-                chunk_pool: Vec::with_capacity(chunk_count as usize),
-                chunk_pool_idx: chunk_count,
-                fq: std::ptr::read(fq_ptr.cast::<xsk_ring_prod>()),
-                rx: std::ptr::read(rx_ptr.cast::<xsk_ring_cons>()),
-                cq: std::ptr::read(cq_ptr.cast::<xsk_ring_cons>()),
-                tx: std::ptr::read(tx_ptr.cast::<xsk_ring_prod>()),
-                }
-            };
-
-        a
+        if is_creation_failed == true {
+            None
+        } else {
+            let a:PvNic = unsafe {
+                PvNic {
+                    if_name: if_name.clone(),
+                    xsk: xsk_ptr.cast::<xsk_socket>(),
+                    umem: umem_ptr.cast::<xsk_umem>(),   // umem is needed to be dealloc after using packetvisor library.
+                    buffer: std::ptr::null_mut(),
+                    chunk_size: chunk_size,
+                    chunk_pool: Vec::with_capacity(chunk_count as usize),
+                    chunk_pool_idx: chunk_count,
+                    fq: std::ptr::read(fq_ptr.cast::<xsk_ring_prod>()),
+                    rx: std::ptr::read(rx_ptr.cast::<xsk_ring_cons>()),
+                    cq: std::ptr::read(cq_ptr.cast::<xsk_ring_cons>()),
+                    tx: std::ptr::read(tx_ptr.cast::<xsk_ring_prod>()),
+                    }
+                };
+            Some(a)
+        }
     }
 }
 
@@ -232,7 +253,13 @@ pub fn pv_open(if_name: &String, chunk_size: u32, chunk_count: u32,
                 completion_ring_size: u32) -> Option<PvNic>
 {
     /* create PvNic */
-    let mut nic: PvNic = PvNic::new(if_name, chunk_size, chunk_count as i32);   // **chunk_count is UMEM size
+    let nic_result: Option<PvNic> = PvNic::new(if_name, chunk_size, chunk_count as i32);   // **chunk_count is UMEM size
+    let mut nic: PvNic;
+
+    match nic_result {
+        Some(T) => { nic = T; },
+        None => { return None; }
+    }
 
     /* initialize UMEM chunk information */
     for i in 0..chunk_count {
@@ -248,11 +275,9 @@ pub fn pv_open(if_name: &String, chunk_size: u32, chunk_count: u32,
     /* pre-allocate UMEM chunks into fq */
     let mut fq_idx: u32 = 0;
     let reserved: u32 = unsafe { xsk_ring_prod__reserve(&mut nic.fq, filling_ring_size, &mut fq_idx) };
-    // println!("fq_idx: {}, reserved: {}", fq_idx, reserved);
+
     for i in 0..reserved {
-        unsafe {
-            *xsk_ring_prod__fill_addr(&mut nic.fq, fq_idx + i) = pv_alloc_(&mut nic); // allocation of UMEM chunks into fq.
-        }
+        unsafe { *xsk_ring_prod__fill_addr(&mut nic.fq, fq_idx + i) = pv_alloc_(&mut nic); } // allocation of UMEM chunks into fq.
     }
     unsafe { xsk_ring_prod__submit(&mut nic.fq, reserved); } // notify kernel of allocating UMEM chunks into fq as much as **reserved.
 
@@ -306,10 +331,7 @@ pub fn pv_receive(nic: &mut PvNic, packets: &mut Vec<PvPacket>, batch_size: u32)
     let reserved: u32 = unsafe { xsk_ring_prod__reserve(&mut nic.fq, batch_size, &mut fq_idx)} ; // reserve slots in fq as much as **batch_size.
 
     for i in 0..reserved {
-        unsafe {
-            let a = pv_alloc_(nic);
-            *xsk_ring_prod__fill_addr(&mut nic.fq, fq_idx + i) = a;
-        } // allocate UMEM chunks into fq.
+        unsafe { *xsk_ring_prod__fill_addr(&mut nic.fq, fq_idx + i) = pv_alloc_(nic); }   // allocate UMEM chunks into fq.
     }
     unsafe { xsk_ring_prod__submit(&mut nic.fq, reserved); } // notify kernel of allocating UMEM chunks into fq as much as **reserved.
 
@@ -356,8 +378,7 @@ pub fn pv_send(nic: &mut PvNic, packets: &mut Vec<PvPacket>, batch_size: u32) ->
 
     if filled > 0 {
         for _ in 0..filled {
-            let a = unsafe { *xsk_ring_cons__comp_addr(&nic.cq, cq_idx) };
-            unsafe { pv_free_(nic, a); } // free UMEM chunks as much as the number of sent packets (same as **filled)
+            unsafe { pv_free_(nic, *xsk_ring_cons__comp_addr(&nic.cq, cq_idx)); } // free UMEM chunks as much as the number of sent packets (same as **filled)
             cq_idx += 1;
         }
         unsafe { xsk_ring_cons__release(&mut nic.cq, filled); } // notify kernel that cq has empty slots with **filled (Dequeue)

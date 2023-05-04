@@ -1,9 +1,11 @@
 mod arp;
 mod pv;
-use std::{env, sync::Arc, sync::atomic::{Ordering, AtomicBool}};
+
+use std::{env, sync::Arc, sync::atomic::{Ordering, AtomicBool}, io::Error};
 use crate::pv::*;
 use crate::arp::gen_arp_response_packet;
 use pnet::datalink::{interfaces, NetworkInterface, MacAddr};
+use signal_hook::SigId;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -33,8 +35,38 @@ fn main() {
         }
     }
 
-    let pv_open_option: Option<PvNic> = pv::pv_open(&if_name, chunk_size, chunk_count, rx_ring_size, tx_ring_size, filling_ring_size, completion_ring_size);
 
+    /* signal define to end the application */
+    let term:Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
+    let result_sigint: Result<SigId, Error> = signal_hook::flag::register(signal_hook::consts::SIGINT, Arc::clone(&term));
+    let result_sigterm: Result<SigId, Error> = signal_hook::flag::register(signal_hook::consts::SIGTERM, Arc::clone(&term));
+    let result_sigabrt: Result<SigId, Error> = signal_hook::flag::register(signal_hook::consts::SIGABRT, Arc::clone(&term));
+
+    if result_sigint.or(result_sigterm).or(result_sigabrt).is_err() {
+        panic!("signal is forbidden");
+    }
+
+    /* save source MAC address into variable */
+    let all_interfaces: Vec<NetworkInterface> = interfaces();
+    let is_exist: Option<&NetworkInterface> = all_interfaces
+                            .iter()
+                            .find(|element| element.name.as_str() == if_name.as_str());
+
+    let src_mac_address: MacAddr;
+    match is_exist {
+        Some(target_interface) => {
+            let option: Option<MacAddr> = target_interface.mac;
+            if option.is_none() {
+                panic!("couldn't find source MAC address");
+            }
+
+            src_mac_address = option.unwrap();
+        },
+        None => { panic!("couldn't find source MAC address"); }
+    }
+
+    /* execute pv_open() */
+    let pv_open_option: Option<PvNic> = pv::pv_open(&if_name, chunk_size, chunk_count, rx_ring_size, tx_ring_size, filling_ring_size, completion_ring_size);
     let mut nic: PvNic;
     if pv_open_option.is_some() {
         nic = pv_open_option.unwrap();
@@ -42,35 +74,9 @@ fn main() {
         panic!("nic allocation failed!");
     }
 
+    /* initialize rx_batch_size and packet metadata */
     let rx_batch_size: u32 = 64;
     let mut packets: Vec<PvPacket> = Vec::with_capacity(rx_batch_size as usize);
-    let mut received_count = 0;
-    let mut processed_count = 0;
-    let term = Arc::new(AtomicBool::new(false));
-    signal_hook::flag::register(signal_hook::consts::SIGINT, Arc::clone(&term));
-    signal_hook::flag::register(signal_hook::consts::SIGTERM, Arc::clone(&term));
-    signal_hook::flag::register(signal_hook::consts::SIGABRT, Arc::clone(&term));
-
-
-    let all_interfaces: Vec<NetworkInterface> = interfaces();
-    let is_exist: Option<&NetworkInterface> = all_interfaces
-                            .iter()
-                            .find(|element| element.name.as_str() == nic.if_name.as_str());
-
-    let mut src_mac_address: MacAddr;
-    match is_exist {
-        Some(target_interface) => {
-                unsafe {
-                    let option: Option<MacAddr> = target_interface.mac;
-                    if option.is_none() {
-                        panic!("couldn't find source MAC address");
-                    }
-
-                    src_mac_address = option.unwrap();
-                }
-            },
-        None => { panic!("couldn't find source MAC address"); }
-    }
 
     while !term.load(Ordering::Relaxed) {
         let received: u32 = pv_receive(&mut nic, &mut packets, rx_batch_size);
@@ -83,9 +89,7 @@ fn main() {
                 for i in (0..processed).rev() {
                     pv_free(&mut nic, &mut packets, i as usize);
                 }
-                processed_count += processed;
             }
-            received_count += received;
         }
     }
 
