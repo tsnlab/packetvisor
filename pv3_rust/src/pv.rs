@@ -35,7 +35,7 @@ fn packet_dump(packet: &PvPacket) {
             } else if count % 8 == 0 {
                 print!(" ");
                 if count % 16 == 0 {
-                    println!("");
+                    println!();
                 }
             }
         }
@@ -85,7 +85,7 @@ pub struct PvNic {
 }
 
 impl PvNic {
-    fn new(if_name: &String, chunk_size: u32, chunk_count: i32) -> Option<PvNic> {
+    fn new(if_name: &str, set_chunk_size: u32, set_chunk_count: i32) -> Option<PvNic> {
         let mut is_creation_failed: bool = false;
 
         let xsk_ptr;
@@ -148,18 +148,18 @@ impl PvNic {
             }
         }
 
-        if is_creation_failed == true {
+        if is_creation_failed {
             None
         } else {
             let a:PvNic = unsafe {
                 PvNic {
-                    if_name: if_name.clone(),
+                    if_name: if_name.to_owned(),
                     xsk: xsk_ptr.cast::<xsk_socket>(),
                     umem: umem_ptr.cast::<xsk_umem>(),   // umem is needed to be dealloc after using packetvisor library.
                     buffer: std::ptr::null_mut(),
-                    chunk_size: chunk_size,
-                    chunk_pool: Vec::with_capacity(chunk_count as usize),
-                    chunk_pool_idx: chunk_count,
+                    chunk_size: set_chunk_size,
+                    chunk_pool: Vec::with_capacity(set_chunk_count as usize),
+                    chunk_pool_idx: set_chunk_count,
                     fq: std::ptr::read(fq_ptr.cast::<xsk_ring_prod>()),
                     rx: std::ptr::read(rx_ptr.cast::<xsk_ring_cons>()),
                     cq: std::ptr::read(cq_ptr.cast::<xsk_ring_cons>()),
@@ -176,7 +176,7 @@ fn pv_alloc_(nic: &mut PvNic) -> u64 {
         nic.chunk_pool_idx -= 1;
         nic.chunk_pool[nic.chunk_pool_idx as usize]
     } else {
-        return u64::MAX;
+        u64::MAX
     }
 }
 
@@ -211,14 +211,18 @@ pub fn pv_free(nic: &mut PvNic, packets: &mut Vec<PvPacket>, index: usize) {
     packets.remove(index);
 }
 
-fn configure_umem(nic: &mut PvNic, chunk_size: u32, chunk_count: u32, fill_size: u32, complete_size: u32) -> Result<(), i32> {
-    let umem_buffer_size: usize = (chunk_count * chunk_size) as usize; // chunk_count is UMEM size.
+fn configure_umem(nic: &mut PvNic, set_chunk_size: u32, set_chunk_count: u32, set_fill_size: u32, set_complete_size: u32) -> Result<(), i32> {
+    let umem_buffer_size: usize = (set_chunk_count * set_chunk_size) as usize; // chunk_count is UMEM size.
 
     /* Reserve memory for the UMEM. */
     let mmap_address = unsafe {
-        libc::mmap(std::ptr::null_mut::<libc::c_void>(), umem_buffer_size,
-                    libc::PROT_READ | libc:: PROT_WRITE,
-                libc::MAP_PRIVATE | libc::MAP_ANONYMOUS, -1, 0)
+        libc::mmap(
+            std::ptr::null_mut::<libc::c_void>(),
+            umem_buffer_size,
+            libc::PROT_READ | libc:: PROT_WRITE,
+            libc::MAP_PRIVATE | libc::MAP_ANONYMOUS,
+            -1,
+            0)
     };
 
     if mmap_address == libc::MAP_FAILED {
@@ -228,9 +232,9 @@ fn configure_umem(nic: &mut PvNic, chunk_size: u32, chunk_count: u32, fill_size:
     /* create UMEM, filling ring, completion ring for xsk */
     let umem_cfg: xsk_umem_config = xsk_umem_config {
         // ring sizes aren't usually over 1024
-        fill_size: fill_size,
-        comp_size: complete_size,
-        frame_size: chunk_size,
+        fill_size: set_fill_size,
+        comp_size: set_complete_size,
+        frame_size: set_chunk_size,
         frame_headroom: XSK_UMEM__DEFAULT_FRAME_HEADROOM,
         flags: XSK_UMEM__DEFAULT_FLAGS,
     };
@@ -248,7 +252,7 @@ fn configure_umem(nic: &mut PvNic, chunk_size: u32, chunk_count: u32, fill_size:
     }
 }
 
-pub fn pv_open(if_name: &String, chunk_size: u32, chunk_count: u32,
+pub fn pv_open(if_name: &str, chunk_size: u32, chunk_count: u32,
                 rx_ring_size: u32, tx_ring_size: u32, filling_ring_size: u32,
                 completion_ring_size: u32) -> Option<PvNic>
 {
@@ -285,13 +289,11 @@ pub fn pv_open(if_name: &String, chunk_size: u32, chunk_count: u32,
     let all_interfaces: Vec<NetworkInterface> = interfaces();
     let is_exist: Option<&NetworkInterface> = all_interfaces
                             .iter()
-                            .find(|element| element.name.as_str() == if_name.as_str());
+                            .find(|element| element.name.as_str() == if_name);
 
-    if is_exist.is_none() {
-        return None;
-    }
+    is_exist?;
 
-    let if_name = CString::new(if_name.as_str()).unwrap();
+    let if_name = CString::new(if_name).unwrap();
     let if_name_ptr: *const c_char = if_name.as_ptr() as *const c_char;
 
     /* setting xsk, RX ring, TX ring configuration */
@@ -344,7 +346,7 @@ pub fn pv_receive(nic: &mut PvNic, packets: &mut Vec<PvPacket>, batch_size: u32)
         while metadata_count < received {
             /* create packet metadata */
             packets.push(PvPacket::new());
-            let rx_desc_ptr: *const xdp_desc = unsafe { xsk_ring_cons__rx_desc(&mut nic.rx, rx_idx + metadata_count) }; // bringing information(packet address, packet length) of received packets through descriptors in RX ring
+            let rx_desc_ptr: *const xdp_desc = unsafe { xsk_ring_cons__rx_desc(&nic.rx, rx_idx + metadata_count) }; // bringing information(packet address, packet length) of received packets through descriptors in RX ring
 
             /* save metadata */
             packets[metadata_count as usize].start = DEFAULT_HEADROOM;
@@ -363,8 +365,14 @@ pub fn pv_receive(nic: &mut PvNic, packets: &mut Vec<PvPacket>, batch_size: u32)
     }
 
     unsafe {
-        if xsk_ring_prod__needs_wakeup(&mut nic.fq) != 0 {
-            libc::recvfrom(xsk_socket__fd(nic.xsk), std::ptr::null_mut::<libc::c_void>(), 0, libc::MSG_DONTWAIT, std::ptr::null_mut::<libc::sockaddr>(), std::ptr::null_mut::<u32>()) ;
+        if xsk_ring_prod__needs_wakeup(&nic.fq) != 0 {
+            libc::recvfrom(
+                xsk_socket__fd(nic.xsk),
+                std::ptr::null_mut::<libc::c_void>(),
+                0 as libc::size_t,
+                libc::MSG_DONTWAIT,
+                std::ptr::null_mut::<libc::sockaddr>(),
+                std::ptr::null_mut::<u32>());
         }
     }
 
@@ -394,7 +402,7 @@ pub fn pv_send(nic: &mut PvNic, packets: &mut Vec<PvPacket>, batch_size: u32) ->
         repeat to interrupt kernel to send packets which ketnel could have still held.
         (this procedure is for clearing filled slots in cq, so that cq can be reserved as much as **batch_size in the next execution of pv_send(). */
         unsafe{
-            if xsk_ring_prod__needs_wakeup(&mut nic.tx) != 0 {
+            if xsk_ring_prod__needs_wakeup(&nic.tx) != 0 {
                 libc::sendto(
                     xsk_socket__fd(nic.xsk),
                     std::ptr::null::<libc::c_void>(),
@@ -423,8 +431,14 @@ pub fn pv_send(nic: &mut PvNic, packets: &mut Vec<PvPacket>, batch_size: u32) ->
     unsafe {
         xsk_ring_prod__submit(&mut nic.tx, reserved);  // notify kernel of enqueuing TX ring as much as reserved.
 
-        if xsk_ring_prod__needs_wakeup(&mut nic.tx) != 0 {
-            libc::sendto(xsk_socket__fd(nic.xsk), std::ptr::null::<libc::c_void>(), 0 as libc::size_t, libc::MSG_DONTWAIT, std::ptr::null::<libc::sockaddr>(), 0 as libc::socklen_t);   // interrupt kernel to send packets.
+        if xsk_ring_prod__needs_wakeup(&nic.tx) != 0 {
+            libc::sendto(
+                xsk_socket__fd(nic.xsk),
+                std::ptr::null::<libc::c_void>(),
+                0 as libc::size_t,
+                libc::MSG_DONTWAIT,
+                std::ptr::null::<libc::sockaddr>(),
+                0 as libc::socklen_t);   // interrupt kernel to send packets.
         }
     }
 

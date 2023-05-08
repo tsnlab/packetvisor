@@ -52,24 +52,23 @@ fn main() {
                             .iter()
                             .find(|element| element.name.as_str() == if_name.as_str());
 
-    let src_mac_address: MacAddr;
-    match is_exist {
+    let src_mac_address: MacAddr = match is_exist {
         Some(target_interface) => {
             let option: Option<MacAddr> = target_interface.mac;
             if option.is_none() {
                 panic!("couldn't find source MAC address");
             }
 
-            src_mac_address = option.unwrap();
+            option.unwrap()
         },
         None => { panic!("couldn't find source MAC address"); }
-    }
+    };
 
     /* execute pv_open() */
     let pv_open_option: Option<PvNic> = pv::pv_open(&if_name, chunk_size, chunk_count, rx_ring_size, tx_ring_size, filling_ring_size, completion_ring_size);
     let mut nic: PvNic;
-    if pv_open_option.is_some() {
-        nic = pv_open_option.unwrap();
+    if let Some(a) = pv_open_option {
+        nic = a;
     } else {
         panic!("nic allocation failed!");
     }
