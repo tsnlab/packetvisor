@@ -395,7 +395,13 @@ pub fn pv_send(nic: &mut PvNic, packets: &mut Vec<PvPacket>, batch_size: u32) ->
         (this procedure is for clearing filled slots in cq, so that cq can be reserved as much as **batch_size in the next execution of pv_send(). */
         unsafe{
             if xsk_ring_prod__needs_wakeup(&mut nic.tx) != 0 {
-                libc::sendto(xsk_socket__fd(nic.xsk), std::ptr::null::<libc::c_void>(), 0 as libc::size_t, libc::MSG_DONTWAIT, std::ptr::null::<libc::sockaddr>(), 0 as libc::socklen_t);
+                libc::sendto(
+                    xsk_socket__fd(nic.xsk),
+                    std::ptr::null::<libc::c_void>(),
+                    0 as libc::size_t,
+                    libc::MSG_DONTWAIT,
+                    std::ptr::null::<libc::sockaddr>(),
+                    0 as libc::socklen_t);
             }
         }
         return 0;
