@@ -4,7 +4,7 @@ use std::process;
 
 fn main() {
     let src_dir = path::PathBuf::from(env::var_os("CARGO_MANIFEST_DIR").unwrap());
-    let xdptools_dir = src_dir.join("../xdp-tools");
+    let xdptools_dir = src_dir.join("xdp-tools");
     let libxdp_dir = xdptools_dir.join("lib/libxdp");
     let headers_dir = xdptools_dir.join("headers/xdp");
     let include_dir = xdptools_dir.join("lib/libbpf/src/root/usr/include");
