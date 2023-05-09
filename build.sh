@@ -1,25 +1,13 @@
-#!/bin/sh
+#!/bin/bash
 
-echo "update submodule"
+echo "update submodules of PV"
 git submodule update --init --recursive
 
-echo "compile bpftool and copy it"
-make -C bpftool/src
-cp bpftool/src/bpftool /usr/sbin
+echo "Build packetvisor"
+cargo build --release
 
-echo "compile xdp-tools libraries and utilities"
-make -C xdp-tools
+echo "Apply capabilities to run as non-root"
+sudo setcap CAP_SYS_ADMIN,CAP_NET_ADMIN,CAP_NET_RAW,CAP_DAC_OVERRIDE+ep target/release/pv3_rust
+getcap target/release/pv3_rust
 
-echo "compile userspace application"
-clang -Wall -O2 -g \
-    -Ixdp-tools/lib/libbpf/src \
-    -Ixdp-tools/lib/libxdp/ \
-    -Ixdp-tools/lib/util \
-    -Ixdp-tools/headers/ \
-    -Ixdp-tools/lib/libbpf/src/root/usr/include \
-    -Lxdp-tools/lib/libbpf/src \
-    -Lxdp-tools/lib/libxdp/ \
-    -o src/pv \
-    src/main.c src/arp.c src/pv.c \
-    -l:libxdp.a -l:libbpf.a -lelf -lz
-echo "done"
+echo "use 'pv3_rust' in /target/release"
