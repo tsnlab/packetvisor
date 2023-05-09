@@ -19,7 +19,7 @@ This script includes allowance of capabilities (CAP_SYS_ADMIN, CAP_NET_ADMIN, CA
 the app, `pv3_rust`, is located at `/target/release`.
 The following is the usage of PV 3.0.
 
-`sudo ./pv3_rust <inferface name> <chunk size> <chunk count> <Filling ring size> <RX ring size> <Completion ring size> <TX ring size>`
+`./pv3_rust <inferface name> <chunk size> <chunk count> <Filling ring size> <RX ring size> <Completion ring size> <TX ring size>`
 
 ## Run examples
 You can use `set_veth.sh` to set veths for testing the application.
