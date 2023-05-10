@@ -419,10 +419,10 @@ pub fn pv_send(nic: &mut PvNic, packets: &mut Vec<PvPacket>, batch_size: u32) ->
     for i in 0..reserved {
         let pkt_index: usize = (reserved - 1 - i) as usize;
         /* insert packets to be send into TX ring (Enqueue) */
-        let rx_desc_ptr = unsafe { xsk_ring_prod__tx_desc(&mut nic.tx, tx_idx + i) } ;
+        let tx_desc_ptr = unsafe { xsk_ring_prod__tx_desc(&mut nic.tx, tx_idx + i) } ;
         unsafe {
-            rx_desc_ptr.as_mut().unwrap().addr = packets[pkt_index].private as u64 + packets[pkt_index].start as u64;
-            rx_desc_ptr.as_mut().unwrap().len = packets[pkt_index].end - packets[pkt_index].start;
+            tx_desc_ptr.as_mut().unwrap().addr = packets[pkt_index].private as u64 + packets[pkt_index].start as u64;
+            tx_desc_ptr.as_mut().unwrap().len = packets[pkt_index].end - packets[pkt_index].start;
         }
         // packet_dump(&packets[pkt_index]);
         packets.pop();   // free packet metadata of sent packets.
