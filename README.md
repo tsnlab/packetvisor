@@ -1,10 +1,9 @@
-# Packetvisor 3.0 (Rust)
-This is ported in Rust from C
+# Packetvisor 3.0
 
 ## Prerequisite
 
 ### bpftool & XDP-tools (submodules)
-PV 3.0(Rust) mainly uses XDP-tools lib and bpftool is used for compiling XDP-tools lib.
+PV 3.0 mainly uses XDP-tools lib and bpftool is used for compiling XDP-tools lib.
 
 The script, `build.sh`, includes submodule update so that you can do the next step.
 
