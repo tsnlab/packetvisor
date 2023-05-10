@@ -1,4 +1,5 @@
 #!/bin/bash
+set -eo pipefail
 
 echo "update submodules of PV"
 git submodule update --init --recursive
