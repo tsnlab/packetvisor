@@ -4,10 +4,6 @@ set -eo pipefail
 echo "update submodules of PV"
 git submodule update --init --recursive
 
-echo "compile bpftool and copy it"
-make -C bpftool/src
-cp bpftool/src/bpftool /usr/sbin
-
 echo "Build packetvisor"
 cargo build --release
 

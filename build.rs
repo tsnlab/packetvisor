@@ -4,6 +4,7 @@ use std::process;
 
 fn main() {
     let src_dir = path::PathBuf::from(env::var_os("CARGO_MANIFEST_DIR").unwrap());
+    let bpftool_dir = src_dir.join("bpftool/src");
     let xdptools_dir = src_dir.join("xdp-tools");
     let libxdp_dir = xdptools_dir.join("lib/libxdp");
     let headers_dir = xdptools_dir.join("headers/xdp");
@@ -11,10 +12,27 @@ fn main() {
     let libbpf_src_dir = xdptools_dir.join("lib/libbpf/src");
 
     let status = process::Command::new("make")
+    .current_dir(&bpftool_dir)
+    .status()
+    .expect("could not execute make bpftool");
+
+    assert!(status.success(), "make failed");
+
+    let status = process::Command::new("sudo")
+    .arg("cp")
+    .arg("bpftool")
+    .arg("/usr/sbin/bpftool")
+    .current_dir(&bpftool_dir)
+    .status()
+    .expect("could not copy bpftool into /usr/sbin");
+
+    assert!(status.success(), "copy failed");
+
+    let status = process::Command::new("make")
         .arg("libxdp")
         .current_dir(&xdptools_dir)
         .status()
-        .expect("could not execute make");
+        .expect("could not execute make libxdp");
 
     assert!(status.success(), "make failed");
 
