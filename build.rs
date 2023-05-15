@@ -18,16 +18,6 @@ fn main() {
 
     assert!(status.success(), "make failed");
 
-    let status = process::Command::new("sudo")
-    .arg("cp")
-    .arg("bpftool")
-    .arg("/usr/sbin/bpftool")
-    .current_dir(&bpftool_dir)
-    .status()
-    .expect("could not copy bpftool into /usr/sbin");
-
-    assert!(status.success(), "copy failed");
-
     let status = process::Command::new("make")
         .arg("libxdp")
         .current_dir(&xdptools_dir)

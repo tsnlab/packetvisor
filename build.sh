@@ -1,4 +1,6 @@
 #!/bin/bash
+export PATH=$PATH:$(dirname $(realpath $0))/bpftool/src
+
 set -eo pipefail
 
 echo "update submodules of PV"
