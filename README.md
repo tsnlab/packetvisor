@@ -3,17 +3,12 @@
 ## Prerequisite
 
 ### bpftool & XDP-tools (submodules)
-PV 3.0 mainly uses libxdp in [XDP-tools][] and `bpftool` is used to set configuration of XDP-tools.
-
-The script, `build.sh`, includes submodule update so that you can do the next step.
+PV 3.0 uses `libxdp` in [XDP-tools][].
 
 [XDP-tools]: https://github.com/xdp-project/xdp-tools
+
 ## Build
-You can build PV 3.0 by executing `build.sh`
-
-`./build.sh`
-
-This script includes allowance of capabilities (CAP_SYS_ADMIN, CAP_NET_ADMIN, CAP_NET_RAW, CAP_DAC_OVERRIDE) to `pv3_rust` so that `sudo` is not needed to run the app.
+You can use `cargo build -r` command to build PV 3.0.
 
 ## Use
 the app, `pv3_rust`, is located at `/target/release`.
