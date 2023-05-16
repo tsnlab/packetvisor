@@ -66,3 +66,7 @@ in contrast to RX side procedure, `CQ` should have enough empty slots before sen
 
 # License
 This software is distributed under GPLv2
+
+# TODO
+Make an installer including an option to change capabilities of the application.    
+use the following command: `sudo setcap CAP_SYS_ADMIN,CAP_NET_ADMIN,CAP_NET_RAW,CAP_DAC_OVERRIDE+ep target/release/pv3_rust`
