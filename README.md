@@ -3,10 +3,11 @@
 ## Prerequisite
 
 ### bpftool & XDP-tools (submodules)
-PV 3.0 mainly uses libxdp in XDP-tools and bpftool is used to set configuration of XDP-tools.
+PV 3.0 mainly uses libxdp in [XDP-tools][] and `bpftool` is used to set configuration of XDP-tools.
 
 The script, `build.sh`, includes submodule update so that you can do the next step.
 
+[XDP-tools]: https://github.com/xdp-project/xdp-tools
 ## Build
 You can build PV 3.0 by executing `build.sh`
 
