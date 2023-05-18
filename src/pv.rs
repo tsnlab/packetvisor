@@ -14,7 +14,7 @@ use std::ffi::CString;
 
 const DEFAULT_HEADROOM: u32 = 256;
 
-pub fn packet_dump(packet: &PvPacket) {
+fn packet_dump(packet: &PvPacket) {
     let chunk_address = packet.private as u64;
     let buffer_address: *const u8 = packet.buffer.cast_const();
 
@@ -415,7 +415,7 @@ pub fn pv_receive(nic: &mut PvNic, packets: &mut Vec<PvPacket>, batch_size: u32)
                 (rx_desc_ptr.as_ref().unwrap().addr - DEFAULT_HEADROOM as u64) as *mut c_void
             };
 
-            packet_dump(&packets[metadata_count as usize]);
+            // packet_dump(&packets[metadata_count as usize]);
             metadata_count += 1;
         }
 
@@ -495,7 +495,7 @@ pub fn pv_send(nic: &mut PvNic, packets: &mut Vec<PvPacket>, batch_size: u32) ->
                 packets[pkt_index].private as u64 + packets[pkt_index].start as u64;
             tx_desc_ptr.as_mut().unwrap().len = packets[pkt_index].end - packets[pkt_index].start;
         }
-        packet_dump(&packets[pkt_index]);
+        // packet_dump(&packets[pkt_index]);
         packets.pop(); // free packet metadata of sent packets.
     }
 
