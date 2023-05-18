@@ -1,6 +1,6 @@
 mod arp;
-mod pv;
 mod bindings;
+mod pv;
 
 use crate::arp::gen_arp_response_packet;
 use crate::pv::*;
@@ -117,6 +117,7 @@ fn main() {
         if received > 0 {
             let processed: u32 =
                 process_packets(&mut nic, &mut packets, received, &src_mac_address);
+
             let sent: u32 = pv_send(&mut nic, &mut packets, processed);
 
             if sent == 0 {

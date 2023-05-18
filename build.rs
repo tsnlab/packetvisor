@@ -14,7 +14,10 @@ fn main() {
         .status()
         .expect("could not complete submodule update");
 
-    assert!(git_submodule_update_status.success(), "submodule update failed");
+    assert!(
+        git_submodule_update_status.success(),
+        "submodule update failed"
+    );
 
     let bpftool_dir = src_dir.join("bpftool/src");
     let xdptools_dir = src_dir.join("xdp-tools");
@@ -56,4 +59,3 @@ fn main() {
         .write_to_file(src_dir.join("src/bindings.rs"))
         .expect("Couldn't write bindings");
 }
-
