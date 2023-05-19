@@ -98,6 +98,6 @@ pub fn set(packet: &mut PvPacket, position: u32, size: u32, value: u64) -> Resul
             };
             Ok(packet)
         }
-        Err(_) => Err(1),
+        Err(_) => Err(2),
     }
 }

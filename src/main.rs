@@ -155,7 +155,17 @@ fn process_packets(
                 && std::ptr::read(payload_ptr.offset(21)) == 0x01
             // ARP request packet
             {
-                gen_arp_response_packet(&mut packets[i as usize], src_mac_address);
+                match gen_arp_response_packet(&mut packets[i as usize], src_mac_address) {
+                    Ok(_) => {
+                    },
+                    Err(e) => {
+                        match e {
+                            1 => println!("failed to get packet buffer"),
+                            2 => println!("failed to set packet buffer"),
+                            _ => println!("unknown error"),
+                        }
+                    }
+                }
                 processed += 1;
             } else {
                 pv_free(nic, packets, i as usize);
