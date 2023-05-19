@@ -2,188 +2,184 @@ use crate::pv::PvPacket;
 use crate::utils::*;
 use pnet::datalink::MacAddr;
 
-pub fn get_hw_type(packet: &PvPacket) -> Result<u16, &str> {
+pub fn get_hw_type(packet: &PvPacket) -> Result<u16, u32> {
     match get(packet, 14, 2) {
-        Ok(v) => Ok(v as u16),
-        Err(_) => Err("ARP: get_hw_type() failed"),
+        Ok(value) => Ok(value as u16),
+        Err(_) => Err(1)
     }
 }
 
-pub fn set_hw_type(packet: &mut PvPacket, v: u16) -> Result<&PvPacket, &str> {
-    match set(packet, 14, 2, v as u64) {
-        Ok(v) => Ok(v),
-        Err(_) => Err("ARP: set_hw_type() failed"),
+pub fn set_hw_type(packet: &mut PvPacket, value: u16) -> Result<&PvPacket, u32> {
+    match set(packet, 14, 2, value as u64) {
+        Ok(value) => Ok(value),
+        Err(_) => Err(1)
     }
 }
 
-pub fn get_ether_type(packet: &PvPacket) -> Result<u16, &str> {
+pub fn get_ether_type(packet: &PvPacket) -> Result<u16, u32> {
     let ret = get(packet, 12, 2);
     match ret {
-        Ok(v) => Ok(v as u16),
-        Err(_) => Err("ARP: get_ether_type() failed"),
+        Ok(value) => Ok(value as u16),
+        Err(_) => Err(1)
     }
 }
 
-pub fn set_ether_type(packet: &mut PvPacket, v: u16) -> Result<&PvPacket, &str> {
-    match set(packet, 12, 2, v as u64) {
-        Ok(v) => Ok(v),
-        Err(_) => Err("ARP: set_ether_type() failed"),
+pub fn set_ether_type(packet: &mut PvPacket, value: u16) -> Result<&PvPacket, u32> {
+    match set(packet, 12, 2, value as u64) {
+        Ok(value) => Ok(value),
+        Err(_) => Err(1)
     }
 }
 
-pub fn get_proto_type(packet: &PvPacket) -> Result<u16, &str> {
+pub fn get_proto_type(packet: &PvPacket) -> Result<u16, u32> {
     match get(packet, 16, 2) {
-        Ok(v) => Ok(v as u16),
-        Err(_) => Err("ARP: get_proto_type() failed"),
+        Ok(value) => Ok(value as u16),
+        Err(_) => Err(1)
     }
 }
 
-pub fn set_proto_type(packet: &mut PvPacket, v: u16) -> Result<&PvPacket, &str> {
-    match set(packet, 16, 2, v as u64) {
-        Ok(v) => Ok(v),
-        Err(_) => Err("ARP: set_proto_type() failed"),
+pub fn set_proto_type(packet: &mut PvPacket, value: u16) -> Result<&PvPacket, u32> {
+    match set(packet, 16, 2, value as u64) {
+        Ok(value) => Ok(value),
+        Err(_) => Err(1)
     }
 }
 
-pub fn get_hw_size(packet: &PvPacket) -> Result<u8, &str> {
+pub fn get_hw_size(packet: &PvPacket) -> Result<u8, u32> {
     match get(packet, 18, 1) {
-        Ok(v) => Ok(v as u8),
-        Err(_) => Err("ARP: get_hw_size() failed"),
+        Ok(value) => Ok(value as u8),
+        Err(_) => Err(1)
     }
 }
 
-pub fn set_hw_size(packet: &mut PvPacket, v: u8) -> Result<&PvPacket, &str> {
-    match set(packet, 18, 1, v as u64) {
-        Ok(v) => Ok(v),
-        Err(_) => Err("ARP: set_hw_size() failed"),
+pub fn set_hw_size(packet: &mut PvPacket, value: u8) -> Result<&PvPacket, u32> {
+    match set(packet, 18, 1, value as u64) {
+        Ok(value) => Ok(value),
+        Err(_) => Err(1)
     }
 }
 
-pub fn get_proto_size(packet: &PvPacket) -> Result<u8, &str> {
+pub fn get_proto_size(packet: &PvPacket) -> Result<u8, u32> {
     match get(packet, 19, 1) {
-        Ok(v) => Ok(v as u8),
-        Err(_) => Err("ARP: get_proto_size() failed"),
+        Ok(value) => Ok(value as u8),
+        Err(_) => Err(1)
     }
 }
 
-pub fn set_proto_size(packet: &mut PvPacket, v: u8) -> Result<&PvPacket, &str> {
-    match set(packet, 19, 1, v as u64) {
-        Ok(v) => Ok(v),
-        Err(_) => Err("ARP: set_proto_size() failed"),
+pub fn set_proto_size(packet: &mut PvPacket, value: u8) -> Result<&PvPacket, u32> {
+    match set(packet, 19, 1, value as u64) {
+        Ok(value) => Ok(value),
+        Err(_) => Err(1)
     }
 }
 
-pub fn get_op_code(packet: &PvPacket) -> Result<u16, &str> {
+pub fn get_op_code(packet: &PvPacket) -> Result<u16, u32> {
     match get(packet, 20, 2) {
-        Ok(v) => Ok(v as u16),
-        Err(_) => Err("ARP: get_op_code() failed"),
+        Ok(value) => Ok(value as u16),
+        Err(_) => Err(1)
     }
 }
 
-pub fn set_op_code(packet: &mut PvPacket, v: u16) -> Result<&PvPacket, &str> {
-    match set(packet, 20, 2, v as u64) {
-        Ok(v) => Ok(v),
-        Err(_) => Err("ARP: set_op_code() failed"),
+pub fn set_op_code(packet: &mut PvPacket, value: u16) -> Result<&PvPacket, u32> {
+    match set(packet, 20, 2, value as u64) {
+        Ok(value) => Ok(value),
+        Err(_) => Err(1)
     }
 }
 
-pub fn get_src_hw(packet: &PvPacket) -> Result<u64, &str> {
+pub fn get_src_hw(packet: &PvPacket) -> Result<u64, u32> {
     match get(packet, 6, 6) {
-        Ok(v) => Ok(v),
-        Err(_) => Err("ARP: get_src_hw() failed"),
+        Ok(value) => Ok(value),
+        Err(_) => Err(1)
     }
 }
 
-pub fn set_src_hw(packet: &mut PvPacket, v: u64) -> Result<&PvPacket, &str> {
-    match set(packet, 6, 6, v) {
-        Ok(v) => {}
+pub fn set_src_hw(packet: &mut PvPacket, value: u64) -> Result<&PvPacket, u32> {
+    match set(packet, 6, 6, value) {
+        Ok(value) => {}
         Err(_) => {
-            return Err("ARP: set_src_hw() failed");
+            return Err(1);
         }
     }
-    match set(packet, 22, 6, v as u64) {
-        Ok(v) => Ok(v),
-        Err(_) => Err("ARP: set_src_hw() failed"),
+    match set(packet, 22, 6, value as u64) {
+        Ok(value) => Ok(value),
+        Err(_) => Err(1)
     }
 }
 
-pub fn get_src_proto(packet: &mut PvPacket) -> Result<u32, &str> {
+pub fn get_src_proto(packet: &mut PvPacket) -> Result<u32, u32> {
     match get(packet, 28, 4) {
-        Ok(v) => Ok(v as u32),
-        Err(_) => Err("ARP: get_src_proto() failed"),
+        Ok(value) => Ok(value as u32),
+        Err(_) => Err(1)
     }
 }
 
-pub fn set_src_proto(packet: &mut PvPacket, v: u32) -> Result<&PvPacket, &str> {
-    match set(packet, 28, 4, v as u64) {
-        Ok(v) => Ok(v),
-        Err(_) => Err("ARP: set_src_proto() failed"),
+pub fn set_src_proto(packet: &mut PvPacket, value: u32) -> Result<&PvPacket, u32> {
+    match set(packet, 28, 4, value as u64) {
+        Ok(value) => Ok(value),
+        Err(_) => Err(1)
     }
 }
 
-pub fn get_dst_hw(packet: &PvPacket) -> Result<u64, &str> {
+pub fn get_dst_hw(packet: &PvPacket) -> Result<u64, u32> {
     match get(packet, 0, 6) {
-        Ok(v) => Ok(v),
-        Err(_) => Err("ARP: get_dst_hw() failed"),
+        Ok(value) => Ok(value),
+        Err(_) => Err(1)
     }
 }
 
-pub fn set_dst_hw(packet: &mut PvPacket, v: u64) -> Result<&PvPacket, &str> {
-    match set(packet, 0, 6, v) {
-        Ok(v) => {}
+pub fn set_dst_hw(packet: &mut PvPacket, value: u64) -> Result<&PvPacket, u32> {
+    match set(packet, 0, 6, value) {
+        Ok(value) => {},
         Err(_) => {
-            return Err("ARP: set_dst_hw() failed");
+            return Err(1);
         }
     }
-    match set(packet, 32, 6, v) {
-        Ok(v) => Ok(v),
-        Err(_) => Err("ARP: set_dst_hw() failed"),
+    match set(packet, 32, 6, value) {
+        Ok(value) => Ok(value),
+        Err(_) => Err(1)
     }
 }
 
-pub fn get_dst_proto(packet: &PvPacket) -> Result<u32, &str> {
+pub fn get_dst_proto(packet: &PvPacket) -> Result<u32, u32> {
     match get(packet, 38, 4) {
-        Ok(v) => Ok(v as u32),
-        Err(_) => Err("ARP: get_dst_proto() failed"),
+        Ok(value) => Ok(value as u32),
+        Err(_) => Err(1)
     }
 }
 
-pub fn set_dst_proto(packet: &mut PvPacket, v: u32) -> Result<&PvPacket, &str> {
-    match set(packet, 38, 4, v as u64) {
-        Ok(v) => Ok(v),
-        Err(_) => Err("ARP: set_dst_proto() failed"),
+pub fn set_dst_proto(packet: &mut PvPacket, value: u32) -> Result<&PvPacket, u32> {
+    match set(packet, 38, 4, value as u64) {
+        Ok(value) => Ok(value),
+        Err(_) => Err(1)
     }
 }
 
-pub fn gen_arp_response_packet(packet: &mut PvPacket, src_mac_address: &MacAddr) {
+pub fn gen_arp_response_packet(packet: &mut PvPacket, src_mac_address: &MacAddr) -> Result<u32, u32> {
     const ARP_RSPN_PACKET_SIZE: u32 = 42;
 
     // copy dest MAC
-    set_dst_hw(packet, get_src_hw(packet).unwrap()).expect("ARP: gen_arp_response_packet() failed");
+    set_dst_hw(packet, get_src_hw(packet).unwrap())?;
     // copy src MAC
-    set_src_hw(packet, macAddr_to_u64(src_mac_address))
-        .expect("ARP: gen_arp_response_packet() failed");
+    set_src_hw(packet, macAddr_to_u64(src_mac_address))?;
     // Ethertype - ARP
-    set_ether_type(packet, endian16(&[0x08, 0x06][0]))
-        .expect("ARP: gen_arp_response_packet() failed");
+    set_ether_type(packet, endian16(&[0x08, 0x06][0]))?;
     // HW type
-    set_hw_type(packet, endian16(&[0x00, 0x01][0])).expect("ARP: gen_arp_response_packet() failed");
+    set_hw_type(packet, endian16(&[0x00, 0x01][0]))?;
     // protocol type
-    set_proto_type(packet, endian16(&[0x08, 0x00][0]))
-        .expect("ARP: gen_arp_response_packet() failed");
+    set_proto_type(packet, endian16(&[0x08, 0x00][0]))?;
     // // HW size
-    set_hw_size(packet, 6).expect("ARP: gen_arp_response_packet() failed");
+    set_hw_size(packet, 6)?;
     // protocol size
-    set_proto_size(packet, 4).expect("ARP: gen_arp_response_packet() failed");
+    set_proto_size(packet, 4)?;
     // op code - ARP_REPLY
-    set_op_code(packet, endian16(&[0x00, 0x02][0])).expect("ARP: gen_arp_response_packet() failed");
+    set_op_code(packet, endian16(&[0x00, 0x02][0]))?;
     // sender IP (10.0.0.4)
-    set_src_proto(packet, endian32(&[0x0a, 0x00, 0x00, 0x04][0]))
-        .expect("ARP: gen_arp_response_packet() failed");
+    set_src_proto(packet, endian32(&[0x0a, 0x00, 0x00, 0x04][0]))?;
     // dest IP (10.0.0.5)
-    set_dst_proto(packet, endian32(&[0x0a, 0x00, 0x00, 0x05][0]))
-        .expect("ARP: gen_arp_response_packet() failed");
+    set_dst_proto(packet, endian32(&[0x0a, 0x00, 0x00, 0x05][0]))?;
 
     // set packet length of ARP response as 42 bytes
     packet.end = packet.start + ARP_RSPN_PACKET_SIZE;
+    Ok(0)
 }
