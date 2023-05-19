@@ -1,10 +1,12 @@
 use crate::pv::PvPacket;
 use pnet::datalink::MacAddr;
 
+// return u16 that gets 2 bytes from const* u8
 pub fn endian16(ptr: *const u8) -> u16 {
     (unsafe { *(ptr.offset(1)) } as u16) << 8 | unsafe { *ptr } as u16
 }
 
+// return u32 that gets 4 bytes from const* u8
 pub fn endian32(ptr: *const u8) -> u32 {
     unsafe {
         ((*ptr.offset(3) as u32) << 24)
@@ -14,6 +16,7 @@ pub fn endian32(ptr: *const u8) -> u32 {
     }
 }
 
+// return u64 that gets 6 bytes from const* u8
 pub fn endian48(ptr: *const u8) -> u64 {
     unsafe {
         ((*ptr.offset(5) as u64) << 40)
@@ -25,6 +28,7 @@ pub fn endian48(ptr: *const u8) -> u64 {
     }
 }
 
+// return u64 that gets 8 bytes from const* u8
 pub fn endian64(ptr: *const u8) -> u64 {
     unsafe {
         ((*ptr.offset(7) as u64) << 56)
@@ -38,6 +42,7 @@ pub fn endian64(ptr: *const u8) -> u64 {
     }
 }
 
+// return u64 that gets n bytes from const* u8
 pub fn endian(ptr: *const u8, size: u32) -> u64 {
     unsafe {
         let mut ret: u64 = 0;
@@ -50,6 +55,7 @@ pub fn endian(ptr: *const u8, size: u32) -> u64 {
     }
 }
 
+// makes MacAddr to u64
 pub fn macAddr_to_u64(mac: &MacAddr) -> u64 {
     let mut ret: u64 = 0;
     let mut n = 0;
