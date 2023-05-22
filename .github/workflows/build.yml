@@ -18,6 +18,8 @@ jobs:
         with:
           toolchain: nightly
           components: clippy, rustfmt
+      - name: Cache rust
+        uses: Swatinem/rust-cache@v2
       - name: Test
         run: cargo test
       - name: Build
