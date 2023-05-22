@@ -20,6 +20,10 @@ jobs:
           components: clippy, rustfmt
       - name: Cache rust
         uses: Swatinem/rust-cache@v2
+      - name: Setup system dependencies
+        run: |-
+          sudo apt update &&\
+          sudo apt install --no-install-recommends -y libelf-dev clang llvm libpcap-dev gcc-multilib
       - name: Test
         run: cargo test
       - name: Build
