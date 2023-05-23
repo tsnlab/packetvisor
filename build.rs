@@ -1,5 +1,6 @@
 use std::env;
 use std::path;
+use std::path::PathBuf;
 use std::process;
 
 fn main() {
@@ -14,7 +15,10 @@ fn main() {
         .status()
         .expect("could not complete submodule update");
 
-    assert!(git_submodule_update_status.success(), "submodule update failed");
+    assert!(
+        git_submodule_update_status.success(),
+        "submodule update failed"
+    );
 
     let bpftool_dir = src_dir.join("bpftool/src");
     let xdptools_dir = src_dir.join("xdp-tools");
@@ -22,6 +26,8 @@ fn main() {
     let headers_dir = xdptools_dir.join("headers/xdp");
     let include_dir = xdptools_dir.join("lib/libbpf/src/root/usr/include");
     let libbpf_src_dir = xdptools_dir.join("lib/libbpf/src");
+
+    let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
 
     let status = process::Command::new("make")
         .current_dir(&bpftool_dir)
@@ -53,7 +59,6 @@ fn main() {
         .generate_inline_functions(true)
         .generate()
         .expect("Unable to generate bindings")
-        .write_to_file(src_dir.join("src/bindings.rs"))
+        .write_to_file(out_path.join("bindings.rs"))
         .expect("Couldn't write bindings");
 }
-

@@ -1,16 +1,15 @@
 #![allow(non_upper_case_globals)]
 #![allow(non_camel_case_types)]
 #![allow(non_snake_case)]
-#![allow(clippy::missing_safety_doc)]
-#![allow(clippy::useless_transmute)]
 #![allow(dead_code)]
-
-include!("bindings.rs");
+#![allow(clippy::useless_transmute)]
+#![allow(clippy::upper_case_acronyms)]
+include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 
 use core::ffi::*;
-use std::ffi::{CString};
-use std::alloc::{alloc_zeroed, Layout};
 use pnet::datalink::{interfaces, NetworkInterface};
+use std::alloc::{alloc_zeroed, Layout};
+use std::ffi::CString;
 
 const DEFAULT_HEADROOM: u32 = 256;
 
@@ -18,7 +17,7 @@ fn packet_dump(packet: &PvPacket) {
     let chunk_address = packet.private as u64;
     let buffer_address: *const u8 = packet.buffer.cast_const();
 
-    let length:u32 = packet.size;
+    let length: u32 = packet.size;
     let mut count: u32 = 0;
 
     unsafe {
@@ -45,11 +44,11 @@ fn packet_dump(packet: &PvPacket) {
 
 #[derive(Debug)]
 pub struct PvPacket {
-    pub start: u32,         // payload offset pointing the start of payload. ex. 256
-    pub end: u32,           // payload offset point the end of payload. ex. 1000
-    pub size: u32,          // total size of buffer. ex. 2048
-    pub buffer: *mut u8,    // buffer address.
-    private: *mut c_void,       // DO NOT touch this.
+    pub start: u32,       // payload offset pointing the start of payload. ex. 256
+    pub end: u32,         // payload offset point the end of payload. ex. 1000
+    pub size: u32,        // total size of buffer. ex. 2048
+    pub buffer: *mut u8,  // buffer address.
+    private: *mut c_void, // DO NOT touch this.
 }
 
 impl PvPacket {
@@ -59,7 +58,7 @@ impl PvPacket {
             end: 0,
             size: 0,
             buffer: std::ptr::null_mut(),
-            private: std::ptr::null_mut()
+            private: std::ptr::null_mut(),
         }
     }
 }
@@ -151,11 +150,11 @@ impl PvNic {
         if is_creation_failed {
             None
         } else {
-            let a:PvNic = unsafe {
+            let a: PvNic = unsafe {
                 PvNic {
                     if_name: if_name.to_owned(),
                     xsk: xsk_ptr.cast::<xsk_socket>(),
-                    umem: umem_ptr.cast::<xsk_umem>(),   // umem is needed to be dealloc after using packetvisor library.
+                    umem: umem_ptr.cast::<xsk_umem>(), // umem is needed to be dealloc after using packetvisor library.
                     buffer: std::ptr::null_mut(),
                     chunk_size: set_chunk_size,
                     chunk_pool: Vec::with_capacity(set_chunk_count as usize),
@@ -164,8 +163,8 @@ impl PvNic {
                     rx: std::ptr::read(rx_ptr.cast::<xsk_ring_cons>()),
                     cq: std::ptr::read(cq_ptr.cast::<xsk_ring_cons>()),
                     tx: std::ptr::read(tx_ptr.cast::<xsk_ring_prod>()),
-                    }
-                };
+                }
+            };
             Some(a)
         }
     }
@@ -180,11 +179,11 @@ fn pv_alloc_(nic: &mut PvNic) -> u64 {
     }
 }
 
-pub fn pv_alloc(nic: &mut PvNic) ->  Option<PvPacket> {
+pub fn pv_alloc(nic: &mut PvNic) -> Option<PvPacket> {
     let idx: u64 = pv_alloc_(nic);
 
     match idx {
-        u64::MAX => { None },
+        u64::MAX => None,
         _ => {
             let mut packet: PvPacket = PvPacket::new();
             packet.start = DEFAULT_HEADROOM;
@@ -211,7 +210,13 @@ pub fn pv_free(nic: &mut PvNic, packets: &mut Vec<PvPacket>, index: usize) {
     packets.remove(index);
 }
 
-fn configure_umem(nic: &mut PvNic, set_chunk_size: u32, set_chunk_count: u32, set_fill_size: u32, set_complete_size: u32) -> Result<(), i32> {
+fn configure_umem(
+    nic: &mut PvNic,
+    set_chunk_size: u32,
+    set_chunk_count: u32,
+    set_fill_size: u32,
+    set_complete_size: u32,
+) -> Result<(), i32> {
     let umem_buffer_size: usize = (set_chunk_count * set_chunk_size) as usize; // chunk_count is UMEM size.
 
     /* Reserve memory for the UMEM. */
@@ -219,10 +224,11 @@ fn configure_umem(nic: &mut PvNic, set_chunk_size: u32, set_chunk_count: u32, se
         libc::mmap(
             std::ptr::null_mut::<libc::c_void>(),
             umem_buffer_size,
-            libc::PROT_READ | libc:: PROT_WRITE,
+            libc::PROT_READ | libc::PROT_WRITE,
             libc::MAP_PRIVATE | libc::MAP_ANONYMOUS,
             -1,
-            0)
+            0,
+        )
     };
 
     if mmap_address == libc::MAP_FAILED {
@@ -239,57 +245,88 @@ fn configure_umem(nic: &mut PvNic, set_chunk_size: u32, set_chunk_count: u32, se
         flags: XSK_UMEM__DEFAULT_FLAGS,
     };
 
-    let ret:c_int = unsafe { xsk_umem__create(&mut nic.umem, mmap_address, umem_buffer_size as u64, &mut nic.fq, &mut nic.cq, &umem_cfg) };
+    let ret: c_int = unsafe {
+        xsk_umem__create(
+            &mut nic.umem,
+            mmap_address,
+            umem_buffer_size as u64,
+            &mut nic.fq,
+            &mut nic.cq,
+            &umem_cfg,
+        )
+    };
     match ret {
         0 => {
             nic.buffer = mmap_address;
             Ok(())
         }
         _ => {
-            unsafe { libc::munmap(mmap_address, umem_buffer_size); }
+            unsafe {
+                libc::munmap(mmap_address, umem_buffer_size);
+            }
             Err(ret)
         }
     }
 }
 
-pub fn pv_open(if_name: &str, chunk_size: u32, chunk_count: u32,
-                rx_ring_size: u32, tx_ring_size: u32, filling_ring_size: u32,
-                completion_ring_size: u32) -> Option<PvNic>
-{
+pub fn pv_open(
+    if_name: &str,
+    chunk_size: u32,
+    chunk_count: u32,
+    rx_ring_size: u32,
+    tx_ring_size: u32,
+    filling_ring_size: u32,
+    completion_ring_size: u32,
+) -> Option<PvNic> {
     /* create PvNic */
-    let nic_result: Option<PvNic> = PvNic::new(if_name, chunk_size, chunk_count as i32);   // **chunk_count is UMEM size
+    let nic_result: Option<PvNic> = PvNic::new(if_name, chunk_size, chunk_count as i32); // **chunk_count is UMEM size
     let mut nic: PvNic;
 
     match nic_result {
-        Some(T) => { nic = T; },
-        None => { return None; }
+        Some(T) => {
+            nic = T;
+        }
+        None => {
+            return None;
+        }
     }
 
     /* initialize UMEM chunk information */
     for i in 0..chunk_count {
-        nic.chunk_pool.push((i * chunk_size) as u64);   // put chunk address
+        nic.chunk_pool.push((i * chunk_size) as u64); // put chunk address
     }
 
     /* configure UMEM */
-    let ret = configure_umem(&mut nic, chunk_size, chunk_count, filling_ring_size, completion_ring_size);
+    let ret = configure_umem(
+        &mut nic,
+        chunk_size,
+        chunk_count,
+        filling_ring_size,
+        completion_ring_size,
+    );
     if ret.is_err() {
         return None;
     }
 
     /* pre-allocate UMEM chunks into fq */
     let mut fq_idx: u32 = 0;
-    let reserved: u32 = unsafe { xsk_ring_prod__reserve(&mut nic.fq, filling_ring_size, &mut fq_idx) };
+    let reserved: u32 =
+        unsafe { xsk_ring_prod__reserve(&mut nic.fq, filling_ring_size, &mut fq_idx) };
 
     for i in 0..reserved {
-        unsafe { *xsk_ring_prod__fill_addr(&mut nic.fq, fq_idx + i) = pv_alloc_(&mut nic); } // allocation of UMEM chunks into fq.
+        unsafe {
+            *xsk_ring_prod__fill_addr(&mut nic.fq, fq_idx + i) = pv_alloc_(&mut nic);
+        } // allocation of UMEM chunks into fq.
     }
-    unsafe { xsk_ring_prod__submit(&mut nic.fq, reserved); } // notify kernel of allocating UMEM chunks into fq as much as **reserved.
+    unsafe {
+        xsk_ring_prod__submit(&mut nic.fq, reserved);
+    } // notify kernel of allocating UMEM chunks into fq as much as **reserved.
 
     /* check interface name to be attached XDP program is valid */
     let all_interfaces: Vec<NetworkInterface> = interfaces();
     let is_exist: Option<&NetworkInterface> = all_interfaces
-                            .iter()
-                            .find(|element| element.name.as_str() == if_name);
+        .iter()
+        .find(|element| element.name.as_str() == if_name);
 
     is_exist?;
 
@@ -303,12 +340,22 @@ pub fn pv_open(if_name: &str, chunk_size: u32, chunk_count: u32,
         /* zero means loading default XDP program.
         if you need to load other XDP program, set 1 on this flag and use xdp_program__open_file(), xdp_program__attach() in libxdp. */
         __bindgen_anon_1: xsk_socket_config__bindgen_ty_1 { libxdp_flags: 0 },
-        xdp_flags: 4,     // XDP_FLAGS_DRV_MODE in if_link.h (driver mode (Native mode))
+        xdp_flags: 4, // XDP_FLAGS_DRV_MODE in if_link.h (driver mode (Native mode))
         bind_flags: XDP_USE_NEED_WAKEUP as u16,
     };
 
     /* create xsk socket */
-    let ret: c_int = unsafe { xsk_socket__create(&mut nic.xsk, if_name_ptr, 0, nic.umem, &mut nic.rx, &mut nic.tx, &xsk_cfg) };
+    let ret: c_int = unsafe {
+        xsk_socket__create(
+            &mut nic.xsk,
+            if_name_ptr,
+            0,
+            nic.umem,
+            &mut nic.rx,
+            &mut nic.tx,
+            &xsk_cfg,
+        )
+    };
     if ret != 0 {
         return None;
     }
@@ -319,7 +366,9 @@ pub fn pv_open(if_name: &str, chunk_size: u32, chunk_count: u32,
 // move ownership of nic
 pub fn pv_close(nic: PvNic) -> c_int {
     /* xsk delete */
-    unsafe { xsk_socket__delete(nic.xsk); }
+    unsafe {
+        xsk_socket__delete(nic.xsk);
+    }
 
     /* UMEM free */
     let ret: c_int = unsafe { xsk_umem__delete(nic.umem) };
@@ -330,12 +379,16 @@ pub fn pv_close(nic: PvNic) -> c_int {
 pub fn pv_receive(nic: &mut PvNic, packets: &mut Vec<PvPacket>, batch_size: u32) -> u32 {
     /* pre-allocate UMEM chunks into fq as much as **batch_size to receive packets */
     let mut fq_idx: u32 = 0;
-    let reserved: u32 = unsafe { xsk_ring_prod__reserve(&mut nic.fq, batch_size, &mut fq_idx)} ; // reserve slots in fq as much as **batch_size.
+    let reserved: u32 = unsafe { xsk_ring_prod__reserve(&mut nic.fq, batch_size, &mut fq_idx) }; // reserve slots in fq as much as **batch_size.
 
     for i in 0..reserved {
-        unsafe { *xsk_ring_prod__fill_addr(&mut nic.fq, fq_idx + i) = pv_alloc_(nic); }   // allocate UMEM chunks into fq.
+        unsafe {
+            *xsk_ring_prod__fill_addr(&mut nic.fq, fq_idx + i) = pv_alloc_(nic);
+        } // allocate UMEM chunks into fq.
     }
-    unsafe { xsk_ring_prod__submit(&mut nic.fq, reserved); } // notify kernel of allocating UMEM chunks into fq as much as **reserved.
+    unsafe {
+        xsk_ring_prod__submit(&mut nic.fq, reserved);
+    } // notify kernel of allocating UMEM chunks into fq as much as **reserved.
 
     /* save packet metadata from received packets in RX ring. */
     let mut rx_idx: u32 = 0;
@@ -346,22 +399,34 @@ pub fn pv_receive(nic: &mut PvNic, packets: &mut Vec<PvPacket>, batch_size: u32)
         while metadata_count < received {
             /* create packet metadata */
             packets.push(PvPacket::new());
-            let rx_desc_ptr: *const xdp_desc = unsafe { xsk_ring_cons__rx_desc(&nic.rx, rx_idx + metadata_count) }; // bringing information(packet address, packet length) of received packets through descriptors in RX ring
+            let rx_desc_ptr: *const xdp_desc =
+                unsafe { xsk_ring_cons__rx_desc(&nic.rx, rx_idx + metadata_count) }; // bringing information(packet address, packet length) of received packets through descriptors in RX ring
 
             /* save metadata */
             packets[metadata_count as usize].start = DEFAULT_HEADROOM;
-            packets[metadata_count as usize].end = DEFAULT_HEADROOM + unsafe { rx_desc_ptr.as_ref().unwrap().len };
+            packets[metadata_count as usize].end =
+                DEFAULT_HEADROOM + unsafe { rx_desc_ptr.as_ref().unwrap().len };
             packets[metadata_count as usize].size = nic.chunk_size;
-            packets[metadata_count as usize].buffer = unsafe { xsk_umem__get_data(nic.buffer, rx_desc_ptr.as_ref().unwrap().addr).cast::<u8>().sub(DEFAULT_HEADROOM as usize) };
-            packets[metadata_count as usize].private = unsafe { (rx_desc_ptr.as_ref().unwrap().addr - DEFAULT_HEADROOM as u64) as *mut c_void };
+            packets[metadata_count as usize].buffer = unsafe {
+                xsk_umem__get_data(nic.buffer, rx_desc_ptr.as_ref().unwrap().addr)
+                    .cast::<u8>()
+                    .sub(DEFAULT_HEADROOM as usize)
+            };
+            packets[metadata_count as usize].private = unsafe {
+                (rx_desc_ptr.as_ref().unwrap().addr - DEFAULT_HEADROOM as u64) as *mut c_void
+            };
 
             // packet_dump(&packets[metadata_count as usize]);
             metadata_count += 1;
         }
 
-        unsafe { xsk_ring_cons__release(&mut nic.rx, received); } // notify kernel of using filled slots in RX ring as much as **received
+        unsafe {
+            xsk_ring_cons__release(&mut nic.rx, received);
+        } // notify kernel of using filled slots in RX ring as much as **received
 
-        if metadata_count != received { received = metadata_count; }
+        if metadata_count != received {
+            received = metadata_count;
+        }
     }
 
     unsafe {
@@ -372,7 +437,8 @@ pub fn pv_receive(nic: &mut PvNic, packets: &mut Vec<PvPacket>, batch_size: u32)
                 0 as libc::size_t,
                 libc::MSG_DONTWAIT,
                 std::ptr::null_mut::<libc::sockaddr>(),
-                std::ptr::null_mut::<u32>());
+                std::ptr::null_mut::<u32>(),
+            );
         }
     }
 
@@ -382,14 +448,18 @@ pub fn pv_receive(nic: &mut PvNic, packets: &mut Vec<PvPacket>, batch_size: u32)
 pub fn pv_send(nic: &mut PvNic, packets: &mut Vec<PvPacket>, batch_size: u32) -> u32 {
     /* free packet metadata and UMEM chunks as much as the number of filled slots in cq. */
     let mut cq_idx: u32 = 0;
-    let filled: u32 = unsafe{ xsk_ring_cons__peek(&mut nic.cq, batch_size, &mut cq_idx) }; // fetch the number of filled slots(the number of packets completely sent) in cq
+    let filled: u32 = unsafe { xsk_ring_cons__peek(&mut nic.cq, batch_size, &mut cq_idx) }; // fetch the number of filled slots(the number of packets completely sent) in cq
 
     if filled > 0 {
         for _ in 0..filled {
-            unsafe { pv_free_(nic, *xsk_ring_cons__comp_addr(&nic.cq, cq_idx)); } // free UMEM chunks as much as the number of sent packets (same as **filled)
+            unsafe {
+                pv_free_(nic, *xsk_ring_cons__comp_addr(&nic.cq, cq_idx));
+            } // free UMEM chunks as much as the number of sent packets (same as **filled)
             cq_idx += 1;
         }
-        unsafe { xsk_ring_cons__release(&mut nic.cq, filled); } // notify kernel that cq has empty slots with **filled (Dequeue)
+        unsafe {
+            xsk_ring_cons__release(&mut nic.cq, filled);
+        } // notify kernel that cq has empty slots with **filled (Dequeue)
     }
 
     /* reserve TX ring as much as batch_size before sending packets. */
@@ -401,7 +471,7 @@ pub fn pv_send(nic: &mut PvNic, packets: &mut Vec<PvPacket>, batch_size: u32) ->
         /* in case that kernel lost interrupt signal in the previous sending packets procedure,
         repeat to interrupt kernel to send packets which ketnel could have still held.
         (this procedure is for clearing filled slots in cq, so that cq can be reserved as much as **batch_size in the next execution of pv_send(). */
-        unsafe{
+        unsafe {
             if xsk_ring_prod__needs_wakeup(&nic.tx) != 0 {
                 libc::sendto(
                     xsk_socket__fd(nic.xsk),
@@ -409,7 +479,8 @@ pub fn pv_send(nic: &mut PvNic, packets: &mut Vec<PvPacket>, batch_size: u32) ->
                     0 as libc::size_t,
                     libc::MSG_DONTWAIT,
                     std::ptr::null::<libc::sockaddr>(),
-                    0 as libc::socklen_t);
+                    0 as libc::socklen_t,
+                );
             }
         }
         return 0;
@@ -419,17 +490,18 @@ pub fn pv_send(nic: &mut PvNic, packets: &mut Vec<PvPacket>, batch_size: u32) ->
     for i in 0..reserved {
         let pkt_index: usize = (reserved - 1 - i) as usize;
         /* insert packets to be send into TX ring (Enqueue) */
-        let tx_desc_ptr = unsafe { xsk_ring_prod__tx_desc(&mut nic.tx, tx_idx + i) } ;
+        let tx_desc_ptr = unsafe { xsk_ring_prod__tx_desc(&mut nic.tx, tx_idx + i) };
         unsafe {
-            tx_desc_ptr.as_mut().unwrap().addr = packets[pkt_index].private as u64 + packets[pkt_index].start as u64;
+            tx_desc_ptr.as_mut().unwrap().addr =
+                packets[pkt_index].private as u64 + packets[pkt_index].start as u64;
             tx_desc_ptr.as_mut().unwrap().len = packets[pkt_index].end - packets[pkt_index].start;
         }
         // packet_dump(&packets[pkt_index]);
-        packets.pop();   // free packet metadata of sent packets.
+        packets.pop(); // free packet metadata of sent packets.
     }
 
     unsafe {
-        xsk_ring_prod__submit(&mut nic.tx, reserved);  // notify kernel of enqueuing TX ring as much as reserved.
+        xsk_ring_prod__submit(&mut nic.tx, reserved); // notify kernel of enqueuing TX ring as much as reserved.
 
         if xsk_ring_prod__needs_wakeup(&nic.tx) != 0 {
             libc::sendto(
@@ -438,7 +510,8 @@ pub fn pv_send(nic: &mut PvNic, packets: &mut Vec<PvPacket>, batch_size: u32) ->
                 0 as libc::size_t,
                 libc::MSG_DONTWAIT,
                 std::ptr::null::<libc::sockaddr>(),
-                0 as libc::socklen_t);   // interrupt kernel to send packets.
+                0 as libc::socklen_t,
+            ); // interrupt kernel to send packets.
         }
     }
 
