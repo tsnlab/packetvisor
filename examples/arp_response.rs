@@ -1,13 +1,12 @@
 /* ARP example */
 
 use pv::pv::*;
-use std::{env, sync::Arc, sync::atomic::{Ordering, AtomicBool}, io::Error};
-use pnet::{datalink::{interfaces, NetworkInterface, MacAddr}, packet::arp::ArpPacket};
+use std::{env, sync::Arc, sync::atomic::{Ordering, AtomicBool}, io::Error, net::Ipv4Addr};
+use pnet::{datalink::{interfaces, NetworkInterface, MacAddr}, packet::ethernet::{EtherTypes, MutableEthernetPacket}, packet::arp::*};
 use signal_hook::SigId;
 
 enum PacketKind {
     ArpReq,
-    ArpResp,
     Unused,
 }
 
@@ -108,8 +107,7 @@ fn process_packets(nic: &mut PvNic, packets: &mut Vec<PvPacket>, batch_size: u32
         // process packet
         match packet_kind {
             PacketKind::ArpReq => {
-                // gen_arp_response_packet();
-                println!("ARP Request Packet!");
+                gen_arp_response_packet(nic, &mut packets[i as usize]);
                 processed += 1;
             },
             _ => { pv_free(nic, packets, i as usize); }
@@ -133,4 +131,55 @@ fn packet_kind_checker(packet: &PvPacket) -> PacketKind {
     }
 
     PacketKind::Unused
+}
+
+fn gen_arp_response_packet(nic: &PvNic, packet: &mut PvPacket) -> Result<(),()> {
+    let all_interfaces: Vec<NetworkInterface> = interfaces();
+    let nic_interface: Option<&NetworkInterface> = all_interfaces
+                            .iter()
+                            .find(|element| element.name.as_str() == nic.if_name);
+
+    if nic_interface.is_none() {
+        return Err(());
+    } else {
+        let if_mac_addr = nic_interface.unwrap().mac;
+
+        if if_mac_addr.is_none() {
+            return Err(());
+        } else {
+            let src_mac_addr:MacAddr = if_mac_addr.unwrap();
+            let src_ip_addrs = nic_interface.unwrap().ips.first().unwrap().ip();
+
+            let src_ipv4_addr;
+            match src_ip_addrs {
+                std::net::IpAddr::V4(ipv4) => {src_ipv4_addr = ipv4;}
+                _ => { return Err(()); }
+            }
+
+            /* make ARP response packet header */
+            let mut arp_buffer = [0u8; 28];
+            let mut arp_packet = MutableArpPacket::new(&mut arp_buffer).unwrap();
+
+            arp_packet.set_hardware_type(ArpHardwareTypes::Ethernet);
+            arp_packet.set_protocol_type(EtherTypes::Ipv4);
+            arp_packet.set_hw_addr_len(6);
+            arp_packet.set_proto_addr_len(4);
+            arp_packet.set_operation(ArpOperations::Reply);
+            arp_packet.set_sender_hw_addr(src_mac_addr);
+            arp_packet.set_sender_proto_addr(src_ipv4_addr);
+            arp_packet.set_target_hw_addr(MacAddr::zero());
+            arp_packet.set_target_proto_addr(target_ip);
+
+            let mut ether_buffer = [0u8; 42];
+            let mut ether_packet = MutableEthernetPacket::new(&mut ether_buffer).unwrap();
+            ether_packet.set_destination(target_mac);
+            ether_packet.set_source(src_mac_addr);
+            ether_packet.set_ethertype(EtherTypes::Arp);
+            ether_packet.set_payload(arp_packet.packet_mut());
+            /* attach header to payload */
+
+            Ok(())
+        }
+    }
+
 }
