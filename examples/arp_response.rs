@@ -2,7 +2,8 @@
 
 use pv::pv::*;
 use std::{env, sync::Arc, sync::atomic::{Ordering, AtomicBool}, io::Error, net::Ipv4Addr};
-use pnet::{datalink::{interfaces, NetworkInterface, MacAddr}, packet::ethernet::{EtherTypes, MutableEthernetPacket}, packet::arp::*};
+use std::ptr::{copy_nonoverlapping};
+use pnet::{datalink::{interfaces, NetworkInterface, MacAddr}, packet::ethernet::{EtherTypes, MutableEthernetPacket}, packet::arp::*, packet::{MutablePacket, Packet}};
 use signal_hook::SigId;
 
 enum PacketKind {
@@ -104,13 +105,19 @@ fn process_packets(nic: &mut PvNic, packets: &mut Vec<PvPacket>, batch_size: u32
         let packet_kind: PacketKind = packet_kind_checker(&packets[i as usize]);
         // analyze packet and create packet
 
+        let processing_result: Result<(), ()>;
         // process packet
         match packet_kind {
             PacketKind::ArpReq => {
-                gen_arp_response_packet(nic, &mut packets[i as usize]);
-                processed += 1;
+                processing_result = gen_arp_response_packet(nic, &mut packets[i as usize]);
             },
-            _ => { pv_free(nic, packets, i as usize); }
+            _ => { processing_result = Err(()); }
+        }
+
+        if processing_result.is_ok() {
+            processed += 1;
+        } else {
+            pv_free(nic, packets, i as usize);
         }
     }
     processed
@@ -156,6 +163,26 @@ fn gen_arp_response_packet(nic: &PvNic, packet: &mut PvPacket) -> Result<(),()> 
                 _ => { return Err(()); }
             }
 
+            let dest_mac_addr:MacAddr = unsafe {
+                MacAddr::new(
+                    std::ptr::read(packet.buffer.offset((packet.start + 22) as isize)),
+                    std::ptr::read(packet.buffer.offset((packet.start + 23) as isize)),
+                    std::ptr::read(packet.buffer.offset((packet.start + 24) as isize)),
+                    std::ptr::read(packet.buffer.offset((packet.start + 25) as isize)),
+                    std::ptr::read(packet.buffer.offset((packet.start + 26) as isize)),
+                    std::ptr::read(packet.buffer.offset((packet.start + 27) as isize)),
+                )
+            };
+
+            let dest_Ipv4_addr = unsafe {
+                Ipv4Addr::new(
+                std::ptr::read(packet.buffer.offset((packet.start + 28) as isize)),
+                std::ptr::read(packet.buffer.offset((packet.start + 29) as isize)),
+                std::ptr::read(packet.buffer.offset((packet.start + 30) as isize)),
+                std::ptr::read(packet.buffer.offset((packet.start + 31) as isize))
+                )
+            };
+
             /* make ARP response packet header */
             let mut arp_buffer = [0u8; 28];
             let mut arp_packet = MutableArpPacket::new(&mut arp_buffer).unwrap();
@@ -167,16 +194,23 @@ fn gen_arp_response_packet(nic: &PvNic, packet: &mut PvPacket) -> Result<(),()> 
             arp_packet.set_operation(ArpOperations::Reply);
             arp_packet.set_sender_hw_addr(src_mac_addr);
             arp_packet.set_sender_proto_addr(src_ipv4_addr);
-            arp_packet.set_target_hw_addr(MacAddr::zero());
-            arp_packet.set_target_proto_addr(target_ip);
+            arp_packet.set_target_hw_addr(dest_mac_addr);
+            arp_packet.set_target_proto_addr(dest_Ipv4_addr);
 
+            /* attach ethernet header to ARP header */
             let mut ether_buffer = [0u8; 42];
             let mut ether_packet = MutableEthernetPacket::new(&mut ether_buffer).unwrap();
-            ether_packet.set_destination(target_mac);
+            ether_packet.set_destination(dest_mac_addr);
             ether_packet.set_source(src_mac_addr);
             ether_packet.set_ethertype(EtherTypes::Arp);
             ether_packet.set_payload(arp_packet.packet_mut());
-            /* attach header to payload */
+
+            /* delete data in packet and copy ARP packet */
+            packet.delete_data();
+            unsafe{
+                copy_nonoverlapping(ether_packet.packet().as_ptr(), packet.buffer.offset(packet.start as isize), ether_buffer.len());
+            }
+            packet.end = packet.start + ether_buffer.len() as u32;
 
             Ok(())
         }
