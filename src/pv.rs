@@ -7,6 +7,9 @@
 include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 
 use core::ffi::*;
+use std::ptr::{copy, copy_nonoverlapping};
+use std::ffi::{CString};
+use std::alloc::{alloc_zeroed, Layout};
 use pnet::datalink::{interfaces, NetworkInterface};
 use std::alloc::{alloc_zeroed, Layout};
 use std::ffi::CString;
@@ -59,6 +62,33 @@ impl PvPacket {
             size: 0,
             buffer: std::ptr::null_mut(),
             private: std::ptr::null_mut(),
+        }
+    }
+
+    // check whether the new header can be attached to payload from the start of packet
+    fn is_addable(header_length: usize, packet: &PvPacket) -> bool {
+        let total_len: u32 = packet.size - packet.start;
+        let payload_len: u32 = packet.end - packet.start;
+
+        if (header_length as u32) + payload_len <= total_len {
+            true
+        } else {
+            false
+        }
+    }
+
+    // add header to payload
+    pub fn add_header(&mut self, header: Vec<u8>) -> Result<(), ()> {
+        let is_addable: bool = Self::is_addable(header.len(), self);
+
+        if is_addable == true {
+            unsafe{
+                copy(self.buffer.offset((self.start) as isize), self.buffer.offset((self.start + header.len() as u32) as isize), header.len());
+                copy_nonoverlapping(header.as_ptr(), self.buffer.offset(self.start as isize), header.len());
+            }
+            Ok(())
+        } else {
+            Err(())
         }
     }
 }
