@@ -7,7 +7,7 @@
 include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 
 use core::ffi::*;
-use std::ptr::{copy, copy_nonoverlapping};
+use std::ptr::{copy, copy_nonoverlapping, write};
 use std::ffi::{CString};
 use std::alloc::{alloc_zeroed, Layout};
 use pnet::datalink::{interfaces, NetworkInterface};
@@ -90,6 +90,16 @@ impl PvPacket {
         } else {
             Err(())
         }
+    }
+
+    pub fn delete_data(&mut self) {
+        for i in self.start .. self.end {
+            unsafe {
+                write(self.buffer.offset(i as isize), 0);
+            }
+        }
+
+        self.end = self.start;
     }
 }
 
