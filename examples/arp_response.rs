@@ -1,10 +1,15 @@
 /* ARP example */
 
 use pv::pv::*;
-
 use std::{env, sync::Arc, sync::atomic::{Ordering, AtomicBool}, io::Error};
-use pnet::datalink::{interfaces, NetworkInterface, MacAddr};
+use pnet::{datalink::{interfaces, NetworkInterface, MacAddr}, packet::arp::ArpPacket};
 use signal_hook::SigId;
+
+enum PacketKind {
+    ArpReq,
+    ArpResp,
+    Unused,
+}
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -33,7 +38,6 @@ fn main() {
             _ => { panic!("abnormal index"); }
         }
     }
-
 
     /* signal define to end the application */
     let term:Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
@@ -98,23 +102,35 @@ fn main() {
 fn process_packets(nic: &mut PvNic, packets: &mut Vec<PvPacket>, batch_size: u32, src_mac_address: &MacAddr) -> u32 {
     let mut processed = 0;
     for i in (0..batch_size).rev() {
-
-        let payload_ptr = unsafe { packets[i as usize].buffer.add(packets[i as usize].start as usize).cast_const() };
-
+        let packet_kind: PacketKind = packet_kind_checker(&packets[i as usize]);
         // analyze packet and create packet
-        unsafe {
-            if std::ptr::read(payload_ptr.offset(12)) == 0x08 &&
-               std::ptr::read(payload_ptr.offset(13)) == 0x06 &&
-               std::ptr::read(payload_ptr.offset(20)) == 0x00 &&
-               std::ptr::read(payload_ptr.offset(21)) == 0x01 // ARP request packet
-            {
-                gen_arp_response_packet(&mut packets[i as usize], src_mac_address);
-                processed += 1;
 
-            } else {
-                pv_free(nic, packets, i as usize);
-            }
+        // process packet
+        match packet_kind {
+            PacketKind::ArpReq => {
+                // gen_arp_response_packet();
+                println!("ARP Request Packet!");
+                processed += 1;
+            },
+            _ => { pv_free(nic, packets, i as usize); }
         }
     }
     processed
+}
+
+// analyze what kind of given packet
+fn packet_kind_checker(packet: &PvPacket) -> PacketKind {
+    let payload_ptr = unsafe { packet.buffer.add(packet.start as usize).cast_const() };
+
+    unsafe {
+        if std::ptr::read(payload_ptr.offset(12)) == 0x08 &&
+           std::ptr::read(payload_ptr.offset(13)) == 0x06 &&
+           std::ptr::read(payload_ptr.offset(20)) == 0x00 &&
+           std::ptr::read(payload_ptr.offset(21)) == 0x01 // ARP request packet
+        {
+            return PacketKind::ArpReq;
+        }
+    }
+
+    PacketKind::Unused
 }
