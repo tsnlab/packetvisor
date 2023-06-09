@@ -15,23 +15,23 @@ PV 3.0 uses `libxdp` in [XDP-tools][].
 
 [XDP-tools]: https://github.com/xdp-project/xdp-tools
 
-## Build
-You can use `cargo build -r` command to build PV 3.0.
-
-## Use
-the app, `pv3_rust`, is located at `/target/release`.
-The following is the usage of PV 3.0.
-
-`./pv3_rust <inferface name> <chunk size> <chunk count> <Filling ring size> <RX ring size> <Completion ring size> <TX ring size>`
+## Build Library
+You can use `cargo build -r` command to build PV 3.0 library and the library file will be located in `root/target/release`.
 
 ## Run examples
+Example sources that show dealing with some network protocols using Packetvisor library are located in `root/examples`.
+To compile examples, run the following command: `cargo build -r --examples`.
+They will be located in `root/target/release/examples`
+
+Example apps can be executed commonly like this: `./(EXAMPLE APP) <inferface name> <chunk size> <chunk count> <Filling ring size> <RX ring size> <Completion ring size> <TX ring size>`
+
 You can use `set_veth.sh` to set veths for testing the application.
 After the script is executed, veth0(10.0.0.4) and veth1(10.0.0.5) are created.
 veth1 is created in `test_namespace` namespace but veth0 in local.
 
-to test ARP response, execute the following steps:
+To execute ARP response example, follow the next steps:
 1. `sudo set_veth.sh`
-2. execute `./pv3_rust veth0 2048 1024 64 64 64 64` in `/target/release`
+2. execute `./arp_response veth0 2048 1024 64 64 64 64` in `/target/release/examples`
 3. `ip netns exec test_namespace arping -I veth1 10.0.0.4`
 
 to remove veths created by `set_veth.sh`, `unset_veth.sh` will remove them.
