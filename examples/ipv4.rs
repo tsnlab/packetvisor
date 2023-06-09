@@ -100,7 +100,7 @@ fn main() {
                     .cast_const();
                 if std::ptr::read(payload_ptr.offset(12)) == 0x08
                     && std::ptr::read(payload_ptr.offset(13)) == 0x00
-                    && std::ptr::read(payload_ptr.offset(13)) >> 4 == 4
+                    && std::ptr::read(payload_ptr.offset(14)) >> 4 == 4
                 {
                     packet_dump(&mut packets[0 as usize]);
                 }
