@@ -7,12 +7,10 @@
 include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 
 use core::ffi::*;
-use std::ptr::{copy, copy_nonoverlapping, write};
-use std::ffi::{CString};
-use std::alloc::{alloc_zeroed, Layout};
 use pnet::datalink::{interfaces, NetworkInterface};
 use std::alloc::{alloc_zeroed, Layout};
 use std::ffi::CString;
+use std::ptr::{copy, copy_nonoverlapping, write};
 
 const DEFAULT_HEADROOM: u32 = 256;
 
@@ -70,21 +68,26 @@ impl PvPacket {
         let total_len: u32 = packet.size - packet.start;
         let payload_len: u32 = packet.end - packet.start;
 
-        if (header_length as u32) + payload_len <= total_len {
-            true
-        } else {
-            false
-        }
+        (header_length as u32) + payload_len <= total_len
     }
 
     // add header to payload
     pub fn add_header(&mut self, header: Vec<u8>) -> Result<(), ()> {
         let is_addable: bool = Self::is_addable(header.len(), self);
 
-        if is_addable == true {
-            unsafe{
-                copy(self.buffer.offset((self.start) as isize), self.buffer.offset((self.start + header.len() as u32) as isize), header.len());
-                copy_nonoverlapping(header.as_ptr(), self.buffer.offset(self.start as isize), header.len());
+        if is_addable {
+            unsafe {
+                copy(
+                    self.buffer.offset((self.start) as isize),
+                    self.buffer
+                        .offset((self.start + header.len() as u32) as isize),
+                    header.len(),
+                );
+                copy_nonoverlapping(
+                    header.as_ptr(),
+                    self.buffer.offset(self.start as isize),
+                    header.len(),
+                );
             }
             Ok(())
         } else {
@@ -92,14 +95,28 @@ impl PvPacket {
         }
     }
 
+    // set all data to 0 and *end to *start
     pub fn delete_data(&mut self) {
-        for i in self.start .. self.end {
+        for i in self.start..self.end {
             unsafe {
                 write(self.buffer.offset(i as isize), 0);
             }
         }
 
         self.end = self.start;
+    }
+
+    // replace data with new data from *start
+    pub fn replace_data(&mut self, new_data: &Vec<u8>) {
+        unsafe {
+            copy(
+                new_data.as_ptr(),
+                self.buffer.offset(self.start as isize),
+                new_data.len(),
+            );
+        }
+
+        self.end = self.start + new_data.len() as u32;
     }
 }
 
