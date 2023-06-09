@@ -141,79 +141,57 @@ fn packet_kind_checker(packet: &PvPacket) -> PacketKind {
 }
 
 fn gen_arp_response_packet(nic: &PvNic, packet: &mut PvPacket) -> Result<(),()> {
-    let all_interfaces: Vec<NetworkInterface> = interfaces();
-    let nic_interface: Option<&NetworkInterface> = all_interfaces
-                            .iter()
-                            .find(|element| element.name.as_str() == nic.if_name);
+    let src_mac_addr:MacAddr = MacAddr::new(174, 58, 99, 45, 124, 237);     // AE:3A:63:2D:7C:ED
+    let src_ipv4_addr = Ipv4Addr::new(10, 0, 0, 4);     // 10.0.0.4
+    let dest_mac_addr:MacAddr = unsafe {
+        MacAddr::new(
+            std::ptr::read(packet.buffer.offset((packet.start + 22) as isize)),
+            std::ptr::read(packet.buffer.offset((packet.start + 23) as isize)),
+            std::ptr::read(packet.buffer.offset((packet.start + 24) as isize)),
+            std::ptr::read(packet.buffer.offset((packet.start + 25) as isize)),
+            std::ptr::read(packet.buffer.offset((packet.start + 26) as isize)),
+            std::ptr::read(packet.buffer.offset((packet.start + 27) as isize)),
+        )
+    };
 
-    if nic_interface.is_none() {
-        return Err(());
-    } else {
-        let if_mac_addr = nic_interface.unwrap().mac;
+    let dest_Ipv4_addr = unsafe {
+        Ipv4Addr::new(
+        std::ptr::read(packet.buffer.offset((packet.start + 28) as isize)),
+        std::ptr::read(packet.buffer.offset((packet.start + 29) as isize)),
+        std::ptr::read(packet.buffer.offset((packet.start + 30) as isize)),
+        std::ptr::read(packet.buffer.offset((packet.start + 31) as isize))
+        )
+    };
 
-        if if_mac_addr.is_none() {
-            return Err(());
-        } else {
-            let src_mac_addr:MacAddr = if_mac_addr.unwrap();
-            let src_ip_addrs = nic_interface.unwrap().ips.first().unwrap().ip();
+    /* make ARP response packet header */
+    let mut arp_buffer = [0u8; 28];
+    let mut arp_packet = MutableArpPacket::new(&mut arp_buffer).unwrap();
 
-            let src_ipv4_addr;
-            match src_ip_addrs {
-                std::net::IpAddr::V4(ipv4) => {src_ipv4_addr = ipv4;}
-                _ => { return Err(()); }
-            }
+    arp_packet.set_hardware_type(ArpHardwareTypes::Ethernet);
+    arp_packet.set_protocol_type(EtherTypes::Ipv4);
+    arp_packet.set_hw_addr_len(6);
+    arp_packet.set_proto_addr_len(4);
+    arp_packet.set_operation(ArpOperations::Reply);
+    arp_packet.set_sender_hw_addr(src_mac_addr);
+    arp_packet.set_sender_proto_addr(src_ipv4_addr);
+    arp_packet.set_target_hw_addr(dest_mac_addr);
+    arp_packet.set_target_proto_addr(dest_Ipv4_addr);
 
-            let dest_mac_addr:MacAddr = unsafe {
-                MacAddr::new(
-                    std::ptr::read(packet.buffer.offset((packet.start + 22) as isize)),
-                    std::ptr::read(packet.buffer.offset((packet.start + 23) as isize)),
-                    std::ptr::read(packet.buffer.offset((packet.start + 24) as isize)),
-                    std::ptr::read(packet.buffer.offset((packet.start + 25) as isize)),
-                    std::ptr::read(packet.buffer.offset((packet.start + 26) as isize)),
-                    std::ptr::read(packet.buffer.offset((packet.start + 27) as isize)),
-                )
-            };
+    /* attach ethernet header to ARP header */
+    let mut ether_buffer = [0u8; 42];
+    let mut ether_packet = MutableEthernetPacket::new(&mut ether_buffer).unwrap();
+    ether_packet.set_destination(dest_mac_addr);
+    ether_packet.set_source(src_mac_addr);
+    ether_packet.set_ethertype(EtherTypes::Arp);
+    ether_packet.set_payload(arp_packet.packet_mut());
 
-            let dest_Ipv4_addr = unsafe {
-                Ipv4Addr::new(
-                std::ptr::read(packet.buffer.offset((packet.start + 28) as isize)),
-                std::ptr::read(packet.buffer.offset((packet.start + 29) as isize)),
-                std::ptr::read(packet.buffer.offset((packet.start + 30) as isize)),
-                std::ptr::read(packet.buffer.offset((packet.start + 31) as isize))
-                )
-            };
-
-            /* make ARP response packet header */
-            let mut arp_buffer = [0u8; 28];
-            let mut arp_packet = MutableArpPacket::new(&mut arp_buffer).unwrap();
-
-            arp_packet.set_hardware_type(ArpHardwareTypes::Ethernet);
-            arp_packet.set_protocol_type(EtherTypes::Ipv4);
-            arp_packet.set_hw_addr_len(6);
-            arp_packet.set_proto_addr_len(4);
-            arp_packet.set_operation(ArpOperations::Reply);
-            arp_packet.set_sender_hw_addr(src_mac_addr);
-            arp_packet.set_sender_proto_addr(src_ipv4_addr);
-            arp_packet.set_target_hw_addr(dest_mac_addr);
-            arp_packet.set_target_proto_addr(dest_Ipv4_addr);
-
-            /* attach ethernet header to ARP header */
-            let mut ether_buffer = [0u8; 42];
-            let mut ether_packet = MutableEthernetPacket::new(&mut ether_buffer).unwrap();
-            ether_packet.set_destination(dest_mac_addr);
-            ether_packet.set_source(src_mac_addr);
-            ether_packet.set_ethertype(EtherTypes::Arp);
-            ether_packet.set_payload(arp_packet.packet_mut());
-
-            /* delete data in packet and copy ARP packet */
-            packet.delete_data();
-            unsafe{
-                copy_nonoverlapping(ether_packet.packet().as_ptr(), packet.buffer.offset(packet.start as isize), ether_buffer.len());
-            }
-            packet.end = packet.start + ether_buffer.len() as u32;
-
-            Ok(())
-        }
+    /* delete data in packet and copy ARP packet */
+    packet.delete_data();
+    unsafe{
+        copy_nonoverlapping(ether_packet.packet().as_ptr(), packet.buffer.offset(packet.start as isize), ether_buffer.len());
     }
+    packet.end = packet.start + ether_buffer.len() as u32;
+
+    Ok(())
 
 }
