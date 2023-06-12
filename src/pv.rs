@@ -73,9 +73,9 @@ impl PvPacket {
 
     // add header to payload
     pub fn attach_header(&mut self, header: Vec<u8>) -> Result<(), ()> {
-        let is_addable: bool = Self::is_attachable(header.len(), self);
+        let is_attachable: bool = Self::is_attachable(header.len(), self);
 
-        if is_addable {
+        if is_attachable {
             unsafe {
                 copy(
                     self.buffer.offset((self.start) as isize),
