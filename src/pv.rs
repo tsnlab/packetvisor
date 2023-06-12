@@ -10,7 +10,7 @@ use core::ffi::*;
 use pnet::datalink::{interfaces, NetworkInterface};
 use std::alloc::{alloc_zeroed, Layout};
 use std::ffi::CString;
-use std::ptr::{copy, copy_nonoverlapping, write};
+use std::ptr::{copy, copy_nonoverlapping};
 
 const DEFAULT_HEADROOM: u32 = 256;
 
