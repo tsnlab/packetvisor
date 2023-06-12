@@ -11,23 +11,41 @@ use std::{
 
 fn main() {
     let args: Vec<String> = env::args().collect();
-    if args.len() != 2 {
-        println!("check the number of arguments.");
+    if args.len() != 2 && args.len() != 8 {
+        println!("<interface name> or <inferface name> <chunk size> <chunk count> <Filling ring size> <RX ring size>");
         std::process::exit(-1);
     }
 
     let mut if_name = String::new();
-    let chunk_size: u32 = 2048;
-    let chunk_count: u32 = 1024;
-    let rx_ring_size: u32 = 64;
-    let tx_ring_size: u32 = 64;
-    let filling_ring_size: u32 = 64;
-    let completion_ring_size: u32 = 64;
+    let mut chunk_size: u32 = 2048;
+    let mut chunk_count: u32 = 1024;
+    let mut rx_ring_size: u32 = 64;
+    let mut tx_ring_size: u32 = 64;
+    let mut filling_ring_size: u32 = 64;
+    let mut completion_ring_size: u32 = 64;
 
     for i in 1..args.len() {
         match i {
             1 => {
                 if_name = args[1].clone();
+            }
+            2 => {
+                chunk_size = args[2].parse::<u32>().expect("Check chunk size.");
+            }
+            3 => {
+                chunk_count = args[3].parse::<u32>().expect("Check chunk count.");
+            }
+            4 => {
+                rx_ring_size = args[4].parse::<u32>().expect("Check rx ring size.");
+            }
+            5 => {
+                tx_ring_size = args[5].parse::<u32>().expect("Check tx ring size.");
+            }
+            6 => {
+                filling_ring_size = args[6].parse::<u32>().expect("Check filling ring size.");
+            }
+            7 => {
+                completion_ring_size = args[7].parse::<u32>().expect("Check filling ring size.");
             }
             _ => {
                 panic!("abnormal index");
@@ -47,26 +65,6 @@ fn main() {
     if result_sigint.or(result_sigterm).or(result_sigabrt).is_err() {
         panic!("signal is forbidden");
     }
-
-    /* save source MAC address into variable */
-    let all_interfaces: Vec<NetworkInterface> = interfaces();
-    let is_exist: Option<&NetworkInterface> = all_interfaces
-        .iter()
-        .find(|element| element.name.as_str() == if_name.as_str());
-
-    let src_mac_address: MacAddr = match is_exist {
-        Some(target_interface) => {
-            let option: Option<MacAddr> = target_interface.mac;
-            if option.is_none() {
-                panic!("couldn't find source MAC address");
-            }
-
-            option.unwrap()
-        }
-        None => {
-            panic!("couldn't find source MAC address");
-        }
-    };
 
     /* execute pv_open() */
     let pv_open_option: Option<PvNic> = pv::pv::pv_open(
