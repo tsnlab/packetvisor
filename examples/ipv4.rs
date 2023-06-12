@@ -1,6 +1,4 @@
 use pv::pv::*;
-
-use pnet::datalink::{interfaces, MacAddr, NetworkInterface};
 use signal_hook::SigId;
 use std::{
     env,
