@@ -172,7 +172,7 @@ fn process_packets(
 }
 
 // analyze what kind of given packet
-fn packet_kind_checker(packet: &PvPacket) -> PacketKind {
+fn get_packet_type(packet: &PvPacket) -> PacketKind {
     let payload_ptr = unsafe { packet.buffer.add(packet.start as usize).cast_const() };
 
     unsafe {
