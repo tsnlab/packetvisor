@@ -64,7 +64,7 @@ impl PvPacket {
     }
 
     // check whether the new header can be attached to payload from the start of packet
-    fn is_addable(header_length: usize, packet: &PvPacket) -> bool {
+    fn is_attachable(header_length: usize, packet: &PvPacket) -> bool {
         let total_len: u32 = packet.size - packet.start;
         let payload_len: u32 = packet.end - packet.start;
 
@@ -73,7 +73,7 @@ impl PvPacket {
 
     // add header to payload
     pub fn add_header(&mut self, header: Vec<u8>) -> Result<(), ()> {
-        let is_addable: bool = Self::is_addable(header.len(), self);
+        let is_addable: bool = Self::is_attachable(header.len(), self);
 
         if is_addable {
             unsafe {
