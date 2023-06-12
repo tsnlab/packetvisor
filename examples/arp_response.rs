@@ -154,7 +154,8 @@ fn process_packets(
         // process packet
         match packet_kind {
             PacketKind::ArpReq => {
-                processing_result = gen_arp_response_packet(src_mac_address, &mut packets[i as usize]);
+                processing_result =
+                    gen_arp_response_packet(src_mac_address, &mut packets[i as usize]);
             }
             _ => {
                 processing_result = Err(());
