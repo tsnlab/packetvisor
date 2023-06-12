@@ -6,7 +6,7 @@ use pnet::{
     packet::ethernet::{EtherTypes, MutableEthernetPacket},
     packet::{MutablePacket, Packet},
 };
-use pv::pv::*;
+use packetvisor::pv::*;
 use signal_hook::SigId;
 use std::{
     env,
@@ -99,7 +99,7 @@ fn main() {
     };
 
     /* execute pv_open() */
-    let pv_open_option: Option<PvNic> = pv::pv::pv_open(
+    let pv_open_option: Option<PvNic> = pv_open(
         &if_name,
         chunk_size,
         chunk_count,
@@ -135,7 +135,7 @@ fn main() {
         }
     }
 
-    pv::pv::pv_close(nic);
+    pv_close(nic);
     println!("PV END");
 }
 
