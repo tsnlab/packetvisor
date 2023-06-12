@@ -95,17 +95,6 @@ impl PvPacket {
         }
     }
 
-    // set all data to 0 and *end to *start
-    pub fn delete_data(&mut self) {
-        for i in self.start..self.end {
-            unsafe {
-                write(self.buffer.offset(i as isize), 0);
-            }
-        }
-
-        self.end = self.start;
-    }
-
     // replace data with new data from *start
     pub fn replace_data(&mut self, new_data: &Vec<u8>) {
         unsafe {
