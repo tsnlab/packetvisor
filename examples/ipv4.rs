@@ -47,7 +47,7 @@ fn main() {
     }
 
     /* execute pv_open() */
-    let pv_open_option: Option<PvNic> = pv::pv::pv_open(
+    let pv_open_option: Option<PvNic> = pv_open(
         &if_name,
         chunk_size,
         chunk_count,
@@ -84,11 +84,12 @@ fn main() {
                         packet_dump(&mut packets[i as usize]);
                     }
                 }
+                pv_free(&mut nic, &mut packets, i as usize);
             }
         }
     }
 
-    pv::pv::pv_close(nic);
+    pv_close(nic);
     println!("PV END");
 }
 
