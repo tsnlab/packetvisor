@@ -147,7 +147,7 @@ fn process_packets(
 ) -> u32 {
     let mut processed = 0;
     for i in (0..batch_size).rev() {
-        let packet_kind: PacketKind = packet_kind_checker(&packets[i as usize]);
+        let packet_kind: PacketKind = get_packet_type(&packets[i as usize]);
         // analyze packet and create packet
 
         let processing_result: Result<(), ()>;
