@@ -1,12 +1,12 @@
 /* ARP example */
 
+use packetvisor::pv::*;
 use pnet::{
     datalink::{interfaces, MacAddr, NetworkInterface},
     packet::arp::*,
     packet::ethernet::{EtherTypes, MutableEthernetPacket},
     packet::{MutablePacket, Packet},
 };
-use packetvisor::pv::*;
 use signal_hook::SigId;
 use std::{
     env,
