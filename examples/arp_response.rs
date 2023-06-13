@@ -1,9 +1,9 @@
 /* ARP example */
 
-use packetvisor::pv::*;
+use packetvisor::pv::{pv_open, pv_close, Packet, Nic, pv_receive, pv_send, pv_free};
 use pnet::{
     datalink::{interfaces, MacAddr, NetworkInterface},
-    packet::arp::*,
+    packet::arp::{MutableArpPacket, ArpHardwareTypes, ArpOperations},
     packet::ethernet::{EtherTypes, MutableEthernetPacket},
     packet::MutablePacket,
 };
