@@ -139,6 +139,19 @@ impl Packet {
             Err(())
         }
     }
+
+    // replace payload with new data from *start and make the rest of original payload zero
+    pub fn get_buffer_as_vec(&self) -> Vec<u8> {
+        let buffer = unsafe {
+            std::slice::from_raw_parts(
+                self.buffer.offset(self.start as isize),
+                (self.end - self.start) as usize,
+            )
+        }
+        .to_owned();
+
+        buffer
+    }
 }
 
 #[derive(Debug)]
