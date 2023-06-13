@@ -155,7 +155,7 @@ fn process_packets(
         match packet_kind {
             PacketKind::ArpReq => {
                 processing_result =
-                    gen_arp_response_packet(src_mac_address, &mut packets[i as usize]);
+                    make_arp_response_packet(src_mac_address, &mut packets[i as usize]);
             }
             _ => {
                 processing_result = Err(());
@@ -189,7 +189,7 @@ fn get_packet_type(packet: &Packet) -> PacketKind {
     PacketKind::Unused
 }
 
-fn gen_arp_response_packet(src_mac_addr: &MacAddr, packet: &mut Packet) -> Result<(), ()> {
+fn make_arp_response_packet(src_mac_addr: &MacAddr, packet: &mut Packet) -> Result<(), ()> {
     let mut buffer = packet.get_buffer_as_vec();
 
     let mut eth_pkt = MutableEthernetPacket::new(&mut buffer).unwrap();
