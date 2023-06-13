@@ -18,7 +18,7 @@ fn packet_dump(packet: &Packet) {
     let chunk_address = packet.private as u64;
     let buffer_address: *const u8 = packet.buffer.cast_const();
 
-    let length: u32 = packet.size;
+    let length: u32 = packet.buffer_size;
     let mut count: u32 = 0;
 
     unsafe {
@@ -47,7 +47,7 @@ fn packet_dump(packet: &Packet) {
 pub struct Packet {
     pub start: u32,       // payload offset pointing the start of payload. ex. 256
     pub end: u32,         // payload offset point the end of payload. ex. 1000
-    pub size: u32,        // total size of buffer. ex. 2048
+    pub buffer_size: u32, // total size of buffer. ex. 2048
     pub buffer: *mut u8,  // buffer address.
     private: *mut c_void, // DO NOT touch this.
 }
@@ -57,7 +57,7 @@ impl Packet {
         Packet {
             start: 0,
             end: 0,
-            size: 0,
+            buffer_size: 0,
             buffer: std::ptr::null_mut(),
             private: std::ptr::null_mut(),
         }
@@ -80,7 +80,7 @@ impl Packet {
             }
 
             Ok(())
-        } else if header.len() as u32 <= self.size - self.end + self.start {
+        } else if header.len() as u32 <= self.buffer_size - self.end + self.start {
             // header can't be attached in headroom but can be by shifting payload
             unsafe {
                 // move payload (memmove)
@@ -110,7 +110,7 @@ impl Packet {
 
     // replace payload with new data from *start and make the rest of original payload zero
     pub fn replace_data_from_start(&mut self, new_data: &Vec<u8>) -> Result<(), ()> {
-        let replaceable_len = self.size - self.start;
+        let replaceable_len = self.buffer_size - self.start;
         let payload_len = self.end - self.start;
 
         if replaceable_len >= new_data.len() as u32 {
@@ -266,7 +266,7 @@ pub fn pv_alloc(nic: &mut Nic) -> Option<Packet> {
             let mut packet: Packet = Packet::new();
             packet.start = DEFAULT_HEADROOM;
             packet.end = DEFAULT_HEADROOM;
-            packet.size = nic.chunk_size;
+            packet.buffer_size = nic.chunk_size;
             packet.buffer = unsafe { xsk_umem__get_data(nic.buffer, idx).cast::<u8>() };
             packet.private = idx as *mut c_void;
 
@@ -484,7 +484,7 @@ pub fn pv_receive(nic: &mut Nic, packets: &mut Vec<Packet>, batch_size: u32) -> 
             packets[metadata_count as usize].start = DEFAULT_HEADROOM;
             packets[metadata_count as usize].end =
                 DEFAULT_HEADROOM + unsafe { rx_desc_ptr.as_ref().unwrap().len };
-            packets[metadata_count as usize].size = nic.chunk_size;
+            packets[metadata_count as usize].buffer_size = nic.chunk_size;
             packets[metadata_count as usize].buffer = unsafe {
                 xsk_umem__get_data(nic.buffer, rx_desc_ptr.as_ref().unwrap().addr)
                     .cast::<u8>()
