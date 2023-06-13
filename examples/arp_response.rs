@@ -190,13 +190,7 @@ fn get_packet_type(packet: &Packet) -> PacketKind {
 }
 
 fn gen_arp_response_packet(src_mac_addr: &MacAddr, packet: &mut Packet) -> Result<(), ()> {
-    let mut buffer = unsafe {
-        std::slice::from_raw_parts(
-            packet.buffer.offset(packet.start.try_into().unwrap()),
-            (packet.end - packet.start).try_into().unwrap(),
-        )
-    }
-    .to_owned();
+    let mut buffer = packet.get_buffer_as_vec();
 
     let mut eth_pkt = MutableEthernetPacket::new(&mut buffer).unwrap();
     let dest_mac_addr: MacAddr = eth_pkt.get_source();
@@ -219,7 +213,5 @@ fn gen_arp_response_packet(src_mac_addr: &MacAddr, packet: &mut Packet) -> Resul
     arp_req.set_target_proto_addr(dest_ipv4_addr);
 
     /* replace packet data with ARP packet */
-    let ret = packet.replace_data_from_start(&buffer);
-
-    ret
+    packet.replace_data_from_start(&buffer)
 }
