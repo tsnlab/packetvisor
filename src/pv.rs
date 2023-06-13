@@ -14,7 +14,7 @@ use std::ptr::{copy, copy_nonoverlapping, write};
 
 const DEFAULT_HEADROOM: u32 = 256;
 
-fn packet_dump(packet: &PvPacket) {
+fn packet_dump(packet: &Packet) {
     let chunk_address = packet.private as u64;
     let buffer_address: *const u8 = packet.buffer.cast_const();
 
@@ -44,7 +44,7 @@ fn packet_dump(packet: &PvPacket) {
 }
 
 #[derive(Debug)]
-pub struct PvPacket {
+pub struct Packet {
     pub start: u32,       // payload offset pointing the start of payload. ex. 256
     pub end: u32,         // payload offset point the end of payload. ex. 1000
     pub size: u32,        // total size of buffer. ex. 2048
@@ -52,9 +52,9 @@ pub struct PvPacket {
     private: *mut c_void, // DO NOT touch this.
 }
 
-impl PvPacket {
-    fn new() -> PvPacket {
-        PvPacket {
+impl Packet {
+    fn new() -> Packet {
+        Packet {
             start: 0,
             end: 0,
             size: 0,
@@ -142,7 +142,7 @@ impl PvPacket {
 }
 
 #[derive(Debug)]
-pub struct PvNic {
+pub struct Nic {
     pub if_name: String,
 
     xsk: *mut xsk_socket,
@@ -161,8 +161,8 @@ pub struct PvNic {
     tx: xsk_ring_prod,
 }
 
-impl PvNic {
-    fn new(if_name: &str, set_chunk_size: u32, set_chunk_count: i32) -> Option<PvNic> {
+impl Nic {
+    fn new(if_name: &str, set_chunk_size: u32, set_chunk_count: i32) -> Option<Nic> {
         let mut is_creation_failed: bool = false;
 
         let xsk_ptr;
@@ -228,8 +228,8 @@ impl PvNic {
         if is_creation_failed {
             None
         } else {
-            let a: PvNic = unsafe {
-                PvNic {
+            let a: Nic = unsafe {
+                Nic {
                     if_name: if_name.to_owned(),
                     xsk: xsk_ptr.cast::<xsk_socket>(),
                     umem: umem_ptr.cast::<xsk_umem>(), // umem is needed to be dealloc after using packetvisor library.
@@ -248,7 +248,7 @@ impl PvNic {
     }
 }
 
-fn pv_alloc_(nic: &mut PvNic) -> u64 {
+fn pv_alloc_(nic: &mut Nic) -> u64 {
     if nic.chunk_pool_idx > 0 {
         nic.chunk_pool_idx -= 1;
         nic.chunk_pool[nic.chunk_pool_idx as usize]
@@ -257,13 +257,13 @@ fn pv_alloc_(nic: &mut PvNic) -> u64 {
     }
 }
 
-pub fn pv_alloc(nic: &mut PvNic) -> Option<PvPacket> {
+pub fn pv_alloc(nic: &mut Nic) -> Option<Packet> {
     let idx: u64 = pv_alloc_(nic);
 
     match idx {
         u64::MAX => None,
         _ => {
-            let mut packet: PvPacket = PvPacket::new();
+            let mut packet: Packet = Packet::new();
             packet.start = DEFAULT_HEADROOM;
             packet.end = DEFAULT_HEADROOM;
             packet.size = nic.chunk_size;
@@ -275,7 +275,7 @@ pub fn pv_alloc(nic: &mut PvNic) -> Option<PvPacket> {
     }
 }
 
-fn pv_free_(nic: &mut PvNic, chunk_addr: u64) {
+fn pv_free_(nic: &mut Nic, chunk_addr: u64) {
     // align **chunk_addr with chunk size
     let remainder = chunk_addr % (nic.chunk_size as u64);
     let chunk_addr = chunk_addr - remainder;
@@ -283,13 +283,13 @@ fn pv_free_(nic: &mut PvNic, chunk_addr: u64) {
     nic.chunk_pool_idx += 1;
 }
 
-pub fn pv_free(nic: &mut PvNic, packets: &mut Vec<PvPacket>, index: usize) {
+pub fn pv_free(nic: &mut Nic, packets: &mut Vec<Packet>, index: usize) {
     pv_free_(nic, packets[index].private as u64);
     packets.remove(index);
 }
 
 fn configure_umem(
-    nic: &mut PvNic,
+    nic: &mut Nic,
     set_chunk_size: u32,
     set_chunk_count: u32,
     set_fill_size: u32,
@@ -355,10 +355,10 @@ pub fn pv_open(
     tx_ring_size: u32,
     filling_ring_size: u32,
     completion_ring_size: u32,
-) -> Option<PvNic> {
+) -> Option<Nic> {
     /* create PvNic */
-    let nic_result: Option<PvNic> = PvNic::new(if_name, chunk_size, chunk_count as i32); // **chunk_count is UMEM size
-    let mut nic: PvNic;
+    let nic_result: Option<Nic> = Nic::new(if_name, chunk_size, chunk_count as i32); // **chunk_count is UMEM size
+    let mut nic: Nic;
 
     match nic_result {
         Some(T) => {
@@ -442,7 +442,7 @@ pub fn pv_open(
 }
 
 // move ownership of nic
-pub fn pv_close(nic: PvNic) -> c_int {
+pub fn pv_close(nic: Nic) -> c_int {
     /* xsk delete */
     unsafe {
         xsk_socket__delete(nic.xsk);
@@ -454,7 +454,7 @@ pub fn pv_close(nic: PvNic) -> c_int {
     ret
 }
 
-pub fn pv_receive(nic: &mut PvNic, packets: &mut Vec<PvPacket>, batch_size: u32) -> u32 {
+pub fn pv_receive(nic: &mut Nic, packets: &mut Vec<Packet>, batch_size: u32) -> u32 {
     /* pre-allocate UMEM chunks into fq as much as **batch_size to receive packets */
     let mut fq_idx: u32 = 0;
     let reserved: u32 = unsafe { xsk_ring_prod__reserve(&mut nic.fq, batch_size, &mut fq_idx) }; // reserve slots in fq as much as **batch_size.
@@ -476,7 +476,7 @@ pub fn pv_receive(nic: &mut PvNic, packets: &mut Vec<PvPacket>, batch_size: u32)
         let mut metadata_count: u32 = 0;
         while metadata_count < received {
             /* create packet metadata */
-            packets.push(PvPacket::new());
+            packets.push(Packet::new());
             let rx_desc_ptr: *const xdp_desc =
                 unsafe { xsk_ring_cons__rx_desc(&nic.rx, rx_idx + metadata_count) }; // bringing information(packet address, packet length) of received packets through descriptors in RX ring
 
@@ -523,7 +523,7 @@ pub fn pv_receive(nic: &mut PvNic, packets: &mut Vec<PvPacket>, batch_size: u32)
     received
 }
 
-pub fn pv_send(nic: &mut PvNic, packets: &mut Vec<PvPacket>, batch_size: u32) -> u32 {
+pub fn pv_send(nic: &mut Nic, packets: &mut Vec<Packet>, batch_size: u32) -> u32 {
     /* free packet metadata and UMEM chunks as much as the number of filled slots in cq. */
     let mut cq_idx: u32 = 0;
     let filled: u32 = unsafe { xsk_ring_cons__peek(&mut nic.cq, batch_size, &mut cq_idx) }; // fetch the number of filled slots(the number of packets completely sent) in cq

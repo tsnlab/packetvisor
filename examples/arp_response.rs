@@ -99,7 +99,7 @@ fn main() {
     };
 
     /* execute pv_open() */
-    let pv_open_option: Option<PvNic> = pv_open(
+    let pv_open_option: Option<Nic> = pv_open(
         &if_name,
         chunk_size,
         chunk_count,
@@ -108,7 +108,7 @@ fn main() {
         filling_ring_size,
         completion_ring_size,
     );
-    let mut nic: PvNic;
+    let mut nic: Nic;
     if let Some(a) = pv_open_option {
         nic = a;
     } else {
@@ -117,7 +117,7 @@ fn main() {
 
     /* initialize rx_batch_size and packet metadata */
     let rx_batch_size: u32 = 64;
-    let mut packets: Vec<PvPacket> = Vec::with_capacity(rx_batch_size as usize);
+    let mut packets: Vec<Packet> = Vec::with_capacity(rx_batch_size as usize);
 
     while !term.load(Ordering::Relaxed) {
         let received: u32 = pv_receive(&mut nic, &mut packets, rx_batch_size);
@@ -140,8 +140,8 @@ fn main() {
 }
 
 fn process_packets(
-    nic: &mut PvNic,
-    packets: &mut Vec<PvPacket>,
+    nic: &mut Nic,
+    packets: &mut Vec<Packet>,
     batch_size: u32,
     src_mac_address: &MacAddr,
 ) -> u32 {
@@ -172,7 +172,7 @@ fn process_packets(
 }
 
 // analyze what kind of given packet
-fn get_packet_type(packet: &PvPacket) -> PacketKind {
+fn get_packet_type(packet: &Packet) -> PacketKind {
     let payload_ptr = unsafe { packet.buffer.add(packet.start as usize).cast_const() };
 
     unsafe {
@@ -189,7 +189,7 @@ fn get_packet_type(packet: &PvPacket) -> PacketKind {
     PacketKind::Unused
 }
 
-fn gen_arp_response_packet(src_mac_addr: &MacAddr, packet: &mut PvPacket) -> Result<(), ()> {
+fn gen_arp_response_packet(src_mac_addr: &MacAddr, packet: &mut Packet) -> Result<(), ()> {
     let mut buffer = unsafe {
         std::slice::from_raw_parts(
             packet.buffer.offset(packet.start.try_into().unwrap()),
