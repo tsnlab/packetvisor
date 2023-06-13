@@ -14,35 +14,6 @@ use std::ptr::{copy, copy_nonoverlapping, write};
 
 const DEFAULT_HEADROOM: u32 = 256;
 
-fn packet_dump(packet: &Packet) {
-    let chunk_address = packet.private as u64;
-    let buffer_address: *const u8 = packet.buffer.cast_const();
-
-    let length: u32 = packet.buffer_size;
-    let mut count: u32 = 0;
-
-    unsafe {
-        println!("---packet dump--- chunk addr: {}", chunk_address);
-
-        loop {
-            let read_offset: usize = count as usize;
-            let read_address: *const u8 = buffer_address.add(read_offset);
-            print!("{:02X?} ", std::ptr::read(read_address));
-
-            count += 1;
-            if count == length {
-                break;
-            } else if count % 8 == 0 {
-                print!(" ");
-                if count % 16 == 0 {
-                    println!();
-                }
-            }
-        }
-    }
-    println!("\n-------\n");
-}
-
 #[derive(Debug)]
 pub struct Packet {
     pub start: u32,       // payload offset pointing the start of payload. ex. 256
@@ -259,6 +230,35 @@ impl Nic {
             Some(a)
         }
     }
+}
+
+fn packet_dump(packet: &Packet) {
+    let chunk_address = packet.private as u64;
+    let buffer_address: *const u8 = packet.buffer.cast_const();
+
+    let length: u32 = packet.buffer_size;
+    let mut count: u32 = 0;
+
+    unsafe {
+        println!("---packet dump--- chunk addr: {}", chunk_address);
+
+        loop {
+            let read_offset: usize = count as usize;
+            let read_address: *const u8 = buffer_address.add(read_offset);
+            print!("{:02X?} ", std::ptr::read(read_address));
+
+            count += 1;
+            if count == length {
+                break;
+            } else if count % 8 == 0 {
+                print!(" ");
+                if count % 16 == 0 {
+                    println!();
+                }
+            }
+        }
+    }
+    println!("\n-------\n");
 }
 
 fn pv_alloc_(nic: &mut Nic) -> u64 {
