@@ -5,7 +5,7 @@ use pnet::{
     datalink::{interfaces, MacAddr, NetworkInterface},
     packet::arp::*,
     packet::ethernet::{EtherTypes, MutableEthernetPacket},
-    packet::{MutablePacket, Packet},
+    packet::MutablePacket,
 };
 use signal_hook::SigId;
 use std::{
@@ -193,16 +193,33 @@ fn gen_arp_response_packet(src_mac_addr: &MacAddr, packet: &mut PvPacket) -> Res
     let mut buffer = unsafe {
         std::slice::from_raw_parts(
             packet.buffer.offset(packet.start.try_into().unwrap()),
-            (packet.end - packet.start).try_into().unwrap()
+            (packet.end - packet.start).try_into().unwrap(),
         )
-    }.to_owned();
+    }
+    .to_owned();
 
     let mut eth_pkt = MutableEthernetPacket::new(&mut buffer).unwrap();
-    let mut arp_req = MutableArpPacket::new(eth_pkt.packet_mut()).unwrap();
+    let dest_mac_addr: MacAddr = eth_pkt.get_source();
+    eth_pkt.set_destination(dest_mac_addr);
+    eth_pkt.set_source(*src_mac_addr);
+    eth_pkt.set_ethertype(EtherTypes::Arp);
 
-    todo!();
+    let mut arp_req = MutableArpPacket::new(eth_pkt.payload_mut()).unwrap();
+    let src_ipv4_addr = Ipv4Addr::new(10, 0, 0, 4); // 10.0.0.4
+    let dest_ipv4_addr: Ipv4Addr = arp_req.get_sender_proto_addr();
 
-    Ok(())
+    arp_req.set_hardware_type(ArpHardwareTypes::Ethernet);
+    arp_req.set_protocol_type(EtherTypes::Ipv4);
+    arp_req.set_hw_addr_len(6);
+    arp_req.set_proto_addr_len(4);
+    arp_req.set_operation(ArpOperations::Reply);
+    arp_req.set_sender_hw_addr(*src_mac_addr);
+    arp_req.set_sender_proto_addr(src_ipv4_addr);
+    arp_req.set_target_hw_addr(dest_mac_addr);
+    arp_req.set_target_proto_addr(dest_ipv4_addr);
 
-    Ok(())
+    /* replace packet data with ARP packet */
+    let ret = packet.replace_data_from_start(&buffer);
+
+    ret
 }
