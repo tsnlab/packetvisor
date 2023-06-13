@@ -1,6 +1,6 @@
 /* ARP example */
 
-use packetvisor::pv::{pv_open, pv_close, Packet, Nic, pv_receive, pv_send, pv_free};
+use packetvisor::pv;
 use pnet::{
     datalink::{interfaces, MacAddr, NetworkInterface},
     packet::arp::{MutableArpPacket, ArpHardwareTypes, ArpOperations},
@@ -99,7 +99,7 @@ fn main() {
     };
 
     /* execute pv_open() */
-    let pv_open_option: Option<Nic> = pv_open(
+    let pv_open_option: Option<pv::Nic> = pv::pv_open(
         &if_name,
         chunk_size,
         chunk_count,
@@ -108,7 +108,7 @@ fn main() {
         filling_ring_size,
         completion_ring_size,
     );
-    let mut nic: Nic;
+    let mut nic: pv::Nic;
     if let Some(a) = pv_open_option {
         nic = a;
     } else {
@@ -117,31 +117,31 @@ fn main() {
 
     /* initialize rx_batch_size and packet metadata */
     let rx_batch_size: u32 = 64;
-    let mut packets: Vec<Packet> = Vec::with_capacity(rx_batch_size as usize);
+    let mut packets: Vec<pv::Packet> = Vec::with_capacity(rx_batch_size as usize);
 
     while !term.load(Ordering::Relaxed) {
-        let received: u32 = pv_receive(&mut nic, &mut packets, rx_batch_size);
+        let received: u32 = pv::pv_receive(&mut nic, &mut packets, rx_batch_size);
 
         if received > 0 {
             let processed: u32 =
                 process_packets(&mut nic, &mut packets, received, &src_mac_address);
-            let sent: u32 = pv_send(&mut nic, &mut packets, processed);
+            let sent: u32 = pv::pv_send(&mut nic, &mut packets, processed);
 
             if sent == 0 {
                 for i in (0..processed).rev() {
-                    pv_free(&mut nic, &mut packets, i as usize);
+                    pv::pv_free(&mut nic, &mut packets, i as usize);
                 }
             }
         }
     }
 
-    pv_close(nic);
+    pv::pv_close(nic);
     println!("PV END");
 }
 
 fn process_packets(
-    nic: &mut Nic,
-    packets: &mut Vec<Packet>,
+    nic: &mut pv::Nic,
+    packets: &mut Vec<pv::Packet>,
     batch_size: u32,
     src_mac_address: &MacAddr,
 ) -> u32 {
@@ -165,14 +165,14 @@ fn process_packets(
         if processing_result.is_ok() {
             processed += 1;
         } else {
-            pv_free(nic, packets, i as usize);
+            pv::pv_free(nic, packets, i as usize);
         }
     }
     processed
 }
 
 // analyze what kind of given packet
-fn get_packet_type(packet: &Packet) -> PacketKind {
+fn get_packet_type(packet: &pv::Packet) -> PacketKind {
     let payload_ptr = unsafe { packet.buffer.add(packet.start as usize).cast_const() };
 
     unsafe {
@@ -189,7 +189,7 @@ fn get_packet_type(packet: &Packet) -> PacketKind {
     PacketKind::Unused
 }
 
-fn make_arp_response_packet(src_mac_addr: &MacAddr, packet: &mut Packet) -> Result<(), ()> {
+fn make_arp_response_packet(src_mac_addr: &MacAddr, packet: &mut pv::Packet) -> Result<(), ()> {
     let mut buffer = packet.get_buffer_as_vec();
 
     let mut eth_pkt = MutableEthernetPacket::new(&mut buffer).unwrap();
