@@ -10,7 +10,7 @@ use core::ffi::*;
 use pnet::datalink::{interfaces, NetworkInterface};
 use std::alloc::{alloc_zeroed, Layout};
 use std::ffi::CString;
-use std::ptr::{copy, copy_nonoverlapping};
+use std::ptr::{copy, copy_nonoverlapping, write};
 
 const DEFAULT_HEADROOM: u32 = 256;
 
@@ -63,49 +63,81 @@ impl PvPacket {
         }
     }
 
-    // check whether the new header can be attached to payload from the start of packet
-    fn is_attachable(header_length: usize, packet: &PvPacket) -> bool {
-        let total_len: u32 = packet.size - packet.start;
-        let payload_len: u32 = packet.end - packet.start;
-
-        (header_length as u32) + payload_len <= total_len
-    }
-
-    // add header to payload
+    /* check whether the new header can be attached to payload from the start of packet
+    add header to payload and return Ok if it's possible, or return Err */
     pub fn attach_header(&mut self, header: Vec<u8>) -> Result<(), ()> {
-        let is_attachable: bool = Self::is_attachable(header.len(), self);
+        if self.start >= header.len() as u32 {
+            // header can be attached in empty space of headroom
 
-        if is_attachable {
+            self.start = self.start - header.len() as u32;
+
             unsafe {
-                copy(
-                    self.buffer.offset((self.start) as isize),
-                    self.buffer
-                        .offset((self.start + header.len() as u32) as isize),
-                    header.len(),
-                );
                 copy_nonoverlapping(
                     header.as_ptr(),
                     self.buffer.offset(self.start as isize),
                     header.len(),
                 );
             }
+
+            Ok(())
+        } else if header.len() as u32 <= self.size - self.end + self.start {
+            // header can't be attached in headroom but can be by shifting payload
+            unsafe {
+                // move payload (memmove)
+                copy(
+                    self.buffer.offset(self.start as isize),
+                    self.buffer.offset(header.len() as isize),
+                    (self.end - self.start) as usize,
+                );
+
+                // set start and end of data
+                self.start = 0;
+                self.end = self.end + (header.len() as u32 - self.start);
+
+                // copy header data (memcpy)
+                copy_nonoverlapping(
+                    header.as_ptr(),
+                    self.buffer.offset(self.start as isize),
+                    header.len(),
+                );
+            }
+
             Ok(())
         } else {
             Err(())
         }
     }
 
-    // replace data with new data from *start
-    pub fn replace_data(&mut self, new_data: &Vec<u8>) {
-        unsafe {
-            copy(
-                new_data.as_ptr(),
-                self.buffer.offset(self.start as isize),
-                new_data.len(),
-            );
-        }
+    // replace payload with new data from *start and make the rest of original payload zero
+    pub fn replace_data_from_start(&mut self, new_data: &Vec<u8>) -> Result<(), ()> {
+        let replaceable_len = self.size - self.start;
+        let payload_len = self.end - self.start;
 
-        self.end = self.start + new_data.len() as u32;
+        if replaceable_len >= new_data.len() as u32 {
+            // make the rest of original payload zero if new data is smaller than the original payload
+            if payload_len >= new_data.len() as u32 {
+                for i in (self.start + new_data.len() as u32)..self.end {
+                    unsafe {
+                        write(self.buffer.offset(i as isize), 0);
+                    }
+                }
+            }
+
+            self.end = self.start + new_data.len() as u32;
+
+            unsafe {
+                // replace data
+                copy(
+                    new_data.as_ptr(),
+                    self.buffer.offset(self.start as isize),
+                    new_data.len(),
+                );
+            }
+
+            Ok(())
+        } else {
+            Err(())
+        }
     }
 }
 
