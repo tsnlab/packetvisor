@@ -190,51 +190,19 @@ fn get_packet_type(packet: &PvPacket) -> PacketKind {
 }
 
 fn gen_arp_response_packet(src_mac_addr: &MacAddr, packet: &mut PvPacket) -> Result<(), ()> {
-    let src_ipv4_addr = Ipv4Addr::new(10, 0, 0, 4); // 10.0.0.4
-    let dest_mac_addr: MacAddr = unsafe {
-        MacAddr::new(
-            std::ptr::read(packet.buffer.offset((packet.start + 22) as isize)),
-            std::ptr::read(packet.buffer.offset((packet.start + 23) as isize)),
-            std::ptr::read(packet.buffer.offset((packet.start + 24) as isize)),
-            std::ptr::read(packet.buffer.offset((packet.start + 25) as isize)),
-            std::ptr::read(packet.buffer.offset((packet.start + 26) as isize)),
-            std::ptr::read(packet.buffer.offset((packet.start + 27) as isize)),
+    let mut buffer = unsafe {
+        std::slice::from_raw_parts(
+            packet.buffer.offset(packet.start.try_into().unwrap()),
+            (packet.end - packet.start).try_into().unwrap()
         )
-    };
+    }.to_owned();
 
-    let dest_ipv4_addr = unsafe {
-        Ipv4Addr::new(
-            std::ptr::read(packet.buffer.offset((packet.start + 28) as isize)),
-            std::ptr::read(packet.buffer.offset((packet.start + 29) as isize)),
-            std::ptr::read(packet.buffer.offset((packet.start + 30) as isize)),
-            std::ptr::read(packet.buffer.offset((packet.start + 31) as isize)),
-        )
-    };
+    let mut eth_pkt = MutableEthernetPacket::new(&mut buffer).unwrap();
+    let mut arp_req = MutableArpPacket::new(eth_pkt.packet_mut()).unwrap();
 
-    /* make ARP response packet header */
-    let mut arp_buffer = [0u8; 28];
-    let mut arp_packet = MutableArpPacket::new(&mut arp_buffer).unwrap();
+    todo!();
 
-    arp_packet.set_hardware_type(ArpHardwareTypes::Ethernet);
-    arp_packet.set_protocol_type(EtherTypes::Ipv4);
-    arp_packet.set_hw_addr_len(6);
-    arp_packet.set_proto_addr_len(4);
-    arp_packet.set_operation(ArpOperations::Reply);
-    arp_packet.set_sender_hw_addr(*src_mac_addr);
-    arp_packet.set_sender_proto_addr(src_ipv4_addr);
-    arp_packet.set_target_hw_addr(dest_mac_addr);
-    arp_packet.set_target_proto_addr(dest_ipv4_addr);
-
-    /* attach ethernet header to ARP header */
-    let mut ether_buffer = [0u8; 42];
-    let mut ether_packet = MutableEthernetPacket::new(&mut ether_buffer).unwrap();
-    ether_packet.set_destination(dest_mac_addr);
-    ether_packet.set_source(*src_mac_addr);
-    ether_packet.set_ethertype(EtherTypes::Arp);
-    ether_packet.set_payload(arp_packet.packet_mut());
-
-    /* replace packet data with ARP packet */
-    packet.replace_data(&ether_packet.packet().to_vec());
+    Ok(())
 
     Ok(())
 }
