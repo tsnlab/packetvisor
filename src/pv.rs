@@ -51,7 +51,7 @@ impl Packet {
             }
 
             Ok(())
-        } else if header.len() as u32 <= self.buffer_size - self.end + self.start {
+        } else if header.len() as u32 <= self.buffer_size - (self.end - self.start) {
             // header can't be attached in headroom but can be by shifting payload
             unsafe {
                 // move payload (memmove)
