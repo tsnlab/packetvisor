@@ -190,7 +190,7 @@ fn get_packet_type(packet: &pv::Packet) -> PacketKind {
 }
 
 fn make_arp_response_packet(src_mac_addr: &MacAddr, packet: &mut pv::Packet) -> Result<(), ()> {
-    let mut buffer = packet.get_buffer_as_vec();
+    let mut buffer = packet.get_buffer();
 
     let mut eth_pkt = MutableEthernetPacket::new(&mut buffer).unwrap();
     let dest_mac_addr: MacAddr = eth_pkt.get_source();
