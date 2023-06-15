@@ -147,10 +147,7 @@ fn process_packets(
 
         // process packet
         if is_arp_req {
-            let processing_result: Result<u32, u32> =
-                make_arp_response_packet(src_mac_address, &mut packets[i as usize]);
-
-            if processing_result.is_ok() {
+            if make_arp_response_packet(src_mac_address, &mut packets[i as usize]).is_ok() {
                 processed += 1;
             } else {
                 pv::pv_free(nic, packets, i as usize);
