@@ -164,17 +164,11 @@ fn is_arp_req(packet: &pv::Packet) -> bool {
     let payload_ptr = unsafe { packet.buffer.add(packet.start as usize).cast_const() };
 
     unsafe {
-        if std::ptr::read(payload_ptr.offset(12)) == 0x08 // Ethertype == 0x0806
+        std::ptr::read(payload_ptr.offset(12)) == 0x08 // Ethertype == 0x0806
             && std::ptr::read(payload_ptr.offset(13)) == 0x06
             && std::ptr::read(payload_ptr.offset(20)) == 0x00 // arp.opcode = 0x0001
             && std::ptr::read(payload_ptr.offset(21)) == 0x01
-        // ARP request packet
-        {
-            return true;
-        }
     }
-
-    false
 }
 
 fn make_arp_response_packet(src_mac_addr: &MacAddr, packet: &mut pv::Packet) -> Result<u32, u32> {
