@@ -1,4 +1,4 @@
-use pv::pv::*;
+use packetvisor::pv;
 use signal_hook::SigId;
 use std::{
     env,
@@ -47,7 +47,7 @@ fn main() {
     }
 
     /* execute pv_open() */
-    let pv_open_option: Option<PvNic> = pv_open(
+    let pv_open_option: Option<pv::Nic> = pv::pv_open(
         &if_name,
         chunk_size,
         chunk_count,
@@ -56,7 +56,7 @@ fn main() {
         filling_ring_size,
         completion_ring_size,
     );
-    let mut nic: PvNic;
+    let mut nic: pv::Nic;
     if let Some(a) = pv_open_option {
         nic = a;
     } else {
@@ -65,10 +65,10 @@ fn main() {
 
     /* initialize rx_batch_size and packet metadata */
     let rx_batch_size: u32 = 64;
-    let mut packets: Vec<PvPacket> = Vec::with_capacity(rx_batch_size as usize);
+    let mut packets: Vec<pv::Packet> = Vec::with_capacity(rx_batch_size as usize);
 
     while !term.load(Ordering::Relaxed) {
-        let received: u32 = pv_receive(&mut nic, &mut packets, rx_batch_size);
+        let received: u32 = pv::pv_receive(&mut nic, &mut packets, rx_batch_size);
 
         if received > 0 {
             for i in (0..received).rev() {
@@ -84,19 +84,19 @@ fn main() {
                         packet_dump(&mut packets[i as usize]);
                     }
                 }
-                pv_free(&mut nic, &mut packets, i as usize);
+                pv::pv_free(&mut nic, &mut packets, i as usize);
             }
         }
     }
 
-    pv_close(nic);
+    pv::pv_close(nic);
     println!("PV END");
 }
 
-fn packet_dump(packet: &PvPacket) {
+fn packet_dump(packet: &pv::Packet) {
     let buffer_address: *const u8 = packet.buffer.cast_const();
 
-    let length: u32 = packet.size;
+    let length: u32 = packet.end - packet.start;
     let mut count: u32 = 0;
 
     unsafe {
