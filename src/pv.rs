@@ -13,7 +13,7 @@ use core::ffi::*;
 use pnet::datalink::{interfaces, NetworkInterface};
 use std::alloc::{alloc_zeroed, Layout};
 use std::ffi::CString;
-use std::ptr::{copy, write};
+use std::ptr::copy;
 
 const DEFAULT_HEADROOM: u32 = 256;
 
@@ -37,35 +37,19 @@ impl Packet {
         }
     }
 
-    // replace payload with new data from *start and make the rest of original payload zero
-    pub fn replace_data_from_start(&mut self, new_data: &Vec<u8>) -> Result<(), i32> {
-        let replaceable_len = self.buffer_size - self.start;
-        let payload_len = self.end - self.start;
-
-        if replaceable_len >= new_data.len() as u32 {
-            // make the rest of original payload zero if new data is smaller than the original payload
-            if payload_len >= new_data.len() as u32 {
-                for i in (self.start + new_data.len() as u32)..self.end {
-                    unsafe {
-                        write(self.buffer.offset(i as isize), 0);
-                    }
-                }
-            }
-
-            self.end = self.start + new_data.len() as u32;
-
+    // replace payload with new data, and return Ok(remaining size) or Err(excess size) if failed
+    pub fn replace_data(&mut self, new_data: &Vec<u8>) -> Result<u32, u32> {
+        if new_data.len() as u32 <= self.buffer_size {
             unsafe {
                 // replace data
-                copy(
-                    new_data.as_ptr(),
-                    self.buffer.offset(self.start as isize),
-                    new_data.len(),
-                );
-            }
+                copy(new_data.as_ptr(), self.buffer.offset(0), new_data.len());
+                self.start = 0;
+                self.end = new_data.len() as u32;
 
-            Ok(())
+                Ok(self.buffer_size - (self.end + self.start))
+            }
         } else {
-            Err(-1)
+            Err(new_data.len() as u32 - self.buffer_size)
         }
     }
 

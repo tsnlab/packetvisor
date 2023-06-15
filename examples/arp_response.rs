@@ -153,7 +153,7 @@ fn process_packets(
         // process packet
         match packet_kind {
             PacketKind::ArpReq => {
-                let processing_result: Result<(), i32> =
+                let processing_result: Result<u32, u32> =
                     make_arp_response_packet(src_mac_address, &mut packets[i as usize]);
 
                 if processing_result.is_ok() {
@@ -188,8 +188,8 @@ fn is_arp_req(packet: &pv::Packet) -> PacketKind {
     PacketKind::Unused
 }
 
-fn make_arp_response_packet(src_mac_addr: &MacAddr, packet: &mut pv::Packet) -> Result<(), i32> {
-    let mut buffer = packet.get_buffer();
+fn make_arp_response_packet(src_mac_addr: &MacAddr, packet: &mut pv::Packet) -> Result<u32, u32> {
+    let mut buffer: Vec<u8> = packet.get_buffer();
 
     let mut eth_pkt = MutableEthernetPacket::new(&mut buffer).unwrap();
     let dest_mac_addr: MacAddr = eth_pkt.get_source();
@@ -212,5 +212,5 @@ fn make_arp_response_packet(src_mac_addr: &MacAddr, packet: &mut pv::Packet) -> 
     arp_req.set_target_proto_addr(dest_ipv4_addr);
 
     /* replace packet data with ARP packet */
-    packet.replace_data_from_start(&buffer)
+    packet.replace_data(&buffer)
 }
