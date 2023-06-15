@@ -3,7 +3,7 @@
 use packetvisor::pv;
 use pnet::{
     datalink::{interfaces, MacAddr, NetworkInterface},
-    packet::arp::{MutableArpPacket, ArpHardwareTypes, ArpOperations},
+    packet::arp::{ArpHardwareTypes, ArpOperations, MutableArpPacket},
     packet::ethernet::{EtherTypes, MutableEthernetPacket},
     packet::MutablePacket,
 };
@@ -150,7 +150,7 @@ fn process_packets(
         let packet_kind: PacketKind = get_packet_type(&packets[i as usize]);
         // analyze packet and create packet
 
-        let processing_result: Result<(), ()>;
+        let processing_result: Result<(), i32>;
         // process packet
         match packet_kind {
             PacketKind::ArpReq => {
@@ -158,7 +158,7 @@ fn process_packets(
                     make_arp_response_packet(src_mac_address, &mut packets[i as usize]);
             }
             _ => {
-                processing_result = Err(());
+                processing_result = Err(0);
             }
         }
 
@@ -189,7 +189,7 @@ fn get_packet_type(packet: &pv::Packet) -> PacketKind {
     PacketKind::Unused
 }
 
-fn make_arp_response_packet(src_mac_addr: &MacAddr, packet: &mut pv::Packet) -> Result<(), ()> {
+fn make_arp_response_packet(src_mac_addr: &MacAddr, packet: &mut pv::Packet) -> Result<(), i32> {
     let mut buffer = packet.get_buffer();
 
     let mut eth_pkt = MutableEthernetPacket::new(&mut buffer).unwrap();

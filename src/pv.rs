@@ -1,16 +1,19 @@
-#![allow(non_upper_case_globals)]
-#![allow(non_camel_case_types)]
-#![allow(non_snake_case)]
-#![allow(dead_code)]
-#![allow(clippy::useless_transmute)]
-#![allow(clippy::upper_case_acronyms)]
-include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
+mod bindings {
+    #![allow(non_upper_case_globals)]
+    #![allow(non_camel_case_types)]
+    #![allow(non_snake_case)]
+    #![allow(dead_code)]
+    #![allow(clippy::all)]
+    include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
+}
+
+use bindings::*;
 
 use core::ffi::*;
 use pnet::datalink::{interfaces, NetworkInterface};
 use std::alloc::{alloc_zeroed, Layout};
 use std::ffi::CString;
-use std::ptr::{copy, copy_nonoverlapping, write};
+use std::ptr::{copy, write};
 
 const DEFAULT_HEADROOM: u32 = 256;
 
@@ -34,53 +37,8 @@ impl Packet {
         }
     }
 
-    /* check whether the new header can be attached to payload from the start of packet
-    add header to payload and return Ok if it's possible, or return Err */
-    pub fn attach_header(&mut self, header: Vec<u8>) -> Result<(), ()> {
-        if self.start >= header.len() as u32 {
-            // header can be attached in empty space of headroom
-
-            self.start = self.start - header.len() as u32;
-
-            unsafe {
-                copy_nonoverlapping(
-                    header.as_ptr(),
-                    self.buffer.offset(self.start as isize),
-                    header.len(),
-                );
-            }
-
-            Ok(())
-        } else if header.len() as u32 <= self.buffer_size - (self.end - self.start) {
-            // header can't be attached in headroom but can be by shifting payload
-            unsafe {
-                // move payload (memmove)
-                copy(
-                    self.buffer.offset(self.start as isize),
-                    self.buffer.offset(header.len() as isize),
-                    (self.end - self.start) as usize,
-                );
-
-                // set start and end of data
-                self.start = 0;
-                self.end = self.end + (header.len() as u32 - self.start);
-
-                // copy header data (memcpy)
-                copy_nonoverlapping(
-                    header.as_ptr(),
-                    self.buffer.offset(self.start as isize),
-                    header.len(),
-                );
-            }
-
-            Ok(())
-        } else {
-            Err(())
-        }
-    }
-
     // replace payload with new data from *start and make the rest of original payload zero
-    pub fn replace_data_from_start(&mut self, new_data: &Vec<u8>) -> Result<(), ()> {
+    pub fn replace_data_from_start(&mut self, new_data: &Vec<u8>) -> Result<(), i32> {
         let replaceable_len = self.buffer_size - self.start;
         let payload_len = self.end - self.start;
 
@@ -107,7 +65,7 @@ impl Packet {
 
             Ok(())
         } else {
-            Err(())
+            Err(-1)
         }
     }
 
@@ -231,6 +189,7 @@ impl Nic {
     }
 }
 
+#[allow(dead_code)]
 fn packet_dump(packet: &Packet) {
     let chunk_address = packet.private as u64;
     let buffer_address: *const u8 = packet.buffer.cast_const();
@@ -373,8 +332,8 @@ pub fn pv_open(
     let mut nic: Nic;
 
     match nic_result {
-        Some(T) => {
-            nic = T;
+        Some(t) => {
+            nic = t;
         }
         None => {
             return None;
