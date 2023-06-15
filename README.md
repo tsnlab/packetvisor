@@ -15,23 +15,23 @@ PV 3.0 uses `libxdp` in [XDP-tools][].
 
 [XDP-tools]: https://github.com/xdp-project/xdp-tools
 
-## Build
-You can use `cargo build -r` command to build PV 3.0.
-
-## Use
-the app, `pv3_rust`, is located at `/target/release`.
-The following is the usage of PV 3.0.
-
-`./pv3_rust <inferface name> <chunk size> <chunk count> <Filling ring size> <RX ring size> <Completion ring size> <TX ring size>`
+## Build Library
+You can use `cargo build -r` command to build PV 3.0 library and the library file will be located in `root/target/release`.
 
 ## Run examples
+Example sources that show dealing with some network protocols using Packetvisor library are located in `root/examples`.
+To compile examples, run the following command: `cargo build -r --examples`.
+They will be located in `root/target/release/examples`
+
+Example apps can be executed commonly like this: `sudo ./(EXAMPLE APP) <inferface name> <chunk size> <chunk count> <Filling ring size> <RX ring size> <Completion ring size> <TX ring size>`
+
 You can use `set_veth.sh` to set veths for testing the application.
 After the script is executed, veth0(10.0.0.4) and veth1(10.0.0.5) are created.
 veth1 is created in `test_namespace` namespace but veth0 in local.
 
-to test ARP response, execute the following steps:
+To execute ARP response example, follow the next steps:
 1. `sudo set_veth.sh`
-2. execute `./pv3_rust veth0 2048 1024 64 64 64 64` in `/target/release`
+2. execute `sudo ./arp_response veth0 2048 1024 64 64 64 64` in `/target/release/examples`
 3. `ip netns exec test_namespace arping -I veth1 10.0.0.4`
 
 to remove veths created by `set_veth.sh`, `unset_veth.sh` will remove them.
@@ -45,7 +45,7 @@ to remove veths created by `set_veth.sh`, `unset_veth.sh` will remove them.
 - Filling Ring (= FQ, Filling queue): has chunks which are allocated to receive packets
 
 ### RX side procedure
-user should pre-allocate chunks which are empty or ready to be used in advance before getting to receive packets and then putting them. the following steps describe how to receive packets through `XSK`.    
+user should pre-allocate chunks which are empty or ready to be used in advance before getting to receive packets and then putting them. the following steps describe how to receive packets through `XSK`.
 
 1. user informs kernel that how many slots should be reserved in `FQ` through `xsk_ring_prod__reserve()`, then the function will return `the number of reserved slots` and `index` value which means the first index of reserved slots in the ring.
 2. user puts an `index` in `xsk_ring_prod__fill_addr()` as a parameter and the function will return the pointer of a slot by the `index`. then, user allocates chunk address by putting it to the pointer like `*xsk_ring_prod__fill_addr() = chunk_addr` as much as `the number of reserved slots` with iteration.
@@ -56,7 +56,7 @@ user should pre-allocate chunks which are empty or ready to be used in advance b
 7. After fetching all information of received packets, user should inform kernel that how many packets in `RX Ring` are consumed through `xsk_ring_cons__release()`. so that, kernel will move `tail` of `RX ring` for the future packet's descriptors to be saved.
 
 ### TX side procedure
-in contrast to RX side procedure, `CQ` should have enough empty slots before sending packets through `XSK` because `CQ` will be allocated after packets are sent sucessfully. if there is no any slot ready to be allocated in `CQ`, kernel may not able to send packets. user can know what packet has been sent successfully through `CQ`. the following steps describe how to send packets thorugh `XSK`.    
+in contrast to RX side procedure, `CQ` should have enough empty slots before sending packets through `XSK` because `CQ` will be allocated after packets are sent sucessfully. if there is no any slot ready to be allocated in `CQ`, kernel may not able to send packets. user can know what packet has been sent successfully through `CQ`. the following steps describe how to send packets thorugh `XSK`.
 
 1. packets to be sent are ready in chunks.
 2. user should reserve slots of `TX Ring` through `xsk_ring_prod__reserve()`. the function will return `the number of reserved slots` and `index` which means the first index of reserved slots.
@@ -72,5 +72,5 @@ in contrast to RX side procedure, `CQ` should have enough empty slots before sen
 This software is distributed under GPLv2
 
 # TODO
-Make an installer including an option to change capabilities of the application.    
+Make an installer including an option to change capabilities of the application.
 use the following command: `sudo setcap CAP_SYS_ADMIN,CAP_NET_ADMIN,CAP_NET_RAW,CAP_DAC_OVERRIDE+ep target/release/pv3_rust`

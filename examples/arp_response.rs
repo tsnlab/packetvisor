@@ -1,13 +1,17 @@
-mod arp;
-mod pv;
+/* ARP example */
 
-use crate::arp::gen_arp_response_packet;
-use crate::pv::*;
-use pnet::datalink::{interfaces, MacAddr, NetworkInterface};
+use packetvisor::pv;
+use pnet::{
+    datalink::{interfaces, MacAddr, NetworkInterface},
+    packet::arp::{ArpHardwareTypes, ArpOperations, MutableArpPacket},
+    packet::ethernet::{EtherTypes, MutableEthernetPacket},
+    packet::MutablePacket,
+};
 use signal_hook::SigId;
 use std::{
     env,
     io::Error,
+    net::Ipv4Addr,
     sync::atomic::{AtomicBool, Ordering},
     sync::Arc,
 };
@@ -90,7 +94,7 @@ fn main() {
     };
 
     /* execute pv_open() */
-    let pv_open_option: Option<PvNic> = pv::pv_open(
+    let pv_open_option: Option<pv::Nic> = pv::pv_open(
         &if_name,
         chunk_size,
         chunk_count,
@@ -99,7 +103,7 @@ fn main() {
         filling_ring_size,
         completion_ring_size,
     );
-    let mut nic: PvNic;
+    let mut nic: pv::Nic;
     if let Some(a) = pv_open_option {
         nic = a;
     } else {
@@ -108,19 +112,19 @@ fn main() {
 
     /* initialize rx_batch_size and packet metadata */
     let rx_batch_size: u32 = 64;
-    let mut packets: Vec<PvPacket> = Vec::with_capacity(rx_batch_size as usize);
+    let mut packets: Vec<pv::Packet> = Vec::with_capacity(rx_batch_size as usize);
 
     while !term.load(Ordering::Relaxed) {
-        let received: u32 = pv_receive(&mut nic, &mut packets, rx_batch_size);
+        let received: u32 = pv::pv_receive(&mut nic, &mut packets, rx_batch_size);
 
         if received > 0 {
             let processed: u32 =
                 process_packets(&mut nic, &mut packets, received, &src_mac_address);
-            let sent: u32 = pv_send(&mut nic, &mut packets, processed);
+            let sent: u32 = pv::pv_send(&mut nic, &mut packets, processed);
 
             if sent == 0 {
                 for i in (0..processed).rev() {
-                    pv_free(&mut nic, &mut packets, i as usize);
+                    pv::pv_free(&mut nic, &mut packets, i as usize);
                 }
             }
         }
@@ -131,34 +135,62 @@ fn main() {
 }
 
 fn process_packets(
-    nic: &mut PvNic,
-    packets: &mut Vec<PvPacket>,
+    nic: &mut pv::Nic,
+    packets: &mut Vec<pv::Packet>,
     batch_size: u32,
     src_mac_address: &MacAddr,
 ) -> u32 {
     let mut processed = 0;
     for i in (0..batch_size).rev() {
-        let payload_ptr = unsafe {
-            packets[i as usize]
-                .buffer
-                .add(packets[i as usize].start as usize)
-                .cast_const()
-        };
-
-        // analyze packet and create packet
-        unsafe {
-            if std::ptr::read(payload_ptr.offset(12)) == 0x08
-                && std::ptr::read(payload_ptr.offset(13)) == 0x06
-                && std::ptr::read(payload_ptr.offset(20)) == 0x00
-                && std::ptr::read(payload_ptr.offset(21)) == 0x01
-            // ARP request packet
-            {
-                gen_arp_response_packet(&mut packets[i as usize], src_mac_address);
+        // analyze and process packet
+        if is_arp_req(&packets[i as usize]) {
+            if make_arp_response_packet(src_mac_address, &mut packets[i as usize]).is_ok() {
                 processed += 1;
             } else {
-                pv_free(nic, packets, i as usize);
+                pv::pv_free(nic, packets, i as usize);
             }
+        } else {
+            pv::pv_free(nic, packets, i as usize);
         }
     }
     processed
+}
+
+// analyze what kind of given packet
+fn is_arp_req(packet: &pv::Packet) -> bool {
+    let payload_ptr = unsafe { packet.buffer.add(packet.start as usize).cast_const() };
+
+    unsafe {
+        std::ptr::read(payload_ptr.offset(12)) == 0x08 // Ethertype == 0x0806
+            && std::ptr::read(payload_ptr.offset(13)) == 0x06
+            && std::ptr::read(payload_ptr.offset(20)) == 0x00 // arp.opcode = 0x0001
+            && std::ptr::read(payload_ptr.offset(21)) == 0x01
+    }
+}
+
+fn make_arp_response_packet(src_mac_addr: &MacAddr, packet: &mut pv::Packet) -> Result<(), String> {
+    let mut buffer: Vec<u8> = packet.get_buffer();
+
+    let mut eth_pkt = MutableEthernetPacket::new(&mut buffer).unwrap();
+    let dest_mac_addr: MacAddr = eth_pkt.get_source();
+    eth_pkt.set_destination(dest_mac_addr);
+    eth_pkt.set_source(*src_mac_addr);
+    eth_pkt.set_ethertype(EtherTypes::Arp);
+
+    let mut arp_req = MutableArpPacket::new(eth_pkt.payload_mut()).unwrap();
+    let src_ipv4_addr = Ipv4Addr::new(10, 0, 0, 4); // 10.0.0.4
+    let dest_ipv4_addr: Ipv4Addr = arp_req.get_sender_proto_addr();
+
+    arp_req.set_hardware_type(ArpHardwareTypes::Ethernet);
+    arp_req.set_protocol_type(EtherTypes::Ipv4);
+    arp_req.set_hw_addr_len(6);
+    arp_req.set_proto_addr_len(4);
+    arp_req.set_operation(ArpOperations::Reply);
+    arp_req.set_sender_hw_addr(*src_mac_addr);
+    arp_req.set_sender_proto_addr(src_ipv4_addr);
+    arp_req.set_target_hw_addr(dest_mac_addr);
+    arp_req.set_target_proto_addr(dest_ipv4_addr);
+
+    /* replace packet data with ARP packet */
+    packet.replace_data(&buffer)
 }
