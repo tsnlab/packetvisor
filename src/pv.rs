@@ -38,7 +38,7 @@ impl Packet {
     }
 
     // replace payload with new data, and return Ok(remaining size) or Err(excess size) if failed
-    pub fn replace_data(&mut self, new_data: &Vec<u8>) -> Result<u32, u32> {
+    pub fn replace_data(&mut self, new_data: &Vec<u8>) -> Result<(), String> {
         if new_data.len() as u32 <= self.buffer_size {
             unsafe {
                 // replace data
@@ -46,10 +46,12 @@ impl Packet {
                 self.start = 0;
                 self.end = new_data.len() as u32;
 
-                Ok(self.buffer_size - (self.end + self.start))
+                Ok(())
             }
         } else {
-            Err(new_data.len() as u32 - self.buffer_size)
+            Err(String::from(
+                "Data size is over than buffer size of packet.",
+            ))
         }
     }
 
