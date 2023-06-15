@@ -147,7 +147,7 @@ fn process_packets(
 ) -> u32 {
     let mut processed = 0;
     for i in (0..batch_size).rev() {
-        let packet_kind: PacketKind = get_packet_type(&packets[i as usize]);
+        let packet_kind: PacketKind = is_arp_req(&packets[i as usize]);
         // analyze packet and create packet
 
         let processing_result: Result<(), i32>;
@@ -172,7 +172,7 @@ fn process_packets(
 }
 
 // analyze what kind of given packet
-fn get_packet_type(packet: &pv::Packet) -> PacketKind {
+fn is_arp_req(packet: &pv::Packet) -> PacketKind {
     let payload_ptr = unsafe { packet.buffer.add(packet.start as usize).cast_const() };
 
     unsafe {
