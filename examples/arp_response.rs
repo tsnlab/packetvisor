@@ -16,11 +16,6 @@ use std::{
     sync::Arc,
 };
 
-enum PacketKind {
-    ArpReq,
-    Unused,
-}
-
 fn main() {
     let args: Vec<String> = env::args().collect();
     if args.len() != 8 {
@@ -148,30 +143,27 @@ fn process_packets(
     let mut processed = 0;
     for i in (0..batch_size).rev() {
         // analyze packet
-        let packet_kind: PacketKind = is_arp_req(&packets[i as usize]);
+        let is_arp_req: bool = is_arp_req(&packets[i as usize]);
 
         // process packet
-        match packet_kind {
-            PacketKind::ArpReq => {
-                let processing_result: Result<u32, u32> =
-                    make_arp_response_packet(src_mac_address, &mut packets[i as usize]);
+        if is_arp_req {
+            let processing_result: Result<u32, u32> =
+                make_arp_response_packet(src_mac_address, &mut packets[i as usize]);
 
-                if processing_result.is_ok() {
-                    processed += 1;
-                } else {
-                    pv::pv_free(nic, packets, i as usize);
-                }
-            }
-            _ => {
+            if processing_result.is_ok() {
+                processed += 1;
+            } else {
                 pv::pv_free(nic, packets, i as usize);
             }
+        } else {
+            pv::pv_free(nic, packets, i as usize);
         }
     }
     processed
 }
 
 // analyze what kind of given packet
-fn is_arp_req(packet: &pv::Packet) -> PacketKind {
+fn is_arp_req(packet: &pv::Packet) -> bool {
     let payload_ptr = unsafe { packet.buffer.add(packet.start as usize).cast_const() };
 
     unsafe {
@@ -181,11 +173,11 @@ fn is_arp_req(packet: &pv::Packet) -> PacketKind {
             && std::ptr::read(payload_ptr.offset(21)) == 0x01
         // ARP request packet
         {
-            return PacketKind::ArpReq;
+            return true;
         }
     }
 
-    PacketKind::Unused
+    false
 }
 
 fn make_arp_response_packet(src_mac_addr: &MacAddr, packet: &mut pv::Packet) -> Result<u32, u32> {
