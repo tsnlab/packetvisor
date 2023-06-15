@@ -9,8 +9,8 @@ use std::{
 
 fn main() {
     let args: Vec<String> = env::args().collect();
-    if args.len() != 2 && args.len() != 8 {
-        println!("<interface name> or <inferface name> <chunk size> <chunk count> <Filling ring size> <RX ring size>");
+    if args.len() != 2 {
+        println!("./ipv6 <interface name>");
         std::process::exit(-1);
     }
 
