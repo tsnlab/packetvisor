@@ -56,7 +56,7 @@ fn main() {
         filling_ring_size,
         completion_ring_size,
     );
-    let mut nic:pv::Nic;
+    let mut nic: pv::Nic;
     if let Some(a) = pv_open_option {
         nic = a;
     } else {
