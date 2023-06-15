@@ -147,25 +147,24 @@ fn process_packets(
 ) -> u32 {
     let mut processed = 0;
     for i in (0..batch_size).rev() {
+        // analyze packet
         let packet_kind: PacketKind = is_arp_req(&packets[i as usize]);
-        // analyze packet and create packet
 
-        let processing_result: Result<(), i32>;
         // process packet
         match packet_kind {
             PacketKind::ArpReq => {
-                processing_result =
+                let processing_result: Result<(), i32> =
                     make_arp_response_packet(src_mac_address, &mut packets[i as usize]);
+
+                if processing_result.is_ok() {
+                    processed += 1;
+                } else {
+                    pv::pv_free(nic, packets, i as usize);
+                }
             }
             _ => {
-                processing_result = Err(0);
+                pv::pv_free(nic, packets, i as usize);
             }
-        }
-
-        if processing_result.is_ok() {
-            processed += 1;
-        } else {
-            pv::pv_free(nic, packets, i as usize);
         }
     }
     processed
