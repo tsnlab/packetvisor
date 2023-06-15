@@ -142,11 +142,8 @@ fn process_packets(
 ) -> u32 {
     let mut processed = 0;
     for i in (0..batch_size).rev() {
-        // analyze packet
-        let is_arp_req: bool = is_arp_req(&packets[i as usize]);
-
-        // process packet
-        if is_arp_req {
+        // analyze and process packet
+        if is_arp_req(&packets[i as usize]) {
             if make_arp_response_packet(src_mac_address, &mut packets[i as usize]).is_ok() {
                 processed += 1;
             } else {
