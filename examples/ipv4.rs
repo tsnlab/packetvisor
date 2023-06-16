@@ -14,24 +14,13 @@ fn main() {
         std::process::exit(-1);
     }
 
-    let mut if_name = String::new();
+    let if_name = args[1].clone();
     let chunk_size: u32 = 2048;
     let chunk_count: u32 = 1024;
     let rx_ring_size: u32 = 64;
     let tx_ring_size: u32 = 64;
     let filling_ring_size: u32 = 64;
     let completion_ring_size: u32 = 64;
-
-    for i in 1..args.len() {
-        match i {
-            1 => {
-                if_name = args[1].clone();
-            }
-            _ => {
-                panic!("abnormal index");
-            }
-        }
-    }
 
     /* signal define to end the application */
     let term: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
