@@ -1,5 +1,6 @@
 /* ICMP example */
 
+use num_derive::{ToPrimitive, FromPrimitive};
 use packetvisor::pv;
 use pnet::{
     datalink::{interfaces, MacAddr, NetworkInterface},
@@ -20,6 +21,14 @@ use std::{
     sync::atomic::{AtomicBool, Ordering},
     sync::Arc,
 };
+
+#[derive(ToPrimitive, FromPrimitive)]
+enum Protocol {
+    ARP = 1,
+    ICMP = 2,
+    OTHER = 3,
+}
+
 fn main() {
     let args: Vec<String> = env::args().collect();
     if args.len() != 8 {
@@ -146,15 +155,15 @@ fn process_packets(
 ) -> u32 {
     let mut processed = 0;
     for i in (0..batch_size as usize).rev() {
-        match chk_protocol(&packets[i]) {
-            "ARP" => {
+        match get_protocol(&packets[i]) {
+            Protocol::ARP => {
                 if make_arp_response_packet(src_mac_address, &mut packets[i]).is_ok() {
                     processed += 1;
                 } else {
                     pv::pv_free(nic, packets, i);
                 }
             }
-            "ICMP" => {
+            Protocol::ICMP => {
                 if make_icmp_response_packet(&mut packets[i]).is_ok() {
                     processed += 1;
                 } else {
@@ -170,13 +179,13 @@ fn process_packets(
 }
 
 // analyze what kind of given packet
-fn chk_protocol(packet: &pv::Packet) -> &str {
+fn get_protocol(packet: &pv::Packet) -> Protocol {
     if is_icmp_req(packet) {
-        "ICMP"
+        Protocol::ICMP
     } else if is_arp_req(packet) {
-        "ARP"
+        Protocol::ARP
     } else {
-        ""
+        Protocol::OTHER
     }
 }
 
