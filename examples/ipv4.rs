@@ -77,9 +77,9 @@ fn main() {
                         .buffer
                         .add(packets[i as usize].start as usize)
                         .cast_const();
-                    if std::ptr::read(payload_ptr.offset(12)) == 0x08
+                    if std::ptr::read(payload_ptr.offset(12)) == 0x08 // Ethertype == 0x0800 (IPv4)
                         && std::ptr::read(payload_ptr.offset(13)) == 0x00
-                        && std::ptr::read(payload_ptr.offset(14)) >> 4 == 4
+                        && std::ptr::read(payload_ptr.offset(14)) >> 4 == 4 // IP version == 4
                     {
                         packet_dump(&mut packets[i as usize]);
                     }
