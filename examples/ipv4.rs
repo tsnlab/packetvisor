@@ -71,20 +71,20 @@ fn main() {
         let received: u32 = pv::pv_receive(&mut nic, &mut packets, rx_batch_size);
 
         if received > 0 {
-            for i in (0..received).rev() {
+            for i in (0..received as usize).rev() {
                 unsafe {
-                    let payload_ptr = packets[i as usize]
+                    let payload_ptr = packets[i]
                         .buffer
-                        .add(packets[i as usize].start as usize)
+                        .add(packets[i].start as usize)
                         .cast_const();
                     if std::ptr::read(payload_ptr.offset(12)) == 0x08 // Ethertype == 0x0800 (IPv4)
                         && std::ptr::read(payload_ptr.offset(13)) == 0x00
                         && std::ptr::read(payload_ptr.offset(14)) >> 4 == 4 // IP version == 4
                     {
-                        packet_dump(&mut packets[i as usize]);
+                        packet_dump(&mut packets[i]);
                     }
                 }
-                pv::pv_free(&mut nic, &mut packets, i as usize);
+                pv::pv_free(&mut nic, &mut packets, i);
             }
         }
     }

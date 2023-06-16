@@ -144,16 +144,16 @@ fn process_packets(
     src_mac_address: &MacAddr,
 ) -> u32 {
     let mut processed = 0;
-    for i in (0..batch_size).rev() {
+    for i in (0..batch_size as usize).rev() {
         // analyze and process packet
-        if is_arp_req(&packets[i as usize]) {
-            if make_arp_response_packet(src_mac_address, &mut packets[i as usize]).is_ok() {
+        if is_arp_req(&packets[i]) {
+            if make_arp_response_packet(src_mac_address, &mut packets[i]).is_ok() {
                 processed += 1;
             } else {
-                pv::pv_free(nic, packets, i as usize);
+                pv::pv_free(nic, packets, i);
             }
         } else {
-            pv::pv_free(nic, packets, i as usize);
+            pv::pv_free(nic, packets, i);
         }
     }
     processed
