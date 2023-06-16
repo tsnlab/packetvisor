@@ -8,7 +8,6 @@ mod bindings {
 }
 
 use bindings::*;
-
 use core::ffi::*;
 use pnet::datalink::{interfaces, NetworkInterface};
 use std::alloc::{alloc_zeroed, Layout};
