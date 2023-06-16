@@ -1,13 +1,15 @@
-/* ARP example */
+/* ICMP example */
 
 use packetvisor::pv;
 use pnet::{
     datalink::{interfaces, MacAddr, NetworkInterface},
-    packet::ethernet::{EtherTypes, MutableEthernetPacket},
-    packet::MutablePacket,
+    packet::icmp::{IcmpTypes, MutableIcmpPacket},
+    packet::{ipv4::MutableIpv4Packet, icmp},
+    packet::{MutablePacket},
     packet::{
         arp::{ArpHardwareTypes, ArpOperations, MutableArpPacket},
-        PacketSize,
+        ethernet::{EtherTypes, MutableEthernetPacket},
+        ipv4,
     },
 };
 use signal_hook::SigId;
@@ -18,7 +20,6 @@ use std::{
     sync::atomic::{AtomicBool, Ordering},
     sync::Arc,
 };
-
 fn main() {
     let args: Vec<String> = env::args().collect();
     if args.len() != 8 {
@@ -45,7 +46,7 @@ fn main() {
             3 => {
                 chunk_count = args[3].parse::<u32>().expect("Check chunk count.");
             }
-            4 => {
+              4 => {
                 rx_ring_size = args[4].parse::<u32>().expect("Check rx ring size.");
             }
             5 => {
@@ -145,55 +146,112 @@ fn process_packets(
 ) -> u32 {
     let mut processed = 0;
     for i in (0..batch_size as usize).rev() {
-        // analyze and process packet
-        if is_arp_req(&packets[i]) {
-            if make_arp_response_packet(src_mac_address, &mut packets[i]).is_ok() {
-                processed += 1;
-            } else {
+        match chk_protocol(&packets[i]) {
+            "ARP" => {
+                if make_arp_response_packet(src_mac_address, &mut packets[i]).is_ok() {
+                    processed += 1;
+                } else {
+                    pv::pv_free(nic, packets, i);
+                }
+            }
+            "ICMP" => {
+                if make_icmp_response_packet(&mut packets[i]).is_ok() {
+                    processed += 1;
+                } else {
+                    pv::pv_free(nic, packets, i);
+                }
+            }
+            _ => {
                 pv::pv_free(nic, packets, i);
             }
-        } else {
-            pv::pv_free(nic, packets, i);
         }
     }
     processed
 }
 
 // analyze what kind of given packet
+fn chk_protocol(packet: &pv::Packet) -> &str {
+    let payload_ptr = unsafe { packet.buffer.add(packet.start as usize).cast_const() };
+    if is_icmp_req(packet) {
+        "ICMP"
+    } else if is_arp_req(packet) {
+        "ARP"
+    } else {
+        ""
+    }
+}
+
+fn set_eth(packet: &mut MutableEthernetPacket) {
+    let dest_mac_addr: MacAddr = packet.get_source();
+    let src_mac_addr: MacAddr = packet.get_destination();
+
+    packet.set_destination(dest_mac_addr);
+    packet.set_source(src_mac_addr);
+}
+
+fn set_ipv4(packet: &mut MutableIpv4Packet) {
+    let dest_ip_addr: Ipv4Addr = packet.get_source();
+    let src_ip_addr: Ipv4Addr = packet.get_destination();
+
+    packet.set_destination(dest_ip_addr);
+    packet.set_source(src_ip_addr);
+    packet.set_flags(0x00);
+    packet.set_checksum(ipv4::checksum(&packet.to_immutable()));
+
+}
+
+fn set_icmp(packet: &mut MutableIcmpPacket) {
+    packet.set_icmp_type(IcmpTypes::EchoReply);
+    packet.set_checksum(icmp::checksum(&packet.to_immutable()));
+}
+
+fn make_icmp_response_packet(
+    packet: &mut pv::Packet,
+) -> Result<(), String> {
+    let mut buffer: Vec<u8> = packet.get_buffer();
+
+    let mut eth_pkt = MutableEthernetPacket::new(&mut buffer).unwrap();
+    set_eth(&mut eth_pkt);
+    let mut ip_pkt = MutableIpv4Packet::new(eth_pkt.payload_mut()).unwrap();
+    set_ipv4(&mut ip_pkt);
+    let mut icmp_pkt = MutableIcmpPacket::new(ip_pkt.payload_mut()).unwrap();
+    set_icmp(&mut icmp_pkt);
+
+    packet.replace_data(&buffer)
+}
+
 fn is_arp_req(packet: &pv::Packet) -> bool {
     let payload_ptr = unsafe { packet.buffer.add(packet.start as usize).cast_const() };
 
     unsafe {
-        std::ptr::read(payload_ptr.offset(12)) == 0x08 // Ethertype == 0x0806
-            && std::ptr::read(payload_ptr.offset(13)) == 0x06
+        std::ptr::read(payload_ptr.offset(12)) == 0x08 // Ethertype == 0x0806 (ARP)
+            && std::ptr::read(payload_ptr.offset(13))                                                                                                                                                            == 0x06
             && std::ptr::read(payload_ptr.offset(20)) == 0x00 // arp.opcode = 0x0001
             && std::ptr::read(payload_ptr.offset(21)) == 0x01
     }
 }
 
-fn make_arp_response_packet(src_mac_addr: &MacAddr, packet: &mut pv::Packet) -> Result<(), String> {
-    let mut buffer = packet.get_buffer_mut();
+fn is_icmp_req(packet: &pv::Packet) -> bool {
+    let payload_ptr = unsafe { packet.buffer.add(packet.start as usize).cast_const() };
 
-    let eth_pkt_result = MutableEthernetPacket::new(&mut buffer);
-
-    if eth_pkt_result.is_none() {
-        return Err(String::from(
-            "buffer size is less than the minimum required packet size",
-        ));
+    unsafe {
+        std::ptr::read(payload_ptr.offset(12)) == 0x08 // Ethertype == 0x0800 (IPv4)
+            && std::ptr::read(payload_ptr.offset(13)) == 0x00
+            && std::ptr::read(payload_ptr.offset(14)) >> 4 == 4    // IP version == 4
+            && std::ptr::read(payload_ptr.offset(23)) == 0x01 // IPv4 Protocol == 0x01 (ICMP)
     }
-    let mut eth_pkt = eth_pkt_result.unwrap();
+}
+
+fn make_arp_response_packet(src_mac_addr: &MacAddr, packet: &mut pv::Packet) -> Result<(), String> {
+    let mut buffer: Vec<u8> = packet.get_buffer();
+
+    let mut eth_pkt = MutableEthernetPacket::new(&mut buffer).unwrap();
     let dest_mac_addr: MacAddr = eth_pkt.get_source();
     eth_pkt.set_destination(dest_mac_addr);
     eth_pkt.set_source(*src_mac_addr);
     eth_pkt.set_ethertype(EtherTypes::Arp);
 
-    let arp_req_result = MutableArpPacket::new(eth_pkt.payload_mut());
-    if arp_req_result.is_none() {
-        return Err(String::from(
-            "buffer size is less than the minimum required packet size",
-        ));
-    }
-    let mut arp_req = arp_req_result.unwrap();
+    let mut arp_req = MutableArpPacket::new(eth_pkt.payload_mut()).unwrap();
     let src_ipv4_addr = Ipv4Addr::new(10, 0, 0, 4); // 10.0.0.4
     let dest_ipv4_addr: Ipv4Addr = arp_req.get_sender_proto_addr();
 
@@ -207,8 +265,6 @@ fn make_arp_response_packet(src_mac_addr: &MacAddr, packet: &mut pv::Packet) -> 
     arp_req.set_target_hw_addr(dest_mac_addr);
     arp_req.set_target_proto_addr(dest_ipv4_addr);
 
-    let packet_size = (arp_req.packet_size() + eth_pkt.packet_size()) as u32;
-    packet.end = packet.start + packet_size;
-
-    Ok(())
+    /* replace packet data with ARP packet */
+    packet.replace_data(&buffer)
 }
