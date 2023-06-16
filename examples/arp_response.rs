@@ -166,7 +166,7 @@ fn is_arp_req(packet: &pv::Packet) -> bool {
 }
 
 fn make_arp_response_packet(src_mac_addr: &MacAddr, packet: &mut pv::Packet) {
-    let mut buffer = packet.get_buffer();
+    let mut buffer = packet.get_buffer_mut();
 
     let mut eth_pkt = MutableEthernetPacket::new(&mut buffer).unwrap();
     let dest_mac_addr: MacAddr = eth_pkt.get_source();

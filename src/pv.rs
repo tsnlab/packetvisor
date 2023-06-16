@@ -55,15 +55,13 @@ impl Packet {
         }
     }
 
-    pub fn get_buffer(&mut self) -> &mut [u8] {
-        let buffer = unsafe {
+    pub fn get_buffer_mut(&mut self) -> &mut [u8] {
+        unsafe {
             std::slice::from_raw_parts_mut(
                 self.buffer.offset(self.start as isize),
                 (self.end - self.start) as usize,
             )
-        };
-
-        buffer
+        }
     }
 }
 
