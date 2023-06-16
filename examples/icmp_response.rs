@@ -171,7 +171,6 @@ fn process_packets(
 
 // analyze what kind of given packet
 fn chk_protocol(packet: &pv::Packet) -> &str {
-    let payload_ptr = unsafe { packet.buffer.add(packet.start as usize).cast_const() };
     if is_icmp_req(packet) {
         "ICMP"
     } else if is_arp_req(packet) {
