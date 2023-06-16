@@ -37,7 +37,7 @@ impl Packet {
         }
     }
 
-    // replace payload with new data, and return Ok(remaining size) or Err(excess size) if failed
+    // replace payload with new data
     pub fn replace_data(&mut self, new_data: &Vec<u8>) -> Result<(), String> {
         if new_data.len() as u32 <= self.buffer_size {
             unsafe {
@@ -55,14 +55,13 @@ impl Packet {
         }
     }
 
-    pub fn get_buffer(&self) -> Vec<u8> {
+    pub fn get_buffer(&mut self) -> &mut [u8] {
         let buffer = unsafe {
-            std::slice::from_raw_parts(
+            std::slice::from_raw_parts_mut(
                 self.buffer.offset(self.start as isize),
                 (self.end - self.start) as usize,
             )
-        }
-        .to_owned();
+        };
 
         buffer
     }

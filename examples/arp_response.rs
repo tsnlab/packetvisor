@@ -144,11 +144,8 @@ fn process_packets(
     for i in (0..batch_size).rev() {
         // analyze and process packet
         if is_arp_req(&packets[i as usize]) {
-            if make_arp_response_packet(src_mac_address, &mut packets[i as usize]).is_ok() {
-                processed += 1;
-            } else {
-                pv::pv_free(nic, packets, i as usize);
-            }
+            make_arp_response_packet(src_mac_address, &mut packets[i as usize]);
+            processed += 1;
         } else {
             pv::pv_free(nic, packets, i as usize);
         }
@@ -168,8 +165,8 @@ fn is_arp_req(packet: &pv::Packet) -> bool {
     }
 }
 
-fn make_arp_response_packet(src_mac_addr: &MacAddr, packet: &mut pv::Packet) -> Result<(), String> {
-    let mut buffer: Vec<u8> = packet.get_buffer();
+fn make_arp_response_packet(src_mac_addr: &MacAddr, packet: &mut pv::Packet) {
+    let mut buffer: &mut [u8] = packet.get_buffer();
 
     let mut eth_pkt = MutableEthernetPacket::new(&mut buffer).unwrap();
     let dest_mac_addr: MacAddr = eth_pkt.get_source();
@@ -191,6 +188,5 @@ fn make_arp_response_packet(src_mac_addr: &MacAddr, packet: &mut pv::Packet) -> 
     arp_req.set_target_hw_addr(dest_mac_addr);
     arp_req.set_target_proto_addr(dest_ipv4_addr);
 
-    /* replace packet data with ARP packet */
-    packet.replace_data(&buffer)
+    packet.end = packet.start + 42; // minimum ARP packet size
 }
