@@ -3,9 +3,12 @@
 use packetvisor::pv;
 use pnet::{
     datalink::{interfaces, MacAddr, NetworkInterface},
-    packet::arp::{ArpHardwareTypes, ArpOperations, MutableArpPacket},
     packet::ethernet::{EtherTypes, MutableEthernetPacket},
     packet::MutablePacket,
+    packet::{
+        arp::{ArpHardwareTypes, ArpOperations, MutableArpPacket},
+        PacketSize,
+    },
 };
 use signal_hook::SigId;
 use std::{
@@ -188,5 +191,6 @@ fn make_arp_response_packet(src_mac_addr: &MacAddr, packet: &mut pv::Packet) {
     arp_req.set_target_hw_addr(dest_mac_addr);
     arp_req.set_target_proto_addr(dest_ipv4_addr);
 
-    packet.end = packet.start + 42; // minimum ARP packet size
+    let packet_size = (arp_req.packet_size() + eth_pkt.packet_size()) as u32;
+    packet.end = packet.start + packet_size;
 }
