@@ -1,6 +1,6 @@
 /* ICMP example */
 
-use num_derive::{ToPrimitive, FromPrimitive};
+use num_derive::{FromPrimitive, ToPrimitive};
 use packetvisor::pv;
 use pnet::{
     datalink::{interfaces, MacAddr, NetworkInterface},
