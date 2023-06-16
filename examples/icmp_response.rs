@@ -4,13 +4,13 @@ use packetvisor::pv;
 use pnet::{
     datalink::{interfaces, MacAddr, NetworkInterface},
     packet::icmp::{IcmpTypes, MutableIcmpPacket},
-    packet::{ipv4::MutableIpv4Packet, icmp},
-    packet::{MutablePacket},
+    packet::MutablePacket,
     packet::{
         arp::{ArpHardwareTypes, ArpOperations, MutableArpPacket},
         ethernet::{EtherTypes, MutableEthernetPacket},
         ipv4,
     },
+    packet::{icmp, ipv4::MutableIpv4Packet},
 };
 use signal_hook::SigId;
 use std::{
@@ -46,7 +46,7 @@ fn main() {
             3 => {
                 chunk_count = args[3].parse::<u32>().expect("Check chunk count.");
             }
-              4 => {
+            4 => {
                 rx_ring_size = args[4].parse::<u32>().expect("Check rx ring size.");
             }
             5 => {
@@ -197,7 +197,6 @@ fn set_ipv4(packet: &mut MutableIpv4Packet) {
     packet.set_source(src_ip_addr);
     packet.set_flags(0x00);
     packet.set_checksum(ipv4::checksum(&packet.to_immutable()));
-
 }
 
 fn set_icmp(packet: &mut MutableIcmpPacket) {
@@ -205,9 +204,7 @@ fn set_icmp(packet: &mut MutableIcmpPacket) {
     packet.set_checksum(icmp::checksum(&packet.to_immutable()));
 }
 
-fn make_icmp_response_packet(
-    packet: &mut pv::Packet,
-) -> Result<(), String> {
+fn make_icmp_response_packet(packet: &mut pv::Packet) -> Result<(), String> {
     let mut buffer: Vec<u8> = packet.get_buffer();
 
     let mut eth_pkt = MutableEthernetPacket::new(&mut buffer).unwrap();
