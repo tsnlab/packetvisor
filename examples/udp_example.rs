@@ -4,15 +4,13 @@ use num_derive::{FromPrimitive, ToPrimitive};
 use packetvisor::pv;
 use pnet::{
     datalink::{interfaces, MacAddr, NetworkInterface},
-    packet::icmp::{IcmpTypes, MutableIcmpPacket},
     packet::MutablePacket,
     packet::{
         arp::{ArpHardwareTypes, ArpOperations, MutableArpPacket},
         ethernet::{EtherTypes, MutableEthernetPacket},
-        ipv4,
     },
-    packet::{icmp, ipv4::MutableIpv4Packet},
 };
+use clap::{arg, Command};
 use signal_hook::SigId;
 use std::{
     env,
@@ -25,53 +23,35 @@ use std::{
 #[derive(ToPrimitive, FromPrimitive)]
 enum Protocol {
     ARP = 1,
-    ICMP = 2,
+    UDP = 2,
     OTHER = 3,
 }
 
 fn main() {
     let args: Vec<String> = env::args().collect();
-    if args.len() != 8 {
+    if args.len() < 3 {
         println!("check the number of arguments.");
         std::process::exit(-1);
     }
+    let matches = Command::new("udp_example")
+        .arg(arg!(interface: -i --interface <interface> "interface").required(true))
+        .arg(arg!(port: -p --port <port> "port").required(true))
+        .arg(arg!(chunk_size: -s --chunk_size <chunk_size> "chunk size").required(false).default_value("2048"))
+        .arg(arg!(chunk_count: -c --chunk_count <chunk_count> "chunk count").required(false).default_value("1024"))
+        .arg(arg!(rx_ring_size: -r --rx_ring_size <rx_ring_size> "rx ring size").required(false).default_value("64"))
+        .arg(arg!(tx_ring_size: -t --tx_ring_size <tx_ring_size> "tx ring size").required(false).default_value("64"))
+        .arg(arg!(filling_ring_size: -f --filling_ring_size <filling_ring_size> "filling ring size").required(false).default_value("64"))
+        .arg(arg!(completion_ring_size: -o --completion_ring_size <completion_ring_size> "completion ring size").required(false).default_value("64"))
+        .get_matches();
 
-    let mut if_name = String::new();
-    let mut chunk_size: u32 = 0;
-    let mut chunk_count: u32 = 0;
-    let mut rx_ring_size: u32 = 0;
-    let mut tx_ring_size: u32 = 0;
-    let mut filling_ring_size: u32 = 0;
-    let mut completion_ring_size: u32 = 0;
-
-    for i in 1..args.len() {
-        match i {
-            1 => {
-                if_name = args[1].clone();
-            }
-            2 => {
-                chunk_size = args[2].parse::<u32>().expect("Check chunk size.");
-            }
-            3 => {
-                chunk_count = args[3].parse::<u32>().expect("Check chunk count.");
-            }
-            4 => {
-                rx_ring_size = args[4].parse::<u32>().expect("Check rx ring size.");
-            }
-            5 => {
-                tx_ring_size = args[5].parse::<u32>().expect("Check tx ring size.");
-            }
-            6 => {
-                filling_ring_size = args[6].parse::<u32>().expect("Check filling ring size.");
-            }
-            7 => {
-                completion_ring_size = args[7].parse::<u32>().expect("Check completion ring size.");
-            }
-            _ => {
-                panic!("abnormal index");
-            }
-        }
-    }
+    let if_name = matches.get_one::<String>("interface").unwrap().clone();
+    let port = (*matches.get_one::<String>("port").unwrap()).parse::<u32>().expect("Check port.");
+    let chunk_size = (*matches.get_one::<String>("chunk_size").unwrap()).parse::<u32>().expect("Check chunk size.");
+    let chunk_count = (*matches.get_one::<String>("chunk_count").unwrap()).parse::<u32>().expect("Check chunk count.");
+    let rx_ring_size = (*matches.get_one::<String>("rx_ring_size").unwrap()).parse::<u32>().expect("Check rx ring size.");
+    let tx_ring_size = (*matches.get_one::<String>("tx_ring_size").unwrap()).parse::<u32>().expect("Check tx ring size.");
+    let filling_ring_size = (*matches.get_one::<String>("filling_ring_size").unwrap()).parse::<u32>().expect("Check filling ring size.");
+    let completion_ring_size = (*matches.get_one::<String>("completion_ring_size").unwrap()).parse::<u32>().expect("Check completion ring size.");
 
     /* signal define to end the application */
     let term: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
@@ -132,7 +112,7 @@ fn main() {
 
         if received > 0 {
             let processed: u32 =
-                process_packets(&mut nic, &mut packets, received, &src_mac_address);
+                process_packets(&mut nic, &mut packets, received, &src_mac_address, port);
             let sent: u32 = pv::pv_send(&mut nic, &mut packets, processed);
 
             if sent == 0 {
@@ -152,6 +132,7 @@ fn process_packets(
     packets: &mut Vec<pv::Packet>,
     batch_size: u32,
     src_mac_address: &MacAddr,
+    port: u32,
 ) -> u32 {
     let mut processed = 0;
     for i in (0..batch_size as usize).rev() {
@@ -163,8 +144,9 @@ fn process_packets(
                     pv::pv_free(nic, packets, i);
                 }
             }
-            Protocol::ICMP => {
-                if make_icmp_response_packet(&mut packets[i]).is_ok() {
+            Protocol::UDP => {
+                if chk_port(&packets[i], port) {
+                    packet_dump(&packets[i]);
                     processed += 1;
                 } else {
                     pv::pv_free(nic, packets, i);
@@ -177,52 +159,53 @@ fn process_packets(
     }
     processed
 }
+fn packet_dump(packet: &pv::Packet) {
+    let buffer_address: *const u8 = packet.buffer.cast_const();
+
+    let length: u32 = packet.end - packet.start;
+    let mut count: u32 = 0;
+
+    unsafe {
+        loop {
+            let read_offset: usize = count as usize;
+            let read_address: *const u8 = buffer_address.add(packet.start as usize + read_offset);
+            print!("{:02X?} ", std::ptr::read(read_address));
+
+            count += 1;
+            if count == length {
+                break;
+            } else if count % 8 == 0 {
+                print!(" ");
+                if count % 16 == 0 {
+                    println!();
+                }
+            }
+        }
+    }
+    println!("\n-------\n");
+}
+
+fn chk_port(packet: &pv::Packet, port: u32) -> bool {
+    let payload_ptr = unsafe { packet.buffer.add(packet.start as usize).cast_const() };
+
+    unsafe {
+        let mut port_bytes: [u8; 2] = [0; 2];
+        port_bytes[0] = std::ptr::read(payload_ptr.offset(36));
+        port_bytes[1] = std::ptr::read(payload_ptr.offset(37));
+        let packet_port: u16 = u16::from_be_bytes(port_bytes);
+        packet_port as u32 == port
+    }
+}
 
 // analyze what kind of given packet
 fn get_protocol(packet: &pv::Packet) -> Protocol {
-    if is_icmp(packet) {
-        Protocol::ICMP
+    if is_udp(packet) {
+        Protocol::UDP
     } else if is_arp(packet) {
         Protocol::ARP
     } else {
         Protocol::OTHER
     }
-}
-
-fn set_eth(packet: &mut MutableEthernetPacket) {
-    let dest_mac_addr: MacAddr = packet.get_source();
-    let src_mac_addr: MacAddr = packet.get_destination();
-
-    packet.set_destination(dest_mac_addr);
-    packet.set_source(src_mac_addr);
-}
-
-fn set_ipv4(packet: &mut MutableIpv4Packet) {
-    let dest_ip_addr: Ipv4Addr = packet.get_source();
-    let src_ip_addr: Ipv4Addr = packet.get_destination();
-
-    packet.set_destination(dest_ip_addr);
-    packet.set_source(src_ip_addr);
-    packet.set_flags(0x00);
-    packet.set_checksum(ipv4::checksum(&packet.to_immutable()));
-}
-
-fn set_icmp(packet: &mut MutableIcmpPacket) {
-    packet.set_icmp_type(IcmpTypes::EchoReply);
-    packet.set_checksum(icmp::checksum(&packet.to_immutable()));
-}
-
-fn make_icmp_response_packet(packet: &mut pv::Packet) -> Result<(), String> {
-    let mut buffer: Vec<u8> = packet.get_buffer();
-
-    let mut eth_pkt = MutableEthernetPacket::new(&mut buffer).unwrap();
-    set_eth(&mut eth_pkt);
-    let mut ip_pkt = MutableIpv4Packet::new(eth_pkt.payload_mut()).unwrap();
-    set_ipv4(&mut ip_pkt);
-    let mut icmp_pkt = MutableIcmpPacket::new(ip_pkt.payload_mut()).unwrap();
-    set_icmp(&mut icmp_pkt);
-
-    packet.replace_data(&buffer)
 }
 
 fn is_arp(packet: &pv::Packet) -> bool {
@@ -236,14 +219,14 @@ fn is_arp(packet: &pv::Packet) -> bool {
     }
 }
 
-fn is_icmp(packet: &pv::Packet) -> bool {
+fn is_udp(packet: &pv::Packet) -> bool {
     let payload_ptr = unsafe { packet.buffer.add(packet.start as usize).cast_const() };
 
     unsafe {
         std::ptr::read(payload_ptr.offset(12)) == 0x08 // Ethertype == 0x0800 (IPv4)
             && std::ptr::read(payload_ptr.offset(13)) == 0x00
             && std::ptr::read(payload_ptr.offset(14)) >> 4 == 4    // IP version == 4
-            && std::ptr::read(payload_ptr.offset(23)) == 0x01 // IPv4 Protocol == 0x01 (ICMP)
+            && std::ptr::read(payload_ptr.offset(23)) == 0x11 // IPv4 Protocol == 0x11 (UDP)
     }
 }
 
