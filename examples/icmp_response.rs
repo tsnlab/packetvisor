@@ -180,9 +180,9 @@ fn process_packets(
 
 // analyze what kind of given packet
 fn get_protocol(packet: &pv::Packet) -> Protocol {
-    if is_icmp_req(packet) {
+    if is_icmp(packet) {
         Protocol::ICMP
-    } else if is_arp_req(packet) {
+    } else if is_arp(packet) {
         Protocol::ARP
     } else {
         Protocol::OTHER
@@ -225,7 +225,7 @@ fn make_icmp_response_packet(packet: &mut pv::Packet) -> Result<(), String> {
     packet.replace_data(&buffer)
 }
 
-fn is_arp_req(packet: &pv::Packet) -> bool {
+fn is_arp(packet: &pv::Packet) -> bool {
     let payload_ptr = unsafe { packet.buffer.add(packet.start as usize).cast_const() };
 
     unsafe {
@@ -236,7 +236,7 @@ fn is_arp_req(packet: &pv::Packet) -> bool {
     }
 }
 
-fn is_icmp_req(packet: &pv::Packet) -> bool {
+fn is_icmp(packet: &pv::Packet) -> bool {
     let payload_ptr = unsafe { packet.buffer.add(packet.start as usize).cast_const() };
 
     unsafe {
