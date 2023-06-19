@@ -1,5 +1,6 @@
 /* ICMP example */
 
+use clap::{arg, Command};
 use num_derive::{FromPrimitive, ToPrimitive};
 use packetvisor::pv;
 use pnet::{
@@ -10,7 +11,6 @@ use pnet::{
         ethernet::{EtherTypes, MutableEthernetPacket},
     },
 };
-use clap::{arg, Command};
 use signal_hook::SigId;
 use std::{
     env,
@@ -45,13 +45,27 @@ fn main() {
         .get_matches();
 
     let if_name = matches.get_one::<String>("interface").unwrap().clone();
-    let port = (*matches.get_one::<String>("port").unwrap()).parse::<u32>().expect("Check port.");
-    let chunk_size = (*matches.get_one::<String>("chunk_size").unwrap()).parse::<u32>().expect("Check chunk size.");
-    let chunk_count = (*matches.get_one::<String>("chunk_count").unwrap()).parse::<u32>().expect("Check chunk count.");
-    let rx_ring_size = (*matches.get_one::<String>("rx_ring_size").unwrap()).parse::<u32>().expect("Check rx ring size.");
-    let tx_ring_size = (*matches.get_one::<String>("tx_ring_size").unwrap()).parse::<u32>().expect("Check tx ring size.");
-    let filling_ring_size = (*matches.get_one::<String>("filling_ring_size").unwrap()).parse::<u32>().expect("Check filling ring size.");
-    let completion_ring_size = (*matches.get_one::<String>("completion_ring_size").unwrap()).parse::<u32>().expect("Check completion ring size.");
+    let port = (*matches.get_one::<String>("port").unwrap())
+        .parse::<u32>()
+        .expect("Check port.");
+    let chunk_size = (*matches.get_one::<String>("chunk_size").unwrap())
+        .parse::<u32>()
+        .expect("Check chunk size.");
+    let chunk_count = (*matches.get_one::<String>("chunk_count").unwrap())
+        .parse::<u32>()
+        .expect("Check chunk count.");
+    let rx_ring_size = (*matches.get_one::<String>("rx_ring_size").unwrap())
+        .parse::<u32>()
+        .expect("Check rx ring size.");
+    let tx_ring_size = (*matches.get_one::<String>("tx_ring_size").unwrap())
+        .parse::<u32>()
+        .expect("Check tx ring size.");
+    let filling_ring_size = (*matches.get_one::<String>("filling_ring_size").unwrap())
+        .parse::<u32>()
+        .expect("Check filling ring size.");
+    let completion_ring_size = (*matches.get_one::<String>("completion_ring_size").unwrap())
+        .parse::<u32>()
+        .expect("Check completion ring size.");
 
     /* signal define to end the application */
     let term: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
