@@ -29,7 +29,7 @@ enum Protocol {
 
 fn main() {
     let args: Vec<String> = env::args().collect();
-    if args.len() < 3 {
+    if args.len() < 5 {
         println!("check the number of arguments.");
         std::process::exit(-1);
     }

@@ -1,5 +1,5 @@
 /* ICMP example */
-
+use clap::{arg, Command};
 use num_derive::{FromPrimitive, ToPrimitive};
 use packetvisor::pv;
 use pnet::{
@@ -31,47 +31,44 @@ enum Protocol {
 
 fn main() {
     let args: Vec<String> = env::args().collect();
-    if args.len() != 8 {
+    if args.len() != 5 {
         println!("check the number of arguments.");
         std::process::exit(-1);
     }
 
-    let mut if_name = String::new();
-    let mut chunk_size: u32 = 0;
-    let mut chunk_count: u32 = 0;
-    let mut rx_ring_size: u32 = 0;
-    let mut tx_ring_size: u32 = 0;
-    let mut filling_ring_size: u32 = 0;
-    let mut completion_ring_size: u32 = 0;
+    let matches = Command::new("udp_example")
+        .arg(arg!(interface: -i --interface <interface> "interface").required(true))
+        .arg(arg!(port: -p --port <port> "port").required(true))
+        .arg(arg!(chunk_size: -s --chunk_size <chunk_size> "chunk size").required(false).default_value("2048"))
+        .arg(arg!(chunk_count: -c --chunk_count <chunk_count> "chunk count").required(false).default_value("1024"))
+        .arg(arg!(rx_ring_size: -r --rx_ring_size <rx_ring_size> "rx ring size").required(false).default_value("64"))
+        .arg(arg!(tx_ring_size: -t --tx_ring_size <tx_ring_size> "tx ring size").required(false).default_value("64"))
+        .arg(arg!(filling_ring_size: -f --filling_ring_size <filling_ring_size> "filling ring size").required(false).default_value("64"))
+        .arg(arg!(completion_ring_size: -o --completion_ring_size <completion_ring_size> "completion ring size").required(false).default_value("64"))
+        .get_matches();
 
-    for i in 1..args.len() {
-        match i {
-            1 => {
-                if_name = args[1].clone();
-            }
-            2 => {
-                chunk_size = args[2].parse::<u32>().expect("Check chunk size.");
-            }
-            3 => {
-                chunk_count = args[3].parse::<u32>().expect("Check chunk count.");
-            }
-            4 => {
-                rx_ring_size = args[4].parse::<u32>().expect("Check rx ring size.");
-            }
-            5 => {
-                tx_ring_size = args[5].parse::<u32>().expect("Check tx ring size.");
-            }
-            6 => {
-                filling_ring_size = args[6].parse::<u32>().expect("Check filling ring size.");
-            }
-            7 => {
-                completion_ring_size = args[7].parse::<u32>().expect("Check completion ring size.");
-            }
-            _ => {
-                panic!("abnormal index");
-            }
-        }
-    }
+    let if_name = matches.get_one::<String>("interface").unwrap().clone();
+    let port = (*matches.get_one::<String>("port").unwrap())
+        .parse::<u32>()
+        .expect("Check port.");
+    let chunk_size = (*matches.get_one::<String>("chunk_size").unwrap())
+        .parse::<u32>()
+        .expect("Check chunk size.");
+    let chunk_count = (*matches.get_one::<String>("chunk_count").unwrap())
+        .parse::<u32>()
+        .expect("Check chunk count.");
+    let rx_ring_size = (*matches.get_one::<String>("rx_ring_size").unwrap())
+        .parse::<u32>()
+        .expect("Check rx ring size.");
+    let tx_ring_size = (*matches.get_one::<String>("tx_ring_size").unwrap())
+        .parse::<u32>()
+        .expect("Check tx ring size.");
+    let filling_ring_size = (*matches.get_one::<String>("filling_ring_size").unwrap())
+        .parse::<u32>()
+        .expect("Check filling ring size.");
+    let completion_ring_size = (*matches.get_one::<String>("completion_ring_size").unwrap())
+        .parse::<u32>()
+        .expect("Check completion ring size.");
 
     /* signal define to end the application */
     let term: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
