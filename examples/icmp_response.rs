@@ -38,7 +38,6 @@ fn main() {
 
     let matches = Command::new("udp_example")
         .arg(arg!(interface: -i --interface <interface> "interface").required(true))
-        .arg(arg!(port: -p --port <port> "port").required(true))
         .arg(arg!(chunk_size: -s --chunk_size <chunk_size> "chunk size").required(false).default_value("2048"))
         .arg(arg!(chunk_count: -c --chunk_count <chunk_count> "chunk count").required(false).default_value("1024"))
         .arg(arg!(rx_ring_size: -r --rx_ring_size <rx_ring_size> "rx ring size").required(false).default_value("64"))
@@ -48,9 +47,6 @@ fn main() {
         .get_matches();
 
     let if_name = matches.get_one::<String>("interface").unwrap().clone();
-    let port = (*matches.get_one::<String>("port").unwrap())
-        .parse::<u32>()
-        .expect("Check port.");
     let chunk_size = (*matches.get_one::<String>("chunk_size").unwrap())
         .parse::<u32>()
         .expect("Check chunk size.");
