@@ -1,6 +1,5 @@
 /* ICMP example */
 use clap::{arg, Command};
-use num_derive::{FromPrimitive, ToPrimitive};
 use packetvisor::pv;
 use pnet::{
     datalink::{interfaces, MacAddr, NetworkInterface},
@@ -15,28 +14,21 @@ use pnet::{
 };
 use signal_hook::SigId;
 use std::{
-    env,
     io::Error,
     net::Ipv4Addr,
     sync::atomic::{AtomicBool, Ordering},
     sync::Arc,
 };
 
-#[derive(ToPrimitive, FromPrimitive)]
+#[derive(PartialEq)]
 enum Protocol {
-    ARP = 1,
-    ICMP = 2,
-    OTHER = 3,
+    ARP,
+    ICMP,
+    OTHER,
 }
 
 fn main() {
-    let args: Vec<String> = env::args().collect();
-    if args.len() != 5 {
-        println!("check the number of arguments.");
-        std::process::exit(-1);
-    }
-
-    let matches = Command::new("udp_example")
+    let matches = Command::new("icmp_example")
         .arg(arg!(interface: -i --interface <interface> "interface").required(true))
         .arg(arg!(chunk_size: -s --chunk_size <chunk_size> "chunk size").required(false).default_value("2048"))
         .arg(arg!(chunk_count: -c --chunk_count <chunk_count> "chunk count").required(false).default_value("1024"))
@@ -81,11 +73,11 @@ fn main() {
 
     /* save source MAC address into variable */
     let all_interfaces: Vec<NetworkInterface> = interfaces();
-    let is_exist: Option<&NetworkInterface> = all_interfaces
+    let mathced_interface: Option<&NetworkInterface> = all_interfaces
         .iter()
         .find(|element| element.name.as_str() == if_name.as_str());
 
-    let src_mac_address: MacAddr = match is_exist {
+    let src_mac_address: MacAddr = match mathced_interface {
         Some(target_interface) => {
             let option: Option<MacAddr> = target_interface.mac;
             if option.is_none() {
@@ -140,6 +132,7 @@ fn main() {
     println!("PV END");
 }
 
+// only packet to be replied is remaining in packets. other packets are freed.
 fn process_packets(
     nic: &mut pv::Nic,
     packets: &mut Vec<pv::Packet>,
@@ -175,7 +168,7 @@ fn process_packets(
 fn get_protocol(packet: &pv::Packet) -> Protocol {
     if is_icmp(packet) {
         Protocol::ICMP
-    } else if is_arp(packet) {
+    } else if is_arp_req(packet) {
         Protocol::ARP
     } else {
         Protocol::OTHER
@@ -218,7 +211,7 @@ fn make_icmp_response_packet(packet: &mut pv::Packet) -> Result<(), String> {
     packet.replace_data(&buffer)
 }
 
-fn is_arp(packet: &pv::Packet) -> bool {
+fn is_arp_req(packet: &pv::Packet) -> bool {
     let payload_ptr = unsafe { packet.buffer.add(packet.start as usize).cast_const() };
 
     unsafe {
