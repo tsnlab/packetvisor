@@ -154,7 +154,7 @@ fn process_packets(
                 }
             }
             Protocol::UDP => {
-                if chk_port(&packets[i], port) {
+                if is_udp_port(&packets[i], port) {
                     packet_dump(&packets[i]);
                     processed += 1;
                 } else {
@@ -194,7 +194,7 @@ fn packet_dump(packet: &pv::Packet) {
     println!("\n-------\n");
 }
 
-fn chk_port(packet: &pv::Packet, port: u32) -> bool {
+fn is_udp_port(packet: &pv::Packet, port: u32) -> bool {
     let payload_ptr = unsafe { packet.buffer.add(packet.start as usize).cast_const() };
 
     unsafe {
