@@ -1,26 +1,42 @@
+use clap::{arg, Command};
 use packetvisor::pv;
 use signal_hook::SigId;
 use std::{
-    env,
     io::Error,
     sync::atomic::{AtomicBool, Ordering},
     sync::Arc,
 };
 
 fn main() {
-    let args: Vec<String> = env::args().collect();
-    if args.len() != 2 {
-        println!("./ipv4 <interface name>");
-        std::process::exit(-1);
-    }
+    let matches = Command::new("ipv4_example")
+    .arg(arg!(interface: -i --interface <interface> "interface").required(true))
+    .arg(arg!(chunk_size: -s --chunk_size <chunk_size> "chunk size").required(false).default_value("2048"))
+    .arg(arg!(chunk_count: -c --chunk_count <chunk_count> "chunk count").required(false).default_value("1024"))
+    .arg(arg!(rx_ring_size: -r --rx_ring_size <rx_ring_size> "rx ring size").required(false).default_value("64"))
+    .arg(arg!(tx_ring_size: -t --tx_ring_size <tx_ring_size> "tx ring size").required(false).default_value("64"))
+    .arg(arg!(filling_ring_size: -f --filling_ring_size <filling_ring_size> "filling ring size").required(false).default_value("64"))
+    .arg(arg!(completion_ring_size: -o --completion_ring_size <completion_ring_size> "completion ring size").required(false).default_value("64"))
+    .get_matches();
 
-    let if_name = args[1].clone();
-    let chunk_size: u32 = 2048;
-    let chunk_count: u32 = 1024;
-    let rx_ring_size: u32 = 64;
-    let tx_ring_size: u32 = 64;
-    let filling_ring_size: u32 = 64;
-    let completion_ring_size: u32 = 64;
+    let if_name = matches.get_one::<String>("interface").unwrap().clone();
+    let chunk_size = (*matches.get_one::<String>("chunk_size").unwrap())
+        .parse::<u32>()
+        .expect("Check chunk size.");
+    let chunk_count = (*matches.get_one::<String>("chunk_count").unwrap())
+        .parse::<u32>()
+        .expect("Check chunk count.");
+    let rx_ring_size = (*matches.get_one::<String>("rx_ring_size").unwrap())
+        .parse::<u32>()
+        .expect("Check rx ring size.");
+    let tx_ring_size = (*matches.get_one::<String>("tx_ring_size").unwrap())
+        .parse::<u32>()
+        .expect("Check tx ring size.");
+    let filling_ring_size = (*matches.get_one::<String>("filling_ring_size").unwrap())
+        .parse::<u32>()
+        .expect("Check filling ring size.");
+    let completion_ring_size = (*matches.get_one::<String>("completion_ring_size").unwrap())
+        .parse::<u32>()
+        .expect("Check completion ring size.");
 
     /* signal define to end the application */
     let term: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
@@ -68,7 +84,8 @@ fn main() {
                         .cast_const();
                     if std::ptr::read(payload_ptr.offset(12)) == 0x08 // Ethertype == 0x0800 (IPv4)
                         && std::ptr::read(payload_ptr.offset(13)) == 0x00
-                        && std::ptr::read(payload_ptr.offset(14)) >> 4 == 4 // IP version == 4
+                        && std::ptr::read(payload_ptr.offset(14)) >> 4 == 4
+                    // IP version == 4
                     {
                         packet_dump(&mut packets[i]);
                     }
