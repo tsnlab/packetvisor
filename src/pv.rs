@@ -16,7 +16,7 @@ use std::ptr::copy;
 
 const DEFAULT_HEADROOM: u32 = 256;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct Packet {
     pub start: u32,       // payload offset pointing the start of payload. ex. 256
     pub end: u32,         // payload offset point the end of payload. ex. 1000
