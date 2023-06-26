@@ -1,5 +1,5 @@
 /* ICMP example */
-
+use clap::{arg, Command};
 use packetvisor::pv;
 use pnet::{
     datalink::{interfaces, MacAddr, NetworkInterface},
@@ -14,55 +14,49 @@ use pnet::{
 };
 use signal_hook::SigId;
 use std::{
-    env,
     io::Error,
     net::Ipv4Addr,
     sync::atomic::{AtomicBool, Ordering},
     sync::Arc,
 };
+
+#[derive(PartialEq)]
+enum Protocol {
+    ARP,
+    ICMP,
+    OTHER,
+}
+
 fn main() {
-    let args: Vec<String> = env::args().collect();
-    if args.len() != 8 {
-        println!("check the number of arguments.");
-        std::process::exit(-1);
-    }
+    let matches = Command::new("icmp_example")
+        .arg(arg!(interface: -i --interface <interface> "interface").required(true))
+        .arg(arg!(chunk_size: -s --chunk_size <chunk_size> "chunk size").required(false).default_value("2048"))
+        .arg(arg!(chunk_count: -c --chunk_count <chunk_count> "chunk count").required(false).default_value("1024"))
+        .arg(arg!(rx_ring_size: -r --rx_ring_size <rx_ring_size> "rx ring size").required(false).default_value("64"))
+        .arg(arg!(tx_ring_size: -t --tx_ring_size <tx_ring_size> "tx ring size").required(false).default_value("64"))
+        .arg(arg!(filling_ring_size: -f --filling_ring_size <filling_ring_size> "filling ring size").required(false).default_value("64"))
+        .arg(arg!(completion_ring_size: -o --completion_ring_size <completion_ring_size> "completion ring size").required(false).default_value("64"))
+        .get_matches();
 
-    let mut if_name = String::new();
-    let mut chunk_size: u32 = 0;
-    let mut chunk_count: u32 = 0;
-    let mut rx_ring_size: u32 = 0;
-    let mut tx_ring_size: u32 = 0;
-    let mut filling_ring_size: u32 = 0;
-    let mut completion_ring_size: u32 = 0;
-
-    for i in 1..args.len() {
-        match i {
-            1 => {
-                if_name = args[1].clone();
-            }
-            2 => {
-                chunk_size = args[2].parse::<u32>().expect("Check chunk size.");
-            }
-            3 => {
-                chunk_count = args[3].parse::<u32>().expect("Check chunk count.");
-            }
-            4 => {
-                rx_ring_size = args[4].parse::<u32>().expect("Check rx ring size.");
-            }
-            5 => {
-                tx_ring_size = args[5].parse::<u32>().expect("Check tx ring size.");
-            }
-            6 => {
-                filling_ring_size = args[6].parse::<u32>().expect("Check filling ring size.");
-            }
-            7 => {
-                completion_ring_size = args[7].parse::<u32>().expect("Check filling ring size.");
-            }
-            _ => {
-                panic!("abnormal index");
-            }
-        }
-    }
+    let if_name = matches.get_one::<String>("interface").unwrap().clone();
+    let chunk_size = (*matches.get_one::<String>("chunk_size").unwrap())
+        .parse::<u32>()
+        .expect("Check chunk size.");
+    let chunk_count = (*matches.get_one::<String>("chunk_count").unwrap())
+        .parse::<u32>()
+        .expect("Check chunk count.");
+    let rx_ring_size = (*matches.get_one::<String>("rx_ring_size").unwrap())
+        .parse::<u32>()
+        .expect("Check rx ring size.");
+    let tx_ring_size = (*matches.get_one::<String>("tx_ring_size").unwrap())
+        .parse::<u32>()
+        .expect("Check tx ring size.");
+    let filling_ring_size = (*matches.get_one::<String>("filling_ring_size").unwrap())
+        .parse::<u32>()
+        .expect("Check filling ring size.");
+    let completion_ring_size = (*matches.get_one::<String>("completion_ring_size").unwrap())
+        .parse::<u32>()
+        .expect("Check completion ring size.");
 
     /* signal define to end the application */
     let term: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
@@ -79,11 +73,11 @@ fn main() {
 
     /* save source MAC address into variable */
     let all_interfaces: Vec<NetworkInterface> = interfaces();
-    let is_exist: Option<&NetworkInterface> = all_interfaces
+    let mathced_interface: Option<&NetworkInterface> = all_interfaces
         .iter()
         .find(|element| element.name.as_str() == if_name.as_str());
 
-    let src_mac_address: MacAddr = match is_exist {
+    let src_mac_address: MacAddr = match mathced_interface {
         Some(target_interface) => {
             let option: Option<MacAddr> = target_interface.mac;
             if option.is_none() {
@@ -138,23 +132,24 @@ fn main() {
     println!("PV END");
 }
 
+// only packet to be replied is remaining in packets. other packets are freed.
 fn process_packets(
     nic: &mut pv::Nic,
-    packets: &mut Vec<pv::Packet>,
+     packets: &mut Vec<pv::Packet>,
     batch_size: u32,
     src_mac_address: &MacAddr,
 ) -> u32 {
     let mut processed = 0;
     for i in (0..batch_size as usize).rev() {
-        match chk_protocol(&packets[i]) {
-            "ARP" => {
+        match get_protocol(&packets[i]) {
+            Protocol::ARP => {
                 if make_arp_response_packet(src_mac_address, &mut packets[i]).is_ok() {
                     processed += 1;
                 } else {
                     pv::pv_free(nic, packets, i);
                 }
             }
-            "ICMP" => {
+            Protocol::ICMP => {
                 if make_icmp_response_packet(&mut packets[i]).is_ok() {
                     processed += 1;
                 } else {
@@ -170,14 +165,13 @@ fn process_packets(
 }
 
 // analyze what kind of given packet
-fn chk_protocol(packet: &pv::Packet) -> &str {
-    let payload_ptr = unsafe { packet.buffer.add(packet.start as usize).cast_const() };
-    if is_icmp_req(packet) {
-        "ICMP"
+fn get_protocol(packet: &pv::Packet) -> Protocol {
+    if is_icmp(packet) {
+        Protocol::ICMP
     } else if is_arp_req(packet) {
-        "ARP"
+        Protocol::ARP
     } else {
-        ""
+        Protocol::OTHER
     }
 }
 
@@ -228,7 +222,7 @@ fn is_arp_req(packet: &pv::Packet) -> bool {
     }
 }
 
-fn is_icmp_req(packet: &pv::Packet) -> bool {
+fn is_icmp(packet: &pv::Packet) -> bool {
     let payload_ptr = unsafe { packet.buffer.add(packet.start as usize).cast_const() };
 
     unsafe {
