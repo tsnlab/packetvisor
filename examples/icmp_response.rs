@@ -8,7 +8,7 @@ use pnet::{
     packet::{
         arp::{ArpHardwareTypes, ArpOperations, MutableArpPacket},
         ethernet::{EtherTypes, MutableEthernetPacket},
-        ipv4,
+        ipv4, PacketSize,
     },
     packet::{icmp, ipv4::MutableIpv4Packet},
 };
@@ -135,7 +135,7 @@ fn main() {
 // only packet to be replied is remaining in packets. other packets are freed.
 fn process_packets(
     nic: &mut pv::Nic,
-     packets: &mut Vec<pv::Packet>,
+    packets: &mut Vec<pv::Packet>,
     batch_size: u32,
     src_mac_address: &MacAddr,
 ) -> u32 {
@@ -199,7 +199,7 @@ fn set_icmp(packet: &mut MutableIcmpPacket) {
 }
 
 fn make_icmp_response_packet(packet: &mut pv::Packet) -> Result<(), String> {
-    let mut buffer: Vec<u8> = packet.get_buffer();
+    let mut buffer = packet.get_buffer_mut();
 
     let mut eth_pkt = MutableEthernetPacket::new(&mut buffer).unwrap();
     set_eth(&mut eth_pkt);
@@ -207,8 +207,11 @@ fn make_icmp_response_packet(packet: &mut pv::Packet) -> Result<(), String> {
     set_ipv4(&mut ip_pkt);
     let mut icmp_pkt = MutableIcmpPacket::new(ip_pkt.payload_mut()).unwrap();
     set_icmp(&mut icmp_pkt);
+    let packet_size =
+        (icmp_pkt.packet_size() + ip_pkt.packet_size() + eth_pkt.packet_size()) as u32;
+    packet.end = packet.start + packet_size;
 
-    packet.replace_data(&buffer)
+    Ok(())
 }
 
 fn is_arp_req(packet: &pv::Packet) -> bool {
@@ -234,7 +237,7 @@ fn is_icmp(packet: &pv::Packet) -> bool {
 }
 
 fn make_arp_response_packet(src_mac_addr: &MacAddr, packet: &mut pv::Packet) -> Result<(), String> {
-    let mut buffer: Vec<u8> = packet.get_buffer();
+    let mut buffer = packet.get_buffer_mut();
 
     let mut eth_pkt = MutableEthernetPacket::new(&mut buffer).unwrap();
     let dest_mac_addr: MacAddr = eth_pkt.get_source();
@@ -256,6 +259,8 @@ fn make_arp_response_packet(src_mac_addr: &MacAddr, packet: &mut pv::Packet) -> 
     arp_req.set_target_hw_addr(dest_mac_addr);
     arp_req.set_target_proto_addr(dest_ipv4_addr);
 
-    /* replace packet data with ARP packet */
-    packet.replace_data(&buffer)
+    let packet_size = (arp_req.packet_size() + eth_pkt.packet_size()) as u32;
+    packet.end = packet.start + packet_size;
+
+    Ok(())
 }
