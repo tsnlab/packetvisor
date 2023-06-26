@@ -154,7 +154,7 @@ fn process_packets(
                 }
             }
             Protocol::UDP => {
-                if is_udp_port(&packets[i], port) {
+                if is_udp_dst_port(&packets[i], port) {
                     packet_dump(&packets[i]);
                     processed += 1;
                 } else {
@@ -194,13 +194,13 @@ fn packet_dump(packet: &pv::Packet) {
     println!("\n-------\n");
 }
 
-fn is_udp_port(packet: &pv::Packet, port: u32) -> bool {
+fn is_udp_dst_port(packet: &pv::Packet, port: u32) -> bool {
     let payload_ptr = unsafe { packet.buffer.add(packet.start as usize).cast_const() };
 
     unsafe {
         let mut port_bytes: [u8; 2] = [0; 2];
-        port_bytes[0] = std::ptr::read(payload_ptr.offset(36));
-        port_bytes[1] = std::ptr::read(payload_ptr.offset(37));
+        port_bytes[0] = std::ptr::read(payload_ptr.offset(14 + 20 + 2)); // eth(14) + ip(20) + 2
+        port_bytes[1] = std::ptr::read(payload_ptr.offset(14 + 20 + 3)); // eth(14) + ip(20) + 3
         let packet_port: u16 = u16::from_be_bytes(port_bytes);
         packet_port as u32 == port
     }
@@ -222,7 +222,7 @@ fn is_arp_req(packet: &pv::Packet) -> bool {
 
     unsafe {
         std::ptr::read(payload_ptr.offset(12)) == 0x08 // Ethertype == 0x0806 (ARP)
-            && std::ptr::read(payload_ptr.offset(13))                                                                                                                                                            == 0x06
+            && std::ptr::read(payload_ptr.offset(13)) == 0x06
             && std::ptr::read(payload_ptr.offset(20)) == 0x00 // arp.opcode = 0x0001
             && std::ptr::read(payload_ptr.offset(21)) == 0x01
     }
