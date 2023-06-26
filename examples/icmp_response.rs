@@ -272,7 +272,11 @@ fn make_arp_response_packet(src_mac_addr: &MacAddr, packet: &mut pv::Packet) -> 
     let mut eth_pkt;
     match MutableEthernetPacket::new(&mut buffer) {
         Some(pkt) => eth_pkt = pkt,
-        None => return Err(String::from("buffer size is less than the minimum required packet size")),
+        None => {
+            return Err(String::from(
+                "buffer size is less than the minimum required packet size",
+            ))
+        }
     }
     let dest_mac_addr: MacAddr = eth_pkt.get_source();
     eth_pkt.set_destination(dest_mac_addr);
@@ -282,7 +286,11 @@ fn make_arp_response_packet(src_mac_addr: &MacAddr, packet: &mut pv::Packet) -> 
     let mut arp_req;
     match MutableArpPacket::new(eth_pkt.payload_mut()) {
         Some(pkt) => arp_req = pkt,
-        None => return Err(String::from("buffer size is less than the minimum required packet size")),
+        None => {
+            return Err(String::from(
+                "buffer size is less than the minimum required packet size",
+            ))
+        }
     }
     let src_ipv4_addr = Ipv4Addr::new(10, 0, 0, 4); // 10.0.0.4
     let dest_ipv4_addr: Ipv4Addr = arp_req.get_sender_proto_addr();
