@@ -6,7 +6,7 @@ use pnet::{
     datalink::{interfaces, MacAddr, NetworkInterface},
     packet::MutablePacket,
     packet::{
-        arp::{ArpHardwareTypes, ArpOperations, MutableArpPacket},
+        arp::{ArpHardwareTypes, ArpOperations, MutableArpPacket}, PacketSize,
         ethernet::{EtherTypes, MutableEthernetPacket},
     },
 };
@@ -239,15 +239,27 @@ fn is_udp(packet: &pv::Packet) -> bool {
 }
 
 fn make_arp_response_packet(src_mac_addr: &MacAddr, packet: &mut pv::Packet) -> Result<(), String> {
-    let mut buffer: Vec<u8> = packet.get_buffer();
+    let mut buffer = packet.get_buffer_mut();
 
-    let mut eth_pkt = MutableEthernetPacket::new(&mut buffer).unwrap();
+    let eth_pkt = MutableEthernetPacket::new(&mut buffer);
+    if eth_pkt.is_none() {
+        return Err(String::from(
+            "buffer size is less than the minimum required packet size",
+        ));
+    }
+    let mut eth_pkt = eth_pkt.unwrap();
     let dest_mac_addr: MacAddr = eth_pkt.get_source();
     eth_pkt.set_destination(dest_mac_addr);
     eth_pkt.set_source(*src_mac_addr);
     eth_pkt.set_ethertype(EtherTypes::Arp);
 
-    let mut arp_req = MutableArpPacket::new(eth_pkt.payload_mut()).unwrap();
+    let arp_req = MutableArpPacket::new(eth_pkt.payload_mut());
+    if arp_req.is_none() {
+        return Err(String::from(
+            "buffer size is less than the minimum required packet size",
+        ));
+    }
+    let mut arp_req = arp_req.unwrap();
     let src_ipv4_addr = Ipv4Addr::new(10, 0, 0, 4); // 10.0.0.4
     let dest_ipv4_addr: Ipv4Addr = arp_req.get_sender_proto_addr();
 
@@ -261,6 +273,8 @@ fn make_arp_response_packet(src_mac_addr: &MacAddr, packet: &mut pv::Packet) -> 
     arp_req.set_target_hw_addr(dest_mac_addr);
     arp_req.set_target_proto_addr(dest_ipv4_addr);
 
-    /* replace packet data with ARP packet */
-    packet.replace_data(&buffer)
+    let packet_size = (arp_req.packet_size() + eth_pkt.packet_size()) as u32;
+    packet.end = packet.start + packet_size;
+
+    Ok(())
 }
