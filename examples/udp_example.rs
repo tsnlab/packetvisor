@@ -6,8 +6,9 @@ use pnet::{
     datalink::{interfaces, MacAddr, NetworkInterface},
     packet::MutablePacket,
     packet::{
-        arp::{ArpHardwareTypes, ArpOperations, MutableArpPacket}, PacketSize,
+        arp::{ArpHardwareTypes, ArpOperations, MutableArpPacket},
         ethernet::{EtherTypes, MutableEthernetPacket},
+        PacketSize,
     },
 };
 use signal_hook::SigId;
