@@ -201,11 +201,29 @@ fn set_icmp(packet: &mut MutableIcmpPacket) {
 fn make_icmp_response_packet(packet: &mut pv::Packet) -> Result<(), String> {
     let mut buffer = packet.get_buffer_mut();
 
-    let mut eth_pkt = MutableEthernetPacket::new(&mut buffer).unwrap();
+    let eth_pkt = MutableEthernetPacket::new(&mut buffer);
+    if eth_pkt.is_none() {
+        return Err(String::from(
+            "buffer size is less than the minimum required packet size",
+        ));
+    }
+    let mut eth_pkt = eth_pkt.unwrap();
     set_eth(&mut eth_pkt);
-    let mut ip_pkt = MutableIpv4Packet::new(eth_pkt.payload_mut()).unwrap();
+    let ip_pkt = MutableIpv4Packet::new(eth_pkt.payload_mut());
+    if ip_pkt.is_none() {
+        return Err(String::from(
+            "buffer size is less than the minimum required packet size",
+        ));
+    }
+    let mut ip_pkt = ip_pkt.unwrap();
     set_ipv4(&mut ip_pkt);
-    let mut icmp_pkt = MutableIcmpPacket::new(ip_pkt.payload_mut()).unwrap();
+    let icmp_pkt = MutableIcmpPacket::new(ip_pkt.payload_mut());
+    if icmp_pkt.is_none() {
+        return Err(String::from(
+            "buffer size is less than the minimum required packet size",
+        ));
+    }
+    let mut icmp_pkt = icmp_pkt.unwrap();
     set_icmp(&mut icmp_pkt);
     let packet_size =
         (icmp_pkt.packet_size() + ip_pkt.packet_size() + eth_pkt.packet_size()) as u32;
