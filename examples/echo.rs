@@ -13,7 +13,6 @@ use pnet::{
 };
 use signal_hook::SigId;
 use std::{
-    env,
     io::Error,
     sync::atomic::{AtomicBool, Ordering},
     sync::Arc,
@@ -22,20 +21,14 @@ use std::{
 };
 
 fn main() {
-    let args: Vec<String> = env::args().collect();
-    if args.len() != 8 {
-        println!("check the number of arguments.");
-        std::process::exit(-1);
-    }
-
     let matches = Command::new("echo")
         .arg(arg!(interface: -i --interface <interface> "Interface to use").required(true))
-        .arg(arg!(chunk_size: -s --chunk-size <size> "Chunk size").required(true).default_value("2048"))
-        .arg(arg!(chunk_count: -c --chunk-count <count> "Chunk count").required(true).default_value("1024"))
-        .arg(arg!(rx_ring_size: -r --rx-ring <count> "Rx ring size").required(true).default_value("64"))
-        .arg(arg!(tx_ring_size: -t --tx-ring <count> "Tx ring size").required(true).default_value("64"))
-        .arg(arg!(fill_ring_size: -f --fill-ring <count> "Fill ring size").required(true).default_value("64"))
-        .arg(arg!(completion_ring_size: -o --completion-ring <count> "Completion ring size").required(true).default_value("64"))
+        .arg(arg!(chunk_size: -s --chunk-size <size> "Chunk size").required(false).default_value("2048"))
+        .arg(arg!(chunk_count: -c --chunk-count <count> "Chunk count").required(false).default_value("1024"))
+        .arg(arg!(rx_ring_size: -r --rx-ring <count> "Rx ring size").required(false).default_value("64"))
+        .arg(arg!(tx_ring_size: -t --tx-ring <count> "Tx ring size").required(false).default_value("64"))
+        .arg(arg!(fill_ring_size: -f --fill-ring <count> "Fill ring size").required(false).default_value("64"))
+        .arg(arg!(completion_ring_size: -o --completion-ring <count> "Completion ring size").required(false).default_value("64"))
         .get_matches();
 
     let if_name = matches.get_one::<String>("interface").unwrap().clone();
@@ -47,7 +40,7 @@ fn main() {
     let completion_ring_size = matches.get_one::<String>("completion_ring_size").unwrap().parse().unwrap();
 
 
-    /* signal define to end the application */
+    // Signal handlers
     let term: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
     let result_sigint: Result<SigId, Error> =
         signal_hook::flag::register(signal_hook::consts::SIGINT, Arc::clone(&term));
@@ -66,7 +59,7 @@ fn main() {
         .iter()
         .find(|element| element.name.as_str() == if_name.as_str());
 
-    let src_mac_address: MacAddr = match interface {
+    let my_mac: MacAddr = match interface {
         Some(target_interface) => target_interface.mac.unwrap(),
         None => panic!("couldn't find source MAC address"),
     };
@@ -85,13 +78,13 @@ fn main() {
 
         if received == 0 {
             // No packets received. Sleep
-            thread::sleep(Duration::from_millis(1));
+            thread::sleep(Duration::from_millis(100));
         }
 
-        for packet in packets.iter() {
-            // FIXME: implement to_owned()
-            if process_packet(&mut nic, *packet, &src_mac_address).is_err() {
+        for packet in packets[0..received as usize].iter() {
+            if process_packet(&mut nic, *packet, &my_mac).is_err() {
                 println!("Failed to process packet");
+                pv::pv_free(&mut nic, *packet);
             }
         }
     }
@@ -103,43 +96,54 @@ fn main() {
 fn process_packet(
     nic: &mut pv::Nic,
     mut packet: pv::Packet,
-    src_mac: &MacAddr,
+    my_mac: &MacAddr,
 ) -> Result<(), String> {
-    let mut buffer = packet.get_buffer_mut();
-    let mut eth = MutableEthernetPacket::new(&mut buffer).unwrap();
+    let buffer = packet.get_buffer_mut();
+    let mut eth = match MutableEthernetPacket::new(buffer) {
+        Some(eth) => eth,
+        None => {
+            return Err("Failed to parse ethernet packet".to_string());
+        }
+    };
 
     // Swap source and destination
     eth.set_destination(eth.get_source());
-    eth.set_source(*src_mac);
+    eth.set_source(*my_mac);
 
     let to_send: bool = match eth.get_ethertype() {
         EtherTypes::Arp => {
-            process_arp(&mut packet, src_mac)
+            println!("Got ARP packet");
+            process_arp(&mut packet, my_mac)
         },
         EtherTypes::Ipv4 => {
             // TODO
             false
         }
         _ => {
-            return Err(format!(
+            println!(
                 "Unsupported ethernet protocol {:?}",
                 eth.get_ethertype()
-            ));
+            );
+            false
         }
     };
 
     if to_send {
-        pv::pv_send(nic, &mut Vec::from([packet]), 1);
+        if pv::pv_send(nic, &mut [packet]) == 0 {
+            // Failed to sent. Drop it
+            pv::pv_free(nic, packet);
+        }
     } else {
-        pv::pv_free(nic, &mut Vec::from([packet]), 0);
+        // Drop packet
+        pv::pv_free(nic, packet);
     }
 
     Ok(())
 }
 
-fn process_arp(packet: &mut pv::Packet, src_mac: &MacAddr) -> bool {
+fn process_arp(packet: &mut pv::Packet, my_mac: &MacAddr) -> bool {
     let mut buffer = packet.get_buffer_mut();
-    let mut eth = MutableEthernetPacket::new(&mut buffer).unwrap();
+    let mut eth = MutableEthernetPacket::new(buffer).unwrap();
     let mut arp = MutableArpPacket::new(eth.payload_mut()).unwrap();
 
     if arp.get_operation() != ArpOperations::Request {
@@ -151,12 +155,12 @@ fn process_arp(packet: &mut pv::Packet, src_mac: &MacAddr) -> bool {
     arp.set_operation(ArpOperations::Reply);
     arp.set_target_hw_addr(arp.get_sender_hw_addr());
     arp.set_target_proto_addr(arp.get_target_proto_addr());
-    arp.set_sender_hw_addr(*src_mac);
+    arp.set_sender_hw_addr(*my_mac);
     arp.set_sender_proto_addr(target_ip);
 
     // Adjust packet buffer
     let packet_size = arp.packet_size() + eth.packet_size();
-    packet.end = packet.start + packet_size as u32;
+    packet.resize(packet_size);
 
     true
 }

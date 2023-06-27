@@ -123,11 +123,11 @@ fn main() {
         if received > 0 {
             let processed: u32 =
                 process_packets(&mut nic, &mut packets, received, &src_mac_address);
-            let sent: u32 = pv::pv_send(&mut nic, &mut packets, processed);
+            let sent: u32 = pv::pv_send(&mut nic, &mut packets);
 
             if sent == 0 {
                 for i in (0..processed).rev() {
-                    pv::pv_free(&mut nic, &mut packets, i as usize);
+                    pv::pv_free(&mut nic, packets[i as usize]);
                 }
             }
         }
@@ -139,7 +139,7 @@ fn main() {
 
 fn process_packets(
     nic: &mut pv::Nic,
-    packets: &mut Vec<pv::Packet>,
+    packets: &mut [pv::Packet],
     batch_size: u32,
     src_mac_address: &MacAddr,
 ) -> u32 {
@@ -150,10 +150,10 @@ fn process_packets(
             if make_arp_response_packet(src_mac_address, &mut packets[i as usize]).is_ok() {
                 processed += 1;
             } else {
-                pv::pv_free(nic, packets, i as usize);
+                pv::pv_free(nic, packets[i as usize]);
             }
         } else {
-            pv::pv_free(nic, packets, i as usize);
+            pv::pv_free(nic, packets[i as usize]);
         }
     }
     processed

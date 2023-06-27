@@ -62,6 +62,16 @@ impl Packet {
             )
         }
     }
+
+    pub fn resize(&mut self, new_size: usize) -> bool {
+        let new_end = self.start + new_size as u32;
+        if new_end <= self.buffer_size {
+            self.end = new_end;
+            true
+        } else {
+            false
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -236,9 +246,8 @@ fn pv_free_(nic: &mut Nic, chunk_addr: u64) {
     nic.chunk_pool_idx += 1;
 }
 
-pub fn pv_free(nic: &mut Nic, packets: &mut Vec<Packet>, index: usize) {
-    pv_free_(nic, packets[index].private as u64);
-    packets.remove(index);
+pub fn pv_free(nic: &mut Nic, packet: Packet) {
+    pv_free_(nic, packet.private as u64);
 }
 
 fn configure_umem(
@@ -476,7 +485,8 @@ pub fn pv_receive(nic: &mut Nic, packets: &mut Vec<Packet>, batch_size: u32) -> 
     received
 }
 
-pub fn pv_send(nic: &mut Nic, packets: &mut Vec<Packet>, batch_size: u32) -> u32 {
+pub fn pv_send(nic: &mut Nic, packets: &mut [Packet]) -> u32 {
+    let batch_size = packets.len() as u32;
     /* free packet metadata and UMEM chunks as much as the number of filled slots in cq. */
     let mut cq_idx: u32 = 0;
     let filled: u32 = unsafe { xsk_ring_cons__peek(&mut nic.cq, batch_size, &mut cq_idx) }; // fetch the number of filled slots(the number of packets completely sent) in cq
@@ -528,7 +538,7 @@ pub fn pv_send(nic: &mut Nic, packets: &mut Vec<Packet>, batch_size: u32) -> u32
             tx_desc_ptr.as_mut().unwrap().len = packets[pkt_index].end - packets[pkt_index].start;
         }
         // packet_dump(&packets[pkt_index]);
-        packets.pop(); // free packet metadata of sent packets.
+        // packets.pop(); // free packet metadata of sent packets.
     }
 
     unsafe {
