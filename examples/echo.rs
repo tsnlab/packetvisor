@@ -5,6 +5,7 @@ use clap::{arg, Command};
 use pnet::{
     datalink::{interfaces, MacAddr, NetworkInterface},
     packet::ethernet::{EtherTypes, MutableEthernetPacket},
+    packet::ipv4::MutableIpv4Packet,
     packet::MutablePacket,
     packet::{
         arp::{ArpOperations, MutableArpPacket},
@@ -116,8 +117,7 @@ fn process_packet(
             process_arp(&mut packet, my_mac)
         },
         EtherTypes::Ipv4 => {
-            // TODO
-            false
+            process_ipv4(&mut packet)
         }
         _ => {
             println!(
@@ -163,4 +163,18 @@ fn process_arp(packet: &mut pv::Packet, my_mac: &MacAddr) -> bool {
     packet.resize(packet_size);
 
     true
+}
+
+fn process_ipv4(packet: &mut pv::Packet) -> bool {
+    let mut buffer = packet.get_buffer_mut();
+    let mut eth = MutableEthernetPacket::new(buffer).unwrap();
+    let ipv4 = MutableIpv4Packet::new(eth.payload_mut()).unwrap();
+
+    // TODO: match ipv4 protocol and process it
+
+    // icmp
+
+    // udp and dstport 7
+
+    false
 }
