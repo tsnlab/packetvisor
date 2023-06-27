@@ -258,3 +258,17 @@ fn process_udp(packet: &mut pv::Packet) -> bool {
 
     true
 }
+
+fn process_ipv4(packet: &mut pv::Packet) -> bool {
+    let mut buffer = packet.get_buffer_mut();
+    let mut eth = MutableEthernetPacket::new(buffer).unwrap();
+    let ipv4 = MutableIpv4Packet::new(eth.payload_mut()).unwrap();
+
+    // TODO: match ipv4 protocol and process it
+
+    // icmp
+
+    // udp and dstport 7
+
+    false
+}
