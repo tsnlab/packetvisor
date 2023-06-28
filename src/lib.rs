@@ -209,9 +209,7 @@ impl NIC {
 
                     Ok(nic)
                 }
-                None => {
-                    Err(String::from("Invalid interface name."))
-                }
+                None => Err(String::from("Invalid interface name.")),
             }
         }
     }
