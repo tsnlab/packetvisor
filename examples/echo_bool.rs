@@ -137,15 +137,15 @@ fn main() {
             }
         }
 
-        match nic.send(&mut packets) {
-            0 => {
-                for i in (0..received as usize).rev() {
-                    nic.free(&mut packets[i]);
-                    packets.remove(i);
-                }
-            }
-            _ => {}
-        }
+        // match nic.send(&mut packets) {
+        //     0 => {
+        //         for i in (0..received as usize).rev() {
+        //             nic.free(&mut packets[i]);
+        //             packets.remove(i);
+        //         }
+        //     }
+        //     _ => {}
+        // }
     }
 
     nic.close();

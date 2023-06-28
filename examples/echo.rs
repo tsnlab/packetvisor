@@ -144,6 +144,7 @@ fn main() {
                 }
             }
         }
+        packets.clear();
 
         for i in 0.. {
             match nic.send(&mut packets) {
@@ -171,6 +172,7 @@ fn main() {
 
 fn process_packet(packet: &mut pv::Packet, my_mac: &MacAddr) -> bool {
     let buffer = packet.get_buffer_mut();
+    let my_mac = nic.interface.mac.unwrap();
     let mut eth = match MutableEthernetPacket::new(buffer) {
         Some(eth) => eth,
         None => {
@@ -180,7 +182,7 @@ fn process_packet(packet: &mut pv::Packet, my_mac: &MacAddr) -> bool {
 
     // Swap source and destination
     eth.set_destination(eth.get_source());
-    eth.set_source(*my_mac);
+    eth.set_source(my_mac);
 
     match eth.get_ethertype() {
         EtherTypes::Arp => process_arp(packet, my_mac),
