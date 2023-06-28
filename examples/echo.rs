@@ -17,11 +17,11 @@ use pnet::{
     packet::{
         ethernet::{EtherTypes, MutableEthernetPacket},
         ip::IpNextHeaderProtocols,
+        ipv4,
     },
     packet::{icmp::MutableIcmpPacket, ipv4::MutableIpv4Packet},
     packet::{
         icmp::{self, IcmpTypes},
-        ipv4,
         udp::{self, MutableUdpPacket},
         MutablePacket,
     },
@@ -31,6 +31,8 @@ use std::{
     io::Error,
     sync::atomic::{AtomicBool, Ordering},
     sync::Arc,
+    thread,
+    time::Duration,
 };
 
 fn main() {
@@ -172,7 +174,6 @@ fn main() {
 
 fn process_packet(packet: &mut pv::Packet, my_mac: &MacAddr) -> bool {
     let buffer = packet.get_buffer_mut();
-    let my_mac = nic.interface.mac.unwrap();
     let mut eth = match MutableEthernetPacket::new(buffer) {
         Some(eth) => eth,
         None => {
@@ -182,7 +183,7 @@ fn process_packet(packet: &mut pv::Packet, my_mac: &MacAddr) -> bool {
 
     // Swap source and destination
     eth.set_destination(eth.get_source());
-    eth.set_source(my_mac);
+    eth.set_source(*my_mac);
 
     match eth.get_ethertype() {
         EtherTypes::Arp => process_arp(packet, my_mac),
@@ -197,7 +198,7 @@ fn process_arp(packet: &mut pv::Packet, my_mac: &MacAddr) -> bool {
     let mut arp = MutableArpPacket::new(eth.payload_mut()).unwrap();
 
     if arp.get_operation() != ArpOperations::Request {
-        return None;
+        return false;
     }
 
     let target_ip = arp.get_target_proto_addr();
@@ -267,27 +268,31 @@ fn process_udp(packet: &mut pv::Packet) -> bool {
     ));
     ipv4.set_checksum(ipv4::checksum(&ipv4.to_immutable()));
 
-    Some(icmp.packet_size() + ipv4.packet_size())
+    true
 }
 
-fn process_udp(ipv4: &mut MutableIpv4Packet) -> Option<usize> {
+fn process_udp(packet: &mut pv::Packet) -> bool {
+    let buffer = packet.get_buffer_mut();
+    let mut eth = MutableEthernetPacket::new(buffer).unwrap();
+    let mut ipv4 = MutableIpv4Packet::new(eth.payload_mut()).unwrap();
     let source = ipv4.get_source();
     let destination = ipv4.get_destination();
     let mut udp = MutableUdpPacket::new(ipv4.payload_mut()).unwrap();
 
     if udp.get_destination() != 7 {
-        return None;
+        return false;
     }
 
-    let tmp = udp.get_source();
+    let src_port = udp.get_source();
 
     udp.set_source(udp.get_destination());
-    udp.set_destination(tmp);
+    udp.set_destination(src_port);
     udp.set_checksum(udp::ipv4_checksum(
         &udp.to_immutable(),
         &source,
         &destination,
     ));
+    ipv4.set_checksum(ipv4::checksum(&ipv4.to_immutable()));
 
-    Some(udp.packet_size() + ipv4.packet_size())
+    true
 }
