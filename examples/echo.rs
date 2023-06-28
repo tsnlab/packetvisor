@@ -126,54 +126,56 @@ fn main() {
             // thread::sleep(Duration::from_millis(100));
             continue;
         }
-
-        for i in (0..received as usize).rev() {
-            match process_packet(&mut packets[i], &nic.interface.mac.unwrap()) {
-                Some(n) => {
-                    packets[i].resize(n as u32);
-                }
-                None => {
-                    nic.free(&mut packets[i]);
-                    packets.remove(i);
-                    received -= 1;
-                }
-            }
+        for packet in packets[0..received as usize].iter_mut() {
+            process_packet(&mut nic, packet);
         }
+        packets.clear();
 
-        match nic.send(&mut packets) {
-            0 => {
-                for i in (0..received as usize).rev() {
-                    nic.free(&mut packets[i]);
-                    packets.remove(i);
-                }
-            }
-            _ => {}
-        }
     }
 
     nic.close();
 }
 
-fn process_packet(packet: &mut pv::Packet, my_mac: &MacAddr) -> Option<usize> {
+fn process_packet(nic: &mut pv::NIC, packet: &mut pv::Packet) {
     let buffer = packet.get_buffer_mut();
+    let my_mac = nic.interface.mac.unwrap();
     let mut eth = match MutableEthernetPacket::new(buffer) {
         Some(eth) => eth,
-        None => {
-            return None;
-        }
+        None => return,
     };
 
     // Swap source and destination
     eth.set_destination(eth.get_source());
-    eth.set_source(*my_mac);
+    eth.set_source(my_mac);
 
-    match eth.get_ethertype() {
+    if match eth.get_ethertype() {
         EtherTypes::Arp => {
-            // println!("Got ARP packet");
-            process_arp(&mut eth, my_mac)
+            match process_arp(&mut eth, &my_mac) {
+                Some(n) => {
+                    packet.resize(n as u32);
+                    true
+                },
+                None => false,
+            }
         }
-        EtherTypes::Ipv4 => process_ipv4(&mut eth),
-        _ => None,
+        EtherTypes::Ipv4 => {
+            match process_ipv4(&mut eth) {
+                Some(n) => {
+                    packet.resize(n as u32);
+                    true
+                },
+                None => false,
+            }
+        }
+        _ => false,
+    }
+    {
+        match nic.send(&[packet]) {
+            0 => {
+                nic.free(packet);
+            }
+            _ => {},
+        }
     }
 }
 

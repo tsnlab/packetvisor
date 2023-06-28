@@ -396,7 +396,7 @@ impl NIC {
         ret
     }
 
-    pub fn send(&mut self, packets: &mut Vec<Packet>) -> u32 {
+    pub fn send(&mut self, packets: &[&mut Packet]) -> u32 {
         /* free packet metadata and UMEM chunks as much as the number of filled slots in cq. */
         let mut cq_idx: u32 = 0;
         let filled: u32 =
@@ -451,7 +451,8 @@ impl NIC {
                     packets[pkt_index].end - packets[pkt_index].start;
             }
             // packet_dump(&packets[pkt_index]);
-            packets.pop(); // free packet metadata of sent packets.
+
+            // packets.pop(); // free packet metadata of sent packets.
         }
 
         unsafe {
