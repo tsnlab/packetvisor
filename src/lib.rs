@@ -14,15 +14,15 @@ use std::alloc::{alloc_zeroed, Layout};
 use std::ffi::CString;
 use std::ptr::copy;
 
-const DEFAULT_HEADROOM: u32 = 256;
+const DEFAULT_HEADROOM: usize = 256;
 
 #[derive(Debug)]
 pub struct Packet {
-    pub start: u32,       // payload offset pointing the start of payload. ex. 256
-    pub end: u32,         // payload offset point the end of payload. ex. 1000
-    pub buffer_size: u32, // total size of buffer. ex. 2048
-    pub buffer: *mut u8,  // buffer address.
-    private: *mut c_void, // DO NOT touch this.
+    pub start: usize,       // payload offset pointing the start of payload. ex. 256
+    pub end: usize,         // payload offset point the end of payload. ex. 1000
+    pub buffer_size: usize, // total size of buffer. ex. 2048
+    pub buffer: *mut u8,    // buffer address.
+    private: *mut c_void,   // DO NOT touch this.
 }
 
 impl Packet {
@@ -38,12 +38,12 @@ impl Packet {
 
     // replace payload with new data
     pub fn replace_data(&mut self, new_data: &Vec<u8>) -> Result<(), String> {
-        if new_data.len() as u32 <= self.buffer_size {
+        if new_data.len() <= self.buffer_size {
             unsafe {
                 // replace data
                 copy(new_data.as_ptr(), self.buffer.offset(0), new_data.len());
                 self.start = 0;
-                self.end = new_data.len() as u32;
+                self.end = new_data.len();
 
                 Ok(())
             }
@@ -57,13 +57,13 @@ impl Packet {
     pub fn get_buffer_mut(&mut self) -> &mut [u8] {
         unsafe {
             std::slice::from_raw_parts_mut(
-                self.buffer.offset(self.start as isize),
-                (self.end - self.start) as usize,
+                self.buffer.offset(self.start.try_into().unwrap()),
+                self.end - self.start,
             )
         }
     }
 
-    pub fn resize(&mut self, size: u32) {
+    pub fn resize(&mut self, size: usize) {
         self.end = self.start + size;
     }
 
@@ -72,14 +72,14 @@ impl Packet {
         let chunk_address = self.private as u64;
         let buffer_address: *const u8 = self.buffer.cast_const();
 
-        let length: u32 = self.buffer_size;
-        let mut count: u32 = 0;
+        let length: usize = self.buffer_size;
+        let mut count: usize = 0;
 
         unsafe {
             println!("---packet dump--- chunk addr: {}", chunk_address);
 
             loop {
-                let read_offset: usize = count as usize;
+                let read_offset: usize = count;
                 let read_address: *const u8 = buffer_address.add(read_offset);
                 print!("{:02X?} ", std::ptr::read(read_address));
 
@@ -105,10 +105,10 @@ pub struct NIC {
 
     umem: *mut xsk_umem,
     buffer: *mut c_void,
-    chunk_size: u32,
+    chunk_size: usize,
 
     chunk_pool: Vec<u64>,
-    chunk_pool_idx: i32,
+    chunk_pool_idx: usize,
 
     /* XSK rings */
     fq: xsk_ring_prod,
@@ -118,7 +118,11 @@ pub struct NIC {
 }
 
 impl NIC {
-    pub fn new(if_name: &str, set_chunk_size: u32, set_chunk_count: i32) -> Result<NIC, String> {
+    pub fn new(
+        if_name: &str,
+        set_chunk_size: usize,
+        set_chunk_count: usize,
+    ) -> Result<NIC, String> {
         let mut is_creation_failed: bool = false;
 
         let xsk_ptr;
@@ -198,7 +202,7 @@ impl NIC {
                             umem: umem_ptr.cast::<xsk_umem>(), // umem is needed to be dealloc after using packetvisor library.
                             buffer: std::ptr::null_mut(),
                             chunk_size: set_chunk_size,
-                            chunk_pool: Vec::with_capacity(set_chunk_count as usize),
+                            chunk_pool: Vec::with_capacity(set_chunk_count),
                             chunk_pool_idx: set_chunk_count,
                             fq: std::ptr::read(fq_ptr.cast::<xsk_ring_prod>()),
                             rx: std::ptr::read(rx_ptr.cast::<xsk_ring_cons>()),
@@ -217,7 +221,7 @@ impl NIC {
     fn alloc_idx(&mut self) -> u64 {
         if self.chunk_pool_idx > 0 {
             self.chunk_pool_idx -= 1;
-            self.chunk_pool[self.chunk_pool_idx as usize]
+            self.chunk_pool[self.chunk_pool_idx]
         } else {
             u64::MAX
         }
@@ -245,7 +249,7 @@ impl NIC {
         // align **chunk_addr with chunk size
         let remainder = chunk_addr % (self.chunk_size as u64);
         let chunk_addr = chunk_addr - remainder;
-        self.chunk_pool[self.chunk_pool_idx as usize] = chunk_addr;
+        self.chunk_pool[self.chunk_pool_idx] = chunk_addr;
         self.chunk_pool_idx += 1;
     }
 
@@ -255,12 +259,12 @@ impl NIC {
 
     fn configure_umem(
         &mut self,
-        set_chunk_size: u32,
-        set_chunk_count: u32,
+        set_chunk_size: usize,
+        set_chunk_count: usize,
         set_fill_size: u32,
         set_complete_size: u32,
     ) -> Result<(), i32> {
-        let umem_buffer_size: usize = (set_chunk_count * set_chunk_size) as usize; // chunk_count is UMEM size.
+        let umem_buffer_size: usize = set_chunk_count * set_chunk_size; // chunk_count is UMEM size.
 
         /* Reserve memory for the UMEM. */
         let mmap_address = unsafe {
@@ -283,7 +287,7 @@ impl NIC {
             // ring sizes aren't usually over 1024
             fill_size: set_fill_size,
             comp_size: set_complete_size,
-            frame_size: set_chunk_size,
+            frame_size: set_chunk_size as u32,
             frame_headroom: XSK_UMEM__DEFAULT_FRAME_HEADROOM,
             flags: XSK_UMEM__DEFAULT_FLAGS,
         };
@@ -321,13 +325,13 @@ impl NIC {
     ) -> Result<(), String> {
         /* initialize UMEM chunk information */
         for i in 0..self.chunk_pool.capacity() {
-            self.chunk_pool.push((i * self.chunk_size as usize) as u64); // put chunk address
+            self.chunk_pool.push((i * self.chunk_size) as u64); // put chunk address
         }
 
         /* configure UMEM */
         let ret = self.configure_umem(
             self.chunk_size,
-            self.chunk_pool.capacity() as u32,
+            self.chunk_pool.capacity(),
             filling_ring_size,
             completion_ring_size,
         );
@@ -396,7 +400,7 @@ impl NIC {
         ret
     }
 
-    pub fn send(&mut self, packets: &[&mut Packet]) -> u32 {
+    pub fn send(&mut self, packets: &mut Vec<Packet>) -> u32 {
         /* free packet metadata and UMEM chunks as much as the number of filled slots in cq. */
         let mut cq_idx: u32 = 0;
         let filled: u32 =
@@ -448,7 +452,7 @@ impl NIC {
                 tx_desc_ptr.as_mut().unwrap().addr =
                     packets[pkt_index].private as u64 + packets[pkt_index].start as u64;
                 tx_desc_ptr.as_mut().unwrap().len =
-                    packets[pkt_index].end - packets[pkt_index].start;
+                    (packets[pkt_index].end - packets[pkt_index].start) as u32;
             }
             // packet_dump(&packets[pkt_index]);
 
@@ -504,12 +508,12 @@ impl NIC {
                 /* save metadata */
                 packets[metadata_count as usize].start = DEFAULT_HEADROOM;
                 packets[metadata_count as usize].end =
-                    DEFAULT_HEADROOM + unsafe { rx_desc_ptr.as_ref().unwrap().len };
+                    DEFAULT_HEADROOM + unsafe { rx_desc_ptr.as_ref().unwrap().len as usize };
                 packets[metadata_count as usize].buffer_size = self.chunk_size;
                 packets[metadata_count as usize].buffer = unsafe {
                     xsk_umem__get_data(self.buffer, rx_desc_ptr.as_ref().unwrap().addr)
                         .cast::<u8>()
-                        .sub(DEFAULT_HEADROOM as usize)
+                        .sub(DEFAULT_HEADROOM)
                 };
                 packets[metadata_count as usize].private = unsafe {
                     (rx_desc_ptr.as_ref().unwrap().addr - DEFAULT_HEADROOM as u64) as *mut c_void
