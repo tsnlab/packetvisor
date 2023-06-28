@@ -26,7 +26,7 @@ use std::{
 };
 
 fn main() {
-    let matches = Command::new("echo")
+    let matches = Command::new("echo_bool")
         .arg(arg!(interface: -i --interface <interface> "Interface to use").required(true))
         .arg(
             arg!(chunk_size: -s --chunk-size <size> "Chunk size")
@@ -119,7 +119,7 @@ fn main() {
     let mut packets: Vec<pv::Packet> = Vec::with_capacity(rx_batch_size as usize);
 
     while !term.load(Ordering::Relaxed) {
-        let mut received = nic.receive(&mut packets);
+        let received = nic.receive(&mut packets);
 
         if received == 0 {
             // No packets received. Sleep
@@ -129,13 +129,10 @@ fn main() {
 
         for i in (0..received as usize).rev() {
             match process_packet(&mut packets[i], &nic.interface.mac.unwrap()) {
-                Some(n) => {
-                    packets[i].resize(n as u32);
-                }
-                None => {
+                true => {}
+                false => {
                     nic.free(&mut packets[i]);
                     packets.remove(i);
-                    received -= 1;
                 }
             }
         }
@@ -154,12 +151,12 @@ fn main() {
     nic.close();
 }
 
-fn process_packet(packet: &mut pv::Packet, my_mac: &MacAddr) -> Option<usize> {
+fn process_packet(packet: &mut pv::Packet, my_mac: &MacAddr) -> bool {
     let buffer = packet.get_buffer_mut();
     let mut eth = match MutableEthernetPacket::new(buffer) {
         Some(eth) => eth,
         None => {
-            return None;
+            return false;
         }
     };
 
@@ -170,18 +167,20 @@ fn process_packet(packet: &mut pv::Packet, my_mac: &MacAddr) -> Option<usize> {
     match eth.get_ethertype() {
         EtherTypes::Arp => {
             // println!("Got ARP packet");
-            process_arp(&mut eth, my_mac)
+            process_arp(packet, my_mac)
         }
-        EtherTypes::Ipv4 => process_ipv4(&mut eth),
-        _ => None,
+        EtherTypes::Ipv4 => process_ipv4(packet),
+        _ => false,
     }
 }
 
-fn process_arp(eth: &mut MutableEthernetPacket, my_mac: &MacAddr) -> Option<usize> {
+fn process_arp(packet: &mut pv::Packet, my_mac: &MacAddr) -> bool {
+    let buffer = packet.get_buffer_mut();
+    let mut eth = MutableEthernetPacket::new(buffer).unwrap();
     let mut arp = MutableArpPacket::new(eth.payload_mut()).unwrap();
 
     if arp.get_operation() != ArpOperations::Request {
-        return None;
+        return false;
     }
 
     let target_ip = arp.get_target_proto_addr();
@@ -192,61 +191,68 @@ fn process_arp(eth: &mut MutableEthernetPacket, my_mac: &MacAddr) -> Option<usiz
     arp.set_sender_hw_addr(*my_mac);
     arp.set_sender_proto_addr(target_ip);
 
-    Some(arp.packet_size() + eth.packet_size())
+    // Adjust packet buffer
+    let packet_size = arp.packet_size() + eth.packet_size();
+    packet.resize(packet_size as u32);
+
+    true
 }
 
-fn process_ipv4(eth: &mut MutableEthernetPacket) -> Option<usize> {
+fn process_ipv4(packet: &mut pv::Packet) -> bool {
+    let buffer = packet.get_buffer_mut();
+    let mut eth = MutableEthernetPacket::new(buffer).unwrap();
     let mut ipv4 = MutableIpv4Packet::new(eth.payload_mut()).unwrap();
 
     let tmp = ipv4.get_source();
     ipv4.set_source(ipv4.get_destination());
     ipv4.set_destination(tmp);
 
-    let ret = match ipv4.get_next_level_protocol() {
-        IpNextHeaderProtocols::Udp => process_udp(&mut ipv4),
-        IpNextHeaderProtocols::Icmp => process_icmp(&mut ipv4),
-        _ => None,
-    };
-
-    ipv4.set_checksum(ipv4::checksum(&ipv4.to_immutable()));
-
-    match ret {
-        Some(n) => Some(n + eth.packet_size()),
-        None => None,
+    match ipv4.get_next_level_protocol() {
+        IpNextHeaderProtocols::Udp => process_udp(packet),
+        IpNextHeaderProtocols::Icmp => process_icmp(packet),
+        _ => false,
     }
 }
 
-fn process_icmp(ipv4: &mut MutableIpv4Packet) -> Option<usize> {
+fn process_icmp(packet: &mut pv::Packet) -> bool {
+    let buffer = packet.get_buffer_mut();
+    let mut eth = MutableEthernetPacket::new(buffer).unwrap();
+    let mut ipv4 = MutableIpv4Packet::new(eth.payload_mut()).unwrap();
     let mut icmp = MutableIcmpPacket::new(ipv4.payload_mut()).unwrap();
 
     if icmp.get_icmp_type() != IcmpTypes::EchoRequest {
-        return None;
+        return false;
     }
 
     icmp.set_icmp_type(IcmpTypes::EchoReply);
     icmp.set_checksum(icmp::checksum(&icmp.to_immutable()));
+    ipv4.set_checksum(ipv4::checksum(&ipv4.to_immutable()));
 
-    Some(icmp.packet_size() + ipv4.packet_size())
+    true
 }
 
-fn process_udp(ipv4: &mut MutableIpv4Packet) -> Option<usize> {
+fn process_udp(packet: &mut pv::Packet) -> bool {
+    let buffer = packet.get_buffer_mut();
+    let mut eth = MutableEthernetPacket::new(buffer).unwrap();
+    let mut ipv4 = MutableIpv4Packet::new(eth.payload_mut()).unwrap();
     let source = ipv4.get_source();
     let destination = ipv4.get_destination();
     let mut udp = MutableUdpPacket::new(ipv4.payload_mut()).unwrap();
 
-    if udp.get_destination() != 7 {
-        return None;
+    if udp.get_destination() == 7 {
+        let tmp = udp.get_source();
+
+        udp.set_source(udp.get_destination());
+        udp.set_destination(tmp);
+        udp.set_checksum(udp::ipv4_checksum(
+            &udp.to_immutable(),
+            &source,
+            &destination,
+        ));
+        ipv4.set_checksum(ipv4::checksum(&ipv4.to_immutable()));
+
+        return true;
     }
 
-    let tmp = udp.get_source();
-
-    udp.set_source(udp.get_destination());
-    udp.set_destination(tmp);
-    udp.set_checksum(udp::ipv4_checksum(
-        &udp.to_immutable(),
-        &source,
-        &destination,
-    ));
-
-    Some(udp.packet_size() + ipv4.packet_size())
+    false
 }
