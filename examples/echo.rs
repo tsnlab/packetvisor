@@ -122,7 +122,7 @@ fn main() {
 
         while received == 0 {
             // No packets received. Sleep
-            thread::sleep(Duration::from_millis(0));
+            thread::sleep(Duration::from_millis(100));
             received = nic.receive(&mut packets);
         }
 
