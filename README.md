@@ -29,10 +29,21 @@ You can use `set_veth.sh` to set veths for testing the application.
 After the script is executed, veth0(10.0.0.4) and veth1(10.0.0.5) are created.
 veth1 is created in `test_namespace` namespace but veth0 in local.
 
-To execute ARP response example, follow the next steps:
-1. `sudo set_veth.sh`
-2. execute `sudo ./arp_response veth0 2048 1024 64 64 64 64` in `/target/release/examples`
-3. `ip netns exec test_namespace arping -I veth1 10.0.0.4`
+echo example has these options. 
+
+  -i, --interface <interface>  Interface to use.  
+  -s, --chunk <size>           Chunk size [default: 2048].  
+  -c, --chunk <count>          Chunk count [default: 1024].  
+  -r, --rx <count>             Rx ring size [default: 64].  
+  -r, --tx <count>             Tx ring size [default: 64].  
+  -r, --fill <count>           Fill ring size [default: 64].  
+  -r, --completion <count>     Completion ring size [default: 64].   
+  -h, --help                   Print help
+
+To execute echo example, follow the next steps:
+1. `sudo ./set_veth.sh`
+2. execute `sudo ./echo -i veth0` in `/target/release/examples`
+3. `sudo ip netns exec test_namespace arping -I veth1 10.0.0.4`
 
 to remove veths created by `set_veth.sh`, `unset_veth.sh` will remove them.
 
