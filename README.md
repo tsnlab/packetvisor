@@ -36,7 +36,7 @@ To execute echo example.
 
 Execute `sudo ./set_veth.sh` then execute`sudo ./echo -i veth0` in `/target/release/examples`. 
 
-echo example has three functions, arp reply, icmp echo(ping), udp echo.
+echo example has three functions, ARP reply, ICMP echo(ping), UDP echo.
 
 If you want to test ARP reply, Execute the following command
 `sudo ip netns exec test_namespace arping 10.0.0.4`.
