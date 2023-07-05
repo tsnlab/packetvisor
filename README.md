@@ -34,8 +34,8 @@ Execute `echo --help`
 
 To execute echo example. 
 
-Execute `sudo ./set_veth.sh`. 
-Execute `sudo ./echo -i veth0` in `/target/release/examples`. 
+Execute `sudo ./set_veth.sh`,
+then execute `sudo ./echo -i veth0` in `/target/release/examples`. 
 
 echo example has three functions, arp reply, icmp echo(ping), udp echo.
 
