@@ -29,12 +29,25 @@ You can use `set_veth.sh` to set veths for testing the application.
 After the script is executed, veth0(10.0.0.4) and veth1(10.0.0.5) are created.
 veth1 is created in `test_namespace` namespace but veth0 in local.
 
-To execute ARP response example, follow the next steps:
-1. `sudo set_veth.sh`
-2. execute `sudo ./arp_response veth0 2048 1024 64 64 64 64` in `/target/release/examples`
-3. `ip netns exec test_namespace arping -I veth1 10.0.0.4`
+echo example has many options. If you want to see the options. 
+Execute `echo --help`
 
-to remove veths created by `set_veth.sh`, `unset_veth.sh` will remove them.
+To execute echo example. 
+
+Execute `sudo ./set_veth.sh` then execute`sudo ./echo -i veth0` in `/target/release/examples`. 
+
+echo example has three functions, ARP reply, ICMP echo(ping), UDP echo.
+
+If you want to test ARP reply, Execute the following command
+`sudo ip netns exec test_namespace arping 10.0.0.4`.
+
+If you want to test ICMP echo, Execute the following command.
+`sudo ip netns exec test_namespace ping 10.0.0.4`.
+
+If you want to test UDP echo, Execute the following command.
+`sudo ip netns exec test_namespace nc -u 10.0.0.4 7`
+
+To remove veths created by `set_veth.sh`, `unset_veth.sh` will remove them.
 
 ## Description of XSK (XDP Socket)
 
