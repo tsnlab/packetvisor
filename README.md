@@ -9,6 +9,7 @@
 - libelf-dev (gelf.h)
 - libpcap-dev
 - gcc-multilib (asm/types.h)
+- m4
 
 ### bpftool & XDP-tools (submodules)
 PV 3.0 uses `libxdp` in [XDP-tools][].
