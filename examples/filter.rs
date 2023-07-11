@@ -2,12 +2,12 @@ use clap::{arg, Command};
 
 use pnet::{
     packet::ipv4::MutableIpv4Packet,
-    packet::{MutablePacket, Packet},
     packet::{
         ethernet::{EtherTypes, MutableEthernetPacket},
         ip::IpNextHeaderProtocols,
         tcp::MutableTcpPacket,
     },
+    packet::{MutablePacket, Packet},
 };
 use signal_hook::SigId;
 use std::{
@@ -163,16 +163,15 @@ fn process_packet(packet: &mut pv::Packet) -> bool {
     }
 
     if word.len() > 0 {
-        return !String::from_utf8_lossy(tcp.payload()).into_owned().contains(word);
+        return !String::from_utf8_lossy(tcp.payload())
+            .into_owned()
+            .contains(word);
     }
 
     true
 }
 
-fn forward(
-    from: &mut pv::NIC,
-    to: &mut pv::NIC,
-) {
+fn forward(from: &mut pv::NIC, to: &mut pv::NIC) {
     /* initialize rx_batch_size and packet metadata */
     let rx_batch_size: u32 = 64;
     let mut packets1: Vec<pv::Packet> = Vec::with_capacity(rx_batch_size as usize);
@@ -204,8 +203,7 @@ fn forward(
                 _ => continue, // Retrying
             }
         }
-    }
-    else {
+    } else {
         // No packets received. Sleep
         // thread::sleep(Duration::from_millis(100));
     }

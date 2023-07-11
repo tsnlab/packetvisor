@@ -115,9 +115,7 @@ fn main() {
     )
     .unwrap();
 
-
     while !term.load(Ordering::Relaxed) {
-
         forward(&mut nic1, &mut nic2);
         forward(&mut nic2, &mut nic1);
     }
@@ -153,17 +151,14 @@ fn process_packet(packet: &mut pv::Packet) -> bool {
     match MutableTcpPacket::new(ipv4.payload_mut()) {
         None => {
             return false;
-        },
+        }
         _ => {}
     };
 
     true
 }
 
-fn forward(
-    from: &mut pv::NIC,
-    to: &mut pv::NIC,
-) {
+fn forward(from: &mut pv::NIC, to: &mut pv::NIC) {
     /* initialize rx_batch_size and packet metadata */
     let rx_batch_size: u32 = 64;
     let mut packets1: Vec<pv::Packet> = Vec::with_capacity(rx_batch_size as usize);
@@ -195,8 +190,7 @@ fn forward(
                 _ => continue, // Retrying
             }
         }
-    }
-    else {
+    } else {
         // No packets received. Sleep
         // thread::sleep(Duration::from_millis(100));
     }
