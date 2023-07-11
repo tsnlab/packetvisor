@@ -16,7 +16,7 @@ use std::ptr::copy;
 
 const DEFAULT_HEADROOM: usize = 256;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct Packet {
     pub start: usize,       // payload offset pointing the start of payload. ex. 256
     pub end: usize,         // payload offset point the end of payload. ex. 1000
@@ -214,6 +214,28 @@ impl NIC {
                     Ok(nic)
                 }
                 None => Err(String::from("Invalid interface name.")),
+            }
+        }
+    }
+
+    pub fn add_packet(&mut self, packet: Packet) -> Option<Packet> {
+        let add = self.alloc();
+        match add {
+            Some(mut p) => {
+                unsafe {
+                    std::ptr::copy_nonoverlapping(
+                        packet.buffer,
+                        p.buffer,
+                        packet.buffer_size * std::mem::size_of::<u8>(),
+                    );
+                }
+                p.end = p.start + (packet.end - packet.start);
+                self.chunk_pool.push(packet.private as u64);
+                Some(p)
+            }
+            None => {
+                println!("Failed to add packet to NIC.");
+                None
             }
         }
     }
@@ -456,7 +478,7 @@ impl NIC {
             }
             // packet_dump(&packets[pkt_index]);
 
-            // packets.pop(); // free packet metadata of sent packets.
+            packets.pop(); // free packet metadata of sent packets.
         }
 
         unsafe {
