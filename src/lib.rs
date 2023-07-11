@@ -224,7 +224,11 @@ impl NIC {
         match add {
             Some(mut packet) => {
                 unsafe {
-                    std::ptr::copy_nonoverlapping(target.buffer.add(target.start), packet.buffer.add(packet.start), len);
+                    std::ptr::copy_nonoverlapping(
+                        target.buffer.add(target.start),
+                        packet.buffer.add(packet.start),
+                        len,
+                    );
                 }
                 packet.end = packet.start + len;
                 self.chunk_pool.push(target.private as u64);
