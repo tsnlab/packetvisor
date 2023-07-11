@@ -2,7 +2,7 @@ use clap::{arg, Command};
 
 use pnet::{
     packet::ipv4::MutableIpv4Packet,
-    packet::MutablePacket,
+    packet::{MutablePacket, Packet},
     packet::{
         ethernet::{EtherTypes, MutableEthernetPacket},
         ip::IpNextHeaderProtocols,
@@ -12,21 +12,14 @@ use pnet::{
 use signal_hook::SigId;
 use std::{
     io::Error,
-    os::unix::process,
     sync::atomic::{AtomicBool, Ordering},
     sync::Arc,
 };
 
 fn main() {
-    let matches = Command::new("tcp_demo")
+    let matches = Command::new("filter")
         .arg(arg!(nic1: --nic1 <nic1> "nic1 to use").required(true))
-        .arg(arg!(nic2: -p --nic2 <nic2> "nic2").required(true))
-        .arg(arg!(port: --port <port> "accept port").required(true))
-        .arg(
-            arg!(filter: --filter <filter> "filter")
-                .required(false)
-                .default_value(""),
-        )
+        .arg(arg!(nic2: -p --nic2 <nic2> "nic2 to use").required(true))
         .arg(
             arg!(chunk_size: -s --chunk-size <size> "Chunk size")
                 .required(false)
@@ -61,7 +54,6 @@ fn main() {
 
     let name1 = matches.get_one::<String>("nic1").unwrap().clone();
     let name2 = matches.get_one::<String>("nic2").unwrap().clone();
-    let port = matches.get_one::<String>("port").unwrap().parse().unwrap();
     let chunk_size = matches
         .get_one::<String>("chunk_size")
         .unwrap()
@@ -106,8 +98,6 @@ fn main() {
         panic!("signal is forbidden");
     }
 
-    // udp test
-
     let mut nic1 = pv::NIC::new(&name1, chunk_size, chunk_count).unwrap();
     nic1.open(
         rx_ring_size,
@@ -125,40 +115,17 @@ fn main() {
     )
     .unwrap();
 
-    /* initialize rx_batch_size and packet metadata */
-    let rx_batch_size: u32 = 64;
-    let mut packets1: Vec<pv::Packet> = Vec::with_capacity(rx_batch_size as usize);
-    let mut packets2: Vec<pv::Packet> = Vec::with_capacity(rx_batch_size as usize);
-
     while !term.load(Ordering::Relaxed) {
-        let mut received = nic1.receive(&mut packets1);
-
-        if received > 0 {
-            forward(&mut nic1, &mut nic2, &mut packets1, &mut packets2, port);
-
-            packets1.clear();
-            packets2.clear();
-        }
-
-        received = nic2.receive(&mut packets2);
-
-        if received > 0 {
-            forward(&mut nic2, &mut nic1, &mut packets2, &mut packets1, port);
-
-            packets1.clear();
-            packets2.clear();
-        }
-
-        // while received == 0 {
-        //     // No packets received. Sleep
-        //     thread::sleep(Duration::from_millis(100));
-        //     received = nic1.receive(&mut packets);
-        // }
+        forward(&mut nic1, &mut nic2);
+        forward(&mut nic2, &mut nic1);
     }
 }
 
-fn process_packet(packet: &mut pv::Packet, port: u16) -> bool {
+fn process_packet(packet: &mut pv::Packet) -> bool {
     let buffer = packet.get_buffer_mut();
+    let port = 80; // filter port
+    let word = "pineapple"; // filter word
+
     let mut eth = match MutableEthernetPacket::new(buffer) {
         Some(eth) => eth,
         None => {
@@ -184,16 +151,20 @@ fn process_packet(packet: &mut pv::Packet, port: u16) -> bool {
         return false;
     }
 
-    let mut tcp = match MutableTcpPacket::new(ipv4.payload_mut()) {
+    let tcp = match MutableTcpPacket::new(ipv4.payload_mut()) {
         Some(tcp) => tcp,
         None => {
             return false;
         }
     };
 
-    // if tcp.get_destination() != port {
-    //     return false;
-    // }
+    if tcp.get_source() != port && tcp.get_destination() != port {
+        return false;
+    }
+
+    if word.len() > 0 {
+        return !String::from_utf8_lossy(tcp.payload()).into_owned().contains(word);
+    }
 
     true
 }
@@ -201,37 +172,45 @@ fn process_packet(packet: &mut pv::Packet, port: u16) -> bool {
 fn forward(
     from: &mut pv::NIC,
     to: &mut pv::NIC,
-    packets1: &mut Vec<pv::Packet>,
-    packets2: &mut Vec<pv::Packet>,
-    port: u16,
 ) {
-    for packet in packets1 {
-        match process_packet(packet, port) {
-            true => {
-                packets2.push(to.copy(packet).unwrap());
-            }
-            false => {
-                from.free(packet);
-                // packets.remove(i);
+    /* initialize rx_batch_size and packet metadata */
+    let rx_batch_size: u32 = 64;
+    let mut packets1: Vec<pv::Packet> = Vec::with_capacity(rx_batch_size as usize);
+    let mut packets2: Vec<pv::Packet> = Vec::with_capacity(rx_batch_size as usize);
+    let received = from.receive(&mut packets1);
+
+    if received > 0 {
+        for packet in &mut packets1 {
+            match process_packet(packet) {
+                true => {
+                    packets2.push(to.copy(packet).unwrap());
+                }
+                false => {
+                    from.free(packet);
+                }
             }
         }
-    }
 
-    for i in 0.. {
-        match to.send(packets2) {
-            // if failed to send
-            0 => {
-                // 3 retries
-                if i > 3 {
-                    for packet in packets2 {
-                        to.free(packet);
+        for i in 0.. {
+            match to.send(&mut packets2) {
+                // if failed to send
+                0 => {
+                    // 3 retries
+                    if i > 3 {
+                        for packet in packets2 {
+                            to.free(&packet);
+                        }
+                        break;
                     }
+                }
+                _ => {
                     break;
                 }
             }
-            _ => {
-                break;
-            }
         }
+    }
+    else {
+        // No packets received. Sleep
+        // thread::sleep(Duration::from_millis(100));
     }
 }
