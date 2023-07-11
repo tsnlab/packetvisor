@@ -182,21 +182,17 @@ fn forward(
             }
         }
 
-        for i in 0.. {
-            match to.send(&mut packets2) {
-                // if failed to send
-                0 => {
-                    // 3 retries
-                    if i > 3 {
-                        for packet in packets2 {
-                            to.free(&packet);
-                        }
-                        break;
+        for retry in (0..3).rev() {
+            match (to.send(&mut packets2), retry) {
+                (cnt, _) if cnt > 0 => break, // Success
+                (0, 0) => {
+                    // Failed 3 times
+                    for packet in packets2 {
+                        to.free(&packet);
                     }
-                }
-                _ => {
                     break;
                 }
+                _ => continue, // Retrying
             }
         }
     }
