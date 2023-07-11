@@ -13,7 +13,7 @@ use signal_hook::SigId;
 use std::{
     io::Error,
     sync::atomic::{AtomicBool, Ordering},
-    sync::Arc,
+    sync::Arc, os::unix::process,
 };
 
 fn main() {
@@ -133,35 +133,8 @@ fn main() {
         let mut received = nic1.receive(&mut packets1);
 
         if received > 0 {
-            for i in 0..received as usize {
-                match process_packet(&mut packets1[i], port) {
-                    true => {}
-                    false => {
-                        nic1.free(&mut packets1[i]);
-                        // packets.remove(i);
-                    }
-                }
-            }
-            for i in (0..packets1.len()) {
-                packets2.push(nic2.copy(packets1[i]).unwrap());
-            }
-            for i in 0.. {
-                match nic2.send(&mut packets2) {
-                    // if failed to send
-                    0 => {
-                        // 3 retries
-                        if i > 3 {
-                            for j in (0..packets2.len()) {
-                                nic2.free(&mut packets2[j]);
-                            }
-                            break;
-                        }
-                    }
-                    _ => {
-                        break;
-                    }
-                }
-            }
+            forward(&mut nic1, &mut nic2, &mut packets1, &mut packets2, port);
+
             packets1.clear();
             packets2.clear();
         }
@@ -169,36 +142,7 @@ fn main() {
         received = nic2.receive(&mut packets2);
 
         if received > 0 {
-            for i in 0..received as usize {
-                match process_packet(&mut packets2[i], port) {
-                    true => {}
-                    false => {
-                        nic2.free(&mut packets2[i]);
-                        packets2.remove(i);
-                    }
-                }
-            }
-
-            for i in (0..packets2.len()) {
-                packets1.push(nic1.copy(packets2[i]).unwrap());
-            }
-            for i in 0.. {
-                match nic1.send(&mut packets1) {
-                    // if failed to send
-                    0 => {
-                        // 3 retries
-                        if i > 3 {
-                            for j in (0..packets1.len()) {
-                                nic1.free(&mut packets1[j]);
-                            }
-                            break;
-                        }
-                    }
-                    _ => {
-                        break;
-                    }
-                }
-            }
+            forward(&mut nic2, &mut nic1, &mut packets2, &mut packets1, port);
 
             packets1.clear();
             packets2.clear();
@@ -251,4 +195,40 @@ fn process_packet(packet: &mut pv::Packet, port: u16) -> bool {
     // }
 
     true
+}
+
+fn forward(from: &mut pv::NIC, to: &mut pv::NIC, packets1: &mut Vec<pv::Packet>, packets2: &mut Vec<pv::Packet>, port: u16) {
+    for packet in packets1 {
+        match process_packet(packet, port) {
+            true => {
+                packets2.push(to.copy(packet).unwrap());
+            }
+            false => {
+                from.free(packet);
+                // packets.remove(i);
+            }
+        }
+    }
+
+    // for packet in packets1 {
+    //     packets2.push(to.copy(packet).unwrap());
+    // }
+
+    for i in 0.. {
+        match to.send(packets2) {
+            // if failed to send
+            0 => {
+                // 3 retries
+                if i > 3 {
+                    for packet in packets2 {
+                        to.free(packet);
+                    }
+                    break;
+                }
+            }
+            _ => {
+                break;
+            }
+        }
+    }
 }
