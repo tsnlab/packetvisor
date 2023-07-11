@@ -12,8 +12,9 @@ use pnet::{
 use signal_hook::SigId;
 use std::{
     io::Error,
+    os::unix::process,
     sync::atomic::{AtomicBool, Ordering},
-    sync::Arc, os::unix::process,
+    sync::Arc,
 };
 
 fn main() {
@@ -197,7 +198,13 @@ fn process_packet(packet: &mut pv::Packet, port: u16) -> bool {
     true
 }
 
-fn forward(from: &mut pv::NIC, to: &mut pv::NIC, packets1: &mut Vec<pv::Packet>, packets2: &mut Vec<pv::Packet>, port: u16) {
+fn forward(
+    from: &mut pv::NIC,
+    to: &mut pv::NIC,
+    packets1: &mut Vec<pv::Packet>,
+    packets2: &mut Vec<pv::Packet>,
+    port: u16,
+) {
     for packet in packets1 {
         match process_packet(packet, port) {
             true => {
@@ -209,10 +216,6 @@ fn forward(from: &mut pv::NIC, to: &mut pv::NIC, packets1: &mut Vec<pv::Packet>,
             }
         }
     }
-
-    // for packet in packets1 {
-    //     packets2.push(to.copy(packet).unwrap());
-    // }
 
     for i in 0.. {
         match to.send(packets2) {
