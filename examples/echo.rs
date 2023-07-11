@@ -38,22 +38,22 @@ fn main() {
                 .default_value("1024"),
         )
         .arg(
-            arg!(rx_ring_size: -r --"rx-ring" <rx> "Rx ring size")
+            arg!(rx_ring_size: -r --"rx-ring" <count> "Rx ring size")
                 .required(false)
                 .default_value("64"),
         )
         .arg(
-            arg!(tx_ring_size: -t --"tx-ring" <tx> "Tx ring size")
+            arg!(tx_ring_size: -t --"tx-ring" <count> "Tx ring size")
                 .required(false)
                 .default_value("64"),
         )
         .arg(
-            arg!(fill_ring_size: -f --"fill-ring" <fill> "Fill ring size")
+            arg!(fill_ring_size: -f --"fill-ring" <count> "Fill ring size")
                 .required(false)
                 .default_value("64"),
         )
         .arg(
-            arg!(completion_ring_size: -o --"completion-ring" <completion> "Completion ring size")
+            arg!(completion_ring_size: -o --"completion-ring" <count> "Completion ring size")
                 .required(false)
                 .default_value("64"),
         )
