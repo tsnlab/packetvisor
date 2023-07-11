@@ -258,3 +258,19 @@ fn process_udp(packet: &mut pv::Packet) -> bool {
 
     true
 }
+
+fn process_ipv6(packet: &mut pv::Packet) -> bool {
+    let buffer = packet.get_buffer_mut();
+    let mut eth = MutableEthernetPacket::new(buffer).unwrap();
+    let mut ipv6 = MutableIpv6Packet::new(eth.payload_mut()).unwrap();
+    let source = ipv6.get_source();
+
+    ipv6.set_source(ipv6.get_destination());
+    ipv6.set_destination(source);
+
+    match ipv6.get_next_header() {
+        IpNextHeaderProtocols::Udp =>
+		process_udpv6(packet),
+        _ => false,
+    }
+}
