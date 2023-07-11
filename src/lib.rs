@@ -218,20 +218,20 @@ impl NIC {
         }
     }
 
-    pub fn copy(&mut self, target: &Packet) -> Option<Packet> {
+    pub fn copy(&mut self, src: &Packet) -> Option<Packet> {
         let add = self.alloc();
-        let len = target.end - target.start;
+        let len = src.end - src.start;
         match add {
             Some(mut packet) => {
                 unsafe {
                     std::ptr::copy_nonoverlapping(
-                        target.buffer.add(target.start),
+                        src.buffer.add(src.start),
                         packet.buffer.add(packet.start),
                         len,
                     );
                 }
                 packet.end = packet.start + len;
-                self.chunk_pool.push(target.private as u64);
+                self.chunk_pool.push(src.private as u64);
                 Some(packet)
             }
             None => {
