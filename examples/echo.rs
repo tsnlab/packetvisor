@@ -18,6 +18,7 @@ use pnet::{
 use signal_hook::SigId;
 use std::{
     io::Error,
+    net::IpAddr,
     sync::atomic::{AtomicBool, Ordering},
     sync::Arc,
     thread,
@@ -112,7 +113,6 @@ fn main() {
         completion_ring_size,
     )
     .unwrap();
-
     /* initialize rx_batch_size and packet metadata */
     let rx_batch_size: u32 = 64;
     let mut packets: Vec<pv::Packet> = Vec::with_capacity(rx_batch_size as usize);
@@ -120,14 +120,14 @@ fn main() {
     while !term.load(Ordering::Relaxed) {
         let mut received = nic.receive(&mut packets);
 
-        while received == 0 {
+        while received == 0 && !term.load(Ordering::Relaxed) {
             // No packets received. Sleep
             thread::sleep(Duration::from_millis(100));
             received = nic.receive(&mut packets);
         }
 
         for i in 0..received as usize {
-            match process_packet(&mut packets[i], &nic.interface.mac.unwrap()) {
+            match process_packet(&mut packets[i], &nic) {
                 true => {}
                 false => {
                     nic.free(&mut packets[i]);
@@ -160,7 +160,7 @@ fn main() {
     nic.close();
 }
 
-fn process_packet(packet: &mut pv::Packet, my_mac: &MacAddr) -> bool {
+fn process_packet(packet: &mut pv::Packet, nic: &pv::NIC) -> bool {
     let buffer = packet.get_buffer_mut();
     let mut eth = match MutableEthernetPacket::new(buffer) {
         Some(eth) => eth,
@@ -171,11 +171,11 @@ fn process_packet(packet: &mut pv::Packet, my_mac: &MacAddr) -> bool {
 
     // Swap source and destination
     eth.set_destination(eth.get_source());
-    eth.set_source(*my_mac);
+    eth.set_source(nic.interface.mac.unwrap());
 
     match eth.get_ethertype() {
-        EtherTypes::Arp => process_arp(packet, my_mac),
-        EtherTypes::Ipv4 => process_ipv4(packet),
+        EtherTypes::Arp => process_arp(packet, &nic.interface.mac.unwrap()),
+        EtherTypes::Ipv4 => process_ipv4(packet, &nic.interface.ips[0].ip()),
         _ => false,
     }
 }
@@ -200,14 +200,17 @@ fn process_arp(packet: &mut pv::Packet, my_mac: &MacAddr) -> bool {
     true
 }
 
-fn process_ipv4(packet: &mut pv::Packet) -> bool {
+fn process_ipv4(packet: &mut pv::Packet, my_ip: &IpAddr) -> bool {
     let buffer = packet.get_buffer_mut();
     let mut eth = MutableEthernetPacket::new(buffer).unwrap();
     let mut ipv4 = MutableIpv4Packet::new(eth.payload_mut()).unwrap();
-    let source = ipv4.get_source();
 
-    ipv4.set_source(ipv4.get_destination());
-    ipv4.set_destination(source);
+    if ipv4.get_destination() != *my_ip || !my_ip.is_ipv4() {
+        return false;
+    }
+
+    ipv4.set_destination(ipv4.get_source());
+    ipv4.set_source(my_ip.to_string().parse().unwrap());
 
     match ipv4.get_next_level_protocol() {
         IpNextHeaderProtocols::Icmp => process_icmp(packet),
