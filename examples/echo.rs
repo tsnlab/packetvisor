@@ -136,21 +136,13 @@ fn main() {
             }
         }
 
-        for i in 0.. {
-            match nic.send(&mut packets) {
-                // if failed to send
-                0 => {
-                    // 3 retries
-                    if i > 3 {
-                        for j in (0..packets.len()).rev() {
-                            nic.free(&mut packets[j]);
-                        }
-                        break;
-                    }
+        for retry in (0..3).rev() {
+            match (nic.send(&mut packets), retry) {
+                (cnt, _) if cnt > 0 => break, // Success
+                (0, 0) => {
+                    break; // Failed 3 times
                 }
-                _ => {
-                    break;
-                }
+                _ => continue, // Retrying
             }
         }
 
@@ -168,6 +160,13 @@ fn process_packet(packet: &mut pv::Packet, nic: &pv::NIC) -> bool {
             return false;
         }
     };
+    let ipv4 = &nic
+        .interface
+        .ips
+        .iter()
+        .find(|ip| ip.is_ipv4())
+        .expect("not allocated ipv4 to interface")
+        .ip();
 
     // Swap source and destination
     eth.set_destination(eth.get_source());
@@ -175,7 +174,7 @@ fn process_packet(packet: &mut pv::Packet, nic: &pv::NIC) -> bool {
 
     match eth.get_ethertype() {
         EtherTypes::Arp => process_arp(packet, &nic.interface.mac.unwrap()),
-        EtherTypes::Ipv4 => process_ipv4(packet, &nic.interface.ips[0].ip()),
+        EtherTypes::Ipv4 => process_ipv4(packet, ipv4),
         _ => false,
     }
 }
