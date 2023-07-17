@@ -26,11 +26,17 @@ They will be located in `root/target/release/examples`
 
 Example apps can be executed commonly like this: `sudo ./(EXAMPLE APP) <inferface name> <chunk size> <chunk count> <Filling ring size> <RX ring size> <Completion ring size> <TX ring size>`
 
-You can use `set_veth.sh` to set veths for testing the application.
+You can test ipv4 and ipv6.
+
+If you want to test ipv4, you can use `set_veth.sh` to set veths for testing the application.
 After the script is executed, veth0(10.0.0.4) and veth1(10.0.0.5) are created.
 veth1 is created in `test_namespace` namespace but veth0 in local.
 
-echo example has many options. If you want to see the options.
+If you want to test ipv6, you can use `set_veth_v6.sh` to set veths for testing the application.
+After the script is executed, veth0(2001:db8::1) and veth1(2001:db8::2) are created.
+veth1 is created in `test_namespace` namespace but veth0 in local.
+
+echo example has many options. If you want to see the options. 
 Execute `echo --help`
 
 To execute echo example.
@@ -39,14 +45,20 @@ Execute `sudo ./set_veth.sh` then execute`sudo ./echo -i veth0` in `/target/rele
 
 echo example has three functions, ARP reply, ICMP echo(ping), UDP echo.
 
-If you want to test ARP reply, Execute the following command
+If you want to test ARP reply, Execute the following command  
 `sudo ip netns exec test_namespace arping 10.0.0.4`.
 
-If you want to test ICMP echo, Execute the following command.
-`sudo ip netns exec test_namespace ping 10.0.0.4`.
+If you want to test ICMP echo, Execute the following command.  
+`sudo ip netns exec test_namespace ping 10.0.0.4`.   
+In case of ipv6, Execute the following command.  
+`sudo ip netns exec test_namespace ping 2001:db8::1`.
 
-If you want to test UDP echo, Execute the following command.
-`sudo ip netns exec test_namespace nc -u 10.0.0.4 7`
+
+If you want to test UDP echo, Execute the following command.  
+`sudo ip netns exec test_namespace nc -u 10.0.0.4 7`  
+In case of ipv6, Execute the following command.  
+`sudo ip netns exec test_namespace nc -u 2001:db8::1 7`
+
 
 To remove veths created by `set_veth.sh`, `unset_veth.sh` will remove them.
 
