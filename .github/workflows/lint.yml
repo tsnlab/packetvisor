@@ -34,4 +34,6 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           config-path: .github/newline.yml
       - name: Check trailing whitespaces
-        uses: harupy/find-trailing-whitespace@master
+        uses: hexrabbit/whitespace-lint@v0.0.1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
