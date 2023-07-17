@@ -23,7 +23,6 @@ use pnet::{
 use signal_hook::SigId;
 use std::{
     io::Error,
-    net::IpAddr,
     net::Ipv6Addr,
     sync::atomic::{AtomicBool, Ordering},
     sync::Arc,
@@ -166,21 +165,6 @@ fn process_packet(packet: &mut pv::Packet, nic: &pv::NIC) -> bool {
             return false;
         }
     };
-    let ipv4 = &nic
-        .interface
-        .ips
-        .iter()
-        .find(|ip| ip.is_ipv4())
-        .expect("not allocated ipv4 to interface")
-        .ip();
-
-    let ipv6 = &nic
-        .interface
-        .ips
-        .iter()
-        .find(|ip| ip.is_ipv6())
-        .expect("not allocated ipv6 to interface")
-        .ip();
 
     // Swap source and destination
     eth.set_destination(eth.get_source());
@@ -188,8 +172,8 @@ fn process_packet(packet: &mut pv::Packet, nic: &pv::NIC) -> bool {
 
     match eth.get_ethertype() {
         EtherTypes::Arp => process_arp(packet, &nic.interface.mac.unwrap()),
-        EtherTypes::Ipv4 => process_ipv4(packet, ipv4),
-        EtherTypes::Ipv6 => process_ipv6(packet, ipv6),
+        EtherTypes::Ipv4 => process_ipv4(packet, &nic),
+        EtherTypes::Ipv6 => process_ipv6(packet, &nic),
         _ => false,
     }
 }
@@ -214,10 +198,18 @@ fn process_arp(packet: &mut pv::Packet, my_mac: &MacAddr) -> bool {
     true
 }
 
-fn process_ipv4(packet: &mut pv::Packet, my_ip: &IpAddr) -> bool {
+fn process_ipv4(packet: &mut pv::Packet, nic: &pv::NIC) -> bool {
     let buffer = packet.get_buffer_mut();
     let mut eth = MutableEthernetPacket::new(buffer).unwrap();
     let mut ipv4 = MutableIpv4Packet::new(eth.payload_mut()).unwrap();
+
+    let my_ip = &nic
+        .interface
+        .ips
+        .iter()
+        .find(|ip| ip.is_ipv4())
+        .expect("not allocated ipv4 to interface")
+        .ip();
 
     if ipv4.get_destination() != *my_ip {
         return false;
@@ -276,10 +268,17 @@ fn process_udp(packet: &mut pv::Packet) -> bool {
     true
 }
 
-fn process_ipv6(packet: &mut pv::Packet, my_ip: &IpAddr) -> bool {
+fn process_ipv6(packet: &mut pv::Packet, nic: &pv::NIC) -> bool {
     let buffer = packet.get_buffer_mut();
     let mut eth = MutableEthernetPacket::new(buffer).unwrap();
     let mut ipv6 = MutableIpv6Packet::new(eth.payload_mut()).unwrap();
+    let my_ip = &nic
+        .interface
+        .ips
+        .iter()
+        .find(|ip| ip.is_ipv6())
+        .expect("not allocated ipv6 to interface")
+        .ip();
     let v6: Ipv6Addr = my_ip.to_string().parse().unwrap();
 
     ipv6.set_destination(ipv6.get_source());
