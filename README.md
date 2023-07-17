@@ -30,12 +30,12 @@ You can use `set_veth.sh` to set veths for testing the application.
 After the script is executed, veth0(10.0.0.4) and veth1(10.0.0.5) are created.
 veth1 is created in `test_namespace` namespace but veth0 in local.
 
-echo example has many options. If you want to see the options. 
+echo example has many options. If you want to see the options.
 Execute `echo --help`
 
-To execute echo example. 
+To execute echo example.
 
-Execute `sudo ./set_veth.sh` then execute`sudo ./echo -i veth0` in `/target/release/examples`. 
+Execute `sudo ./set_veth.sh` then execute`sudo ./echo -i veth0` in `/target/release/examples`.
 
 echo example has three functions, ARP reply, ICMP echo(ping), UDP echo.
 
