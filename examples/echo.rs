@@ -205,7 +205,7 @@ fn process_ipv4(packet: &mut pv::Packet, my_ip: &IpAddr) -> bool {
     let mut eth = MutableEthernetPacket::new(buffer).unwrap();
     let mut ipv4 = MutableIpv4Packet::new(eth.payload_mut()).unwrap();
 
-    if ipv4.get_destination() != *my_ip || !my_ip.is_ipv4() {
+    if ipv4.get_destination() != *my_ip {
         return false;
     }
 
