@@ -23,6 +23,7 @@ use pnet::{
 use signal_hook::SigId;
 use std::{
     io::Error,
+    net::IpAddr,
     net::Ipv6Addr,
     sync::atomic::{AtomicBool, Ordering},
     sync::Arc,
@@ -279,11 +280,14 @@ fn process_ipv6(packet: &mut pv::Packet, nic: &pv::NIC) -> bool {
         .find(|ip| ip.is_ipv6())
         .expect("not allocated ipv6 to interface")
         .ip();
-    let ipv6_addr: Ipv6Addr = my_ip.to_string().parse().unwrap();
+
+    let ipv6_addr = match my_ip {
+        IpAddr::V6(ipv6) => ipv6,
+        _ => panic!("not ipv6"),
+    };
 
     ipv6.set_destination(ipv6.get_source());
-    ipv6.set_source(ipv6_addr);
-
+    ipv6.set_source(*ipv6_addr);
     match ipv6.get_next_header() {
         IpNextHeaderProtocols::Udp => process_udpv6(packet),
         IpNextHeaderProtocols::Icmpv6 => process_icmpv6(packet, &ipv6_addr),
