@@ -279,19 +279,19 @@ fn process_ipv6(packet: &mut pv::Packet, nic: &pv::NIC) -> bool {
         .find(|ip| ip.is_ipv6())
         .expect("not allocated ipv6 to interface")
         .ip();
-    let v6: Ipv6Addr = my_ip.to_string().parse().unwrap();
+    let ipv6_addr: Ipv6Addr = my_ip.to_string().parse().unwrap();
 
     ipv6.set_destination(ipv6.get_source());
-    ipv6.set_source(v6);
+    ipv6.set_source(ipv6_addr);
 
     match ipv6.get_next_header() {
         IpNextHeaderProtocols::Udp => process_udpv6(packet),
-        IpNextHeaderProtocols::Icmpv6 => process_icmpv6(packet, &v6),
+        IpNextHeaderProtocols::Icmpv6 => process_icmpv6(packet, &ipv6_addr),
         _ => false,
     }
 }
 
-fn process_icmpv6(packet: &mut pv::Packet, v6: &Ipv6Addr) -> bool {
+fn process_icmpv6(packet: &mut pv::Packet, ipv6_addr: &Ipv6Addr) -> bool {
     let buffer = packet.get_buffer_mut();
     let mut eth = MutableEthernetPacket::new(buffer).unwrap();
     let mut ipv6 = MutableIpv6Packet::new(eth.payload_mut()).unwrap();
@@ -299,30 +299,30 @@ fn process_icmpv6(packet: &mut pv::Packet, v6: &Ipv6Addr) -> bool {
     let mut icmpv6 = MutableIcmpv6Packet::new(ipv6.payload_mut()).unwrap();
 
     if icmpv6.get_icmpv6_type() == Icmpv6Types::NeighborSolicit {
-        process_ndp(packet, &v6);
+        process_ndp(packet, ipv6_addr);
         return true;
     } else if icmpv6.get_icmpv6_type() == Icmpv6Types::EchoRequest {
         icmpv6.set_icmpv6_type(Icmpv6Types::EchoReply);
-        let checksum = icmpv6::checksum(&icmpv6.to_immutable(), &v6, &other_ipv6);
+        let checksum = icmpv6::checksum(&icmpv6.to_immutable(), &ipv6_addr, &other_ipv6);
         icmpv6.set_checksum(checksum);
         return true;
     }
     false
 }
 
-fn process_ndp(packet: &mut pv::Packet, v6: &Ipv6Addr) -> bool {
+fn process_ndp(packet: &mut pv::Packet, ipv6_addr: &Ipv6Addr) -> bool {
     let buffer = packet.get_buffer_mut();
     let mut eth = MutableEthernetPacket::new(buffer).unwrap();
     let eth_addr = eth.get_source();
-    let ipv6 = MutableIpv6Packet::new(eth.payload_mut()).unwrap();
-    let other_ipv6 = ipv6.get_destination();
     let mut ipv6 = MutableIpv6Packet::new(eth.payload_mut()).unwrap();
+    let other_ipv6 = ipv6.get_destination();
 
     let mut icmpv6_ndp = MutableNeighborAdvertPacket::new(ipv6.payload_mut()).unwrap();
     let ndp_flag = NeighborAdvertFlags::Solicited | NeighborAdvertFlags::Override;
     icmpv6_ndp.set_flags(ndp_flag);
 
     let mut ndp_option = icmpv6_ndp.get_options();
+    //Copy mac_addr to ndp_option_data
     for i in 0..6 {
         ndp_option[0].data[i] = eth_addr.octets()[i];
     }
@@ -331,7 +331,7 @@ fn process_ndp(packet: &mut pv::Packet, v6: &Ipv6Addr) -> bool {
 
     let mut icmpv6 = MutableIcmpv6Packet::new(ipv6.payload_mut()).unwrap();
     icmpv6.set_icmpv6_type(Icmpv6Types::NeighborAdvert);
-    let checksum = icmpv6::checksum(&icmpv6.to_immutable(), &v6, &other_ipv6);
+    let checksum = icmpv6::checksum(&icmpv6.to_immutable(), &ipv6_addr, &other_ipv6);
     icmpv6.set_checksum(checksum);
     true
 }
