@@ -322,7 +322,7 @@ fn process_ndp(packet: &mut pv::Packet, ipv6_addr: &Ipv6Addr) -> bool {
     icmpv6_ndp.set_flags(ndp_flag);
 
     let mut ndp_option = icmpv6_ndp.get_options();
-    //Copy mac_addr to ndp_option_data
+    //Copy sender's mac_addr to ndp_option_data
     for i in 0..6 {
         ndp_option[0].data[i] = eth_addr.octets()[i];
     }

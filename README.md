@@ -28,12 +28,8 @@ Example apps can be executed commonly like this: `sudo ./(EXAMPLE APP) <inferfac
 
 You can test ipv4 and ipv6.
 
-If you want to test ipv4, you can use `set_veth.sh` to set veths for testing the application.
-After the script is executed, veth0(10.0.0.4) and veth1(10.0.0.5) are created.
-veth1 is created in `test_namespace` namespace but veth0 in local.
-
-If you want to test ipv6, you can use `set_veth_v6.sh` to set veths for testing the application.
-After the script is executed, veth0(2001:db8::1) and veth1(2001:db8::2) are created.
+If you want to test ipv4, ipv6 you can use `set_veth.sh` to set veths for testing the application.
+After the script is executed, veth0 and veth1 are created.
 veth1 is created in `test_namespace` namespace but veth0 in local.
 
 echo example has many options. If you want to see the options.
