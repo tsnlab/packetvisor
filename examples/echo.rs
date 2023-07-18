@@ -4,7 +4,7 @@ use pnet::{
     packet::arp::{ArpOperations, MutableArpPacket},
     packet::{
         ethernet::{EtherTypes, MutableEthernetPacket},
-        icmpv6::ndp::MutableNeighborAdvertPacket,
+        icmpv6::ndp::{MutableNeighborAdvertPacket, NdpOptionTypes, NeighborAdvertFlags},
         ip::IpNextHeaderProtocols,
         ipv4,
     },
@@ -319,12 +319,14 @@ fn process_ndp(packet: &mut pv::Packet, v6: &Ipv6Addr) -> bool {
     let mut ipv6 = MutableIpv6Packet::new(eth.payload_mut()).unwrap();
 
     let mut icmpv6_ndp = MutableNeighborAdvertPacket::new(ipv6.payload_mut()).unwrap();
-    icmpv6_ndp.set_flags(0x60);
+    let ndp_flag = NeighborAdvertFlags::Solicited | NeighborAdvertFlags::Override;
+    icmpv6_ndp.set_flags(ndp_flag);
 
     let mut ndp_option = icmpv6_ndp.get_options();
     for i in 0..6 {
         ndp_option[0].data[i] = eth_addr.octets()[i];
     }
+    ndp_option[0].option_type = NdpOptionTypes::TargetLLAddr;
     icmpv6_ndp.set_options(&ndp_option);
 
     let mut icmpv6 = MutableIcmpv6Packet::new(ipv6.payload_mut()).unwrap();

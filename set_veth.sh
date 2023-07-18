@@ -10,9 +10,11 @@ sudo ip netns exec test_namespace ip link set dev lo up
 # veth1을 임의 생성한 test_namespace로 옮기기 (host -> test_namespace)
 sudo ip link set veth1 netns test_namespace
 
-# 가상 인터페이스 veth0, veth1에 IPv4 주소 할당
+# 가상 인터페이스 veth0, veth1에 IPv4, IPv6 주소 할당
 sudo ip addr add 10.0.0.4/24 dev veth0
 sudo ip netns exec test_namespace ip addr add 10.0.0.5/24 dev veth1
+sudo ip addr add 2001:db8::1/64 dev veth0
+sudo ip netns exec test_namespace ip addr add 2001:db8::2/64 dev veth1
 
 # 가상 인터페이스 veth0, veth1 활성화
 sudo ip link set dev veth0 up
