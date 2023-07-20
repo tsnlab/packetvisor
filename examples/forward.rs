@@ -1,4 +1,4 @@
-use clap::{arg, Command};
+use clap::{arg, value_parser, Command};
 
 use pnet::{
     packet::ipv4::MutableIpv4Packet,
@@ -14,39 +14,47 @@ use std::{
     io::Error,
     sync::atomic::{AtomicBool, Ordering},
     sync::Arc,
+    thread,
+    time::Duration,
 };
 
 fn main() {
-    let matches = Command::new("forward")
+    let matches = Command::new("filter")
         .arg(arg!(nic1: --nic1 <nic1> "nic1 to use").required(true))
         .arg(arg!(nic2: -p --nic2 <nic2> "nic2 to use").required(true))
         .arg(
-            arg!(chunk_size: -s --chunk-size <size> "Chunk size")
+            arg!(chunk_size: -s --"chunk-size" <size> "Chunk size")
+                .value_parser(value_parser!(usize))
                 .required(false)
                 .default_value("2048"),
         )
         .arg(
-            arg!(chunk_count: -c --chunk-count <count> "Chunk count")
+            arg!(chunk_count: -c --"chunk-count" <count> "Chunk count")
                 .required(false)
+                .value_parser(value_parser!(usize))
                 .default_value("1024"),
         )
         .arg(
-            arg!(rx_ring_size: -r --rx-ring <count> "Rx ring size")
+            arg!(rx_ring_size: -r --"rx-ring" <count> "Rx ring size")
+                .value_parser(value_parser!(u32))
                 .required(false)
                 .default_value("64"),
         )
         .arg(
-            arg!(tx_ring_size: -t --tx-ring <count> "Tx ring size")
+            arg!(tx_ring_size: -t --"tx-ring" <count> "Tx ring size")
+                .value_parser(value_parser!(u32))
                 .required(false)
                 .default_value("64"),
         )
         .arg(
-            arg!(fill_ring_size: -f --fill-ring <count> "Fill ring size")
+            arg!(fill_ring_size: -f --"fill-ring" <count> "Fill ring size")
+                .value_parser(value_parser!(u32))
                 .required(false)
                 .default_value("64"),
         )
         .arg(
-            arg!(completion_ring_size: -o --completion-ring <count> "Completion ring size")
+            arg!(completion_ring_size: -o --"completion-ring" <count> "Completion ring size")
+                .value_parser(value_parser!(u32))
                 .required(false)
                 .default_value("64"),
         )
@@ -54,36 +62,12 @@ fn main() {
 
     let name1 = matches.get_one::<String>("nic1").unwrap().clone();
     let name2 = matches.get_one::<String>("nic2").unwrap().clone();
-    let chunk_size = matches
-        .get_one::<String>("chunk_size")
-        .unwrap()
-        .parse()
-        .unwrap();
-    let chunk_count = matches
-        .get_one::<String>("chunk_count")
-        .unwrap()
-        .parse()
-        .unwrap();
-    let rx_ring_size = matches
-        .get_one::<String>("rx_ring_size")
-        .unwrap()
-        .parse()
-        .unwrap();
-    let tx_ring_size = matches
-        .get_one::<String>("tx_ring_size")
-        .unwrap()
-        .parse()
-        .unwrap();
-    let filling_ring_size = matches
-        .get_one::<String>("fill_ring_size")
-        .unwrap()
-        .parse()
-        .unwrap();
-    let completion_ring_size = matches
-        .get_one::<String>("completion_ring_size")
-        .unwrap()
-        .parse()
-        .unwrap();
+    let chunk_size = *matches.get_one::<usize>("chunk_size").unwrap();
+    let chunk_count = *matches.get_one::<usize>("chunk_count").unwrap();
+    let rx_ring_size = *matches.get_one::<u32>("rx_ring_size").unwrap();
+    let tx_ring_size = *matches.get_one::<u32>("tx_ring_size").unwrap();
+    let filling_ring_size = *matches.get_one::<u32>("fill_ring_size").unwrap();
+    let completion_ring_size = *matches.get_one::<u32>("completion_ring_size").unwrap();
 
     // Signal handlers
     let term: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
@@ -192,6 +176,6 @@ fn forward(from: &mut pv::NIC, to: &mut pv::NIC) {
         }
     } else {
         // No packets received. Sleep
-        // thread::sleep(Duration::from_millis(100));
+        thread::sleep(Duration::from_millis(100));
     }
 }

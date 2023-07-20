@@ -1,11 +1,11 @@
-use clap::{arg, Command};
+use clap::{arg, value_parser, Command};
 
 use pnet::{
     packet::ipv4::MutableIpv4Packet,
     packet::{
         ethernet::{EtherTypes, MutableEthernetPacket},
         ip::IpNextHeaderProtocols,
-        tcp::MutableTcpPacket,
+        tcp::{MutableTcpPacket, TcpFlags},
     },
     packet::{MutablePacket, Packet},
 };
@@ -14,6 +14,8 @@ use std::{
     io::Error,
     sync::atomic::{AtomicBool, Ordering},
     sync::Arc,
+    thread,
+    time::Duration,
 };
 
 fn main() {
@@ -21,32 +23,38 @@ fn main() {
         .arg(arg!(nic1: --nic1 <nic1> "nic1 to use").required(true))
         .arg(arg!(nic2: -p --nic2 <nic2> "nic2 to use").required(true))
         .arg(
-            arg!(chunk_size: -s --chunk-size <size> "Chunk size")
+            arg!(chunk_size: -s --"chunk-size" <size> "Chunk size")
+                .value_parser(value_parser!(usize))
                 .required(false)
                 .default_value("2048"),
         )
         .arg(
-            arg!(chunk_count: -c --chunk-count <count> "Chunk count")
+            arg!(chunk_count: -c --"chunk-count" <count> "Chunk count")
                 .required(false)
+                .value_parser(value_parser!(usize))
                 .default_value("1024"),
         )
         .arg(
-            arg!(rx_ring_size: -r --rx-ring <count> "Rx ring size")
+            arg!(rx_ring_size: -r --"rx-ring" <count> "Rx ring size")
+                .value_parser(value_parser!(u32))
                 .required(false)
                 .default_value("64"),
         )
         .arg(
-            arg!(tx_ring_size: -t --tx-ring <count> "Tx ring size")
+            arg!(tx_ring_size: -t --"tx-ring" <count> "Tx ring size")
+                .value_parser(value_parser!(u32))
                 .required(false)
                 .default_value("64"),
         )
         .arg(
-            arg!(fill_ring_size: -f --fill-ring <count> "Fill ring size")
+            arg!(fill_ring_size: -f --"fill-ring" <count> "Fill ring size")
+                .value_parser(value_parser!(u32))
                 .required(false)
                 .default_value("64"),
         )
         .arg(
-            arg!(completion_ring_size: -o --completion-ring <count> "Completion ring size")
+            arg!(completion_ring_size: -o --"completion-ring" <count> "Completion ring size")
+                .value_parser(value_parser!(u32))
                 .required(false)
                 .default_value("64"),
         )
@@ -54,36 +62,12 @@ fn main() {
 
     let name1 = matches.get_one::<String>("nic1").unwrap().clone();
     let name2 = matches.get_one::<String>("nic2").unwrap().clone();
-    let chunk_size = matches
-        .get_one::<String>("chunk_size")
-        .unwrap()
-        .parse()
-        .unwrap();
-    let chunk_count = matches
-        .get_one::<String>("chunk_count")
-        .unwrap()
-        .parse()
-        .unwrap();
-    let rx_ring_size = matches
-        .get_one::<String>("rx_ring_size")
-        .unwrap()
-        .parse()
-        .unwrap();
-    let tx_ring_size = matches
-        .get_one::<String>("tx_ring_size")
-        .unwrap()
-        .parse()
-        .unwrap();
-    let filling_ring_size = matches
-        .get_one::<String>("fill_ring_size")
-        .unwrap()
-        .parse()
-        .unwrap();
-    let completion_ring_size = matches
-        .get_one::<String>("completion_ring_size")
-        .unwrap()
-        .parse()
-        .unwrap();
+    let chunk_size = *matches.get_one::<usize>("chunk_size").unwrap();
+    let chunk_count = *matches.get_one::<usize>("chunk_count").unwrap();
+    let rx_ring_size = *matches.get_one::<u32>("rx_ring_size").unwrap();
+    let tx_ring_size = *matches.get_one::<u32>("tx_ring_size").unwrap();
+    let filling_ring_size = *matches.get_one::<u32>("fill_ring_size").unwrap();
+    let completion_ring_size = *matches.get_one::<u32>("completion_ring_size").unwrap();
 
     // Signal handlers
     let term: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
@@ -158,11 +142,7 @@ fn process_packet(packet: &mut pv::Packet) -> bool {
         }
     };
 
-    if tcp.get_source() != port && tcp.get_destination() != port {
-        return false;
-    }
-
-    if word.len() > 0 {
+    if word.len() > 0 && (tcp.get_source() == port || tcp.get_destination() == port) {
         return !String::from_utf8_lossy(tcp.payload())
             .into_owned()
             .contains(word);
@@ -185,7 +165,7 @@ fn forward(from: &mut pv::NIC, to: &mut pv::NIC) {
                     packets2.push(to.copy(packet).unwrap());
                 }
                 false => {
-                    from.free(packet);
+                    send_rst(from, to, packet);
                 }
             }
         }
@@ -205,6 +185,92 @@ fn forward(from: &mut pv::NIC, to: &mut pv::NIC) {
         }
     } else {
         // No packets received. Sleep
-        // thread::sleep(Duration::from_millis(100));
+        thread::sleep(Duration::from_millis(100));
     }
+}
+
+fn send_rst(from: &mut pv::NIC, to: &mut pv::NIC, received: &mut pv::Packet) {
+    let mut packet = from.alloc().unwrap();
+
+    if packet
+        .replace_data(&received.get_buffer_mut().to_vec())
+        .is_err()
+    {
+        return;
+    }
+
+    let mut eth = match MutableEthernetPacket::new(packet.get_buffer_mut()) {
+        Some(eth) => eth,
+        None => return,
+    };
+    let src = eth.get_source();
+
+    eth.set_source(eth.get_destination());
+    eth.set_destination(src);
+
+    let mut ipv4 = match MutableIpv4Packet::new(eth.payload_mut()) {
+        Some(ipv4) => ipv4,
+        None => return,
+    };
+    let src_ip = ipv4.get_source();
+    let dst_ip = ipv4.get_destination();
+    let mut tcp = match MutableTcpPacket::new(ipv4.payload_mut()) {
+        Some(tcp) => tcp,
+        None => return,
+    };
+    let src_port = tcp.get_source();
+
+    tcp.set_source(tcp.get_destination());
+    tcp.set_destination(src_port);
+    tcp.set_sequence(tcp.get_acknowledgement());
+    tcp.set_flags(TcpFlags::RST);
+    tcp.set_checksum(pnet::packet::tcp::ipv4_checksum(
+        &tcp.to_immutable(),
+        &dst_ip,
+        &src_ip,
+    ));
+    ipv4.set_source(dst_ip);
+    ipv4.set_destination(src_ip);
+    ipv4.set_checksum(pnet::packet::ipv4::checksum(&ipv4.to_immutable()));
+    from.send(&mut vec![packet]);
+    from.free(&packet);
+
+    let mut packet = to.alloc().unwrap();
+
+    if packet
+        .replace_data(&received.get_buffer_mut().to_vec())
+        .is_err()
+    {
+        return;
+    }
+
+    let mut eth = match MutableEthernetPacket::new(packet.get_buffer_mut()) {
+        Some(eth) => eth,
+        None => return,
+    };
+    let src = eth.get_source();
+
+    eth.set_source(eth.get_destination());
+    eth.set_destination(src);
+
+    let mut ipv4 = match MutableIpv4Packet::new(eth.payload_mut()) {
+        Some(ipv4) => ipv4,
+        None => return,
+    };
+    let src_ip = ipv4.get_source();
+    let dst_ip = ipv4.get_destination();
+    let mut tcp = match MutableTcpPacket::new(ipv4.payload_mut()) {
+        Some(tcp) => tcp,
+        None => return,
+    };
+
+    tcp.set_flags(TcpFlags::RST);
+    tcp.set_checksum(pnet::packet::tcp::ipv4_checksum(
+        &tcp.to_immutable(),
+        &src_ip,
+        &dst_ip,
+    ));
+    ipv4.set_checksum(pnet::packet::ipv4::checksum(&ipv4.to_immutable()));
+    to.send(&mut vec![packet]);
+    to.free(&packet);
 }
