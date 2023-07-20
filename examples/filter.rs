@@ -120,9 +120,6 @@ fn process_packet(packet: &mut pv::Packet) -> bool {
     if eth.get_ethertype() == EtherTypes::Arp {
         return true;
     }
-    if eth.get_ethertype() != EtherTypes::Ipv4 {
-        return false;
-    }
 
     let mut ipv4 = match MutableIpv4Packet::new(eth.payload_mut()) {
         Some(ipv4) => ipv4,
@@ -130,10 +127,6 @@ fn process_packet(packet: &mut pv::Packet) -> bool {
             return false;
         }
     };
-
-    if ipv4.get_next_level_protocol() != IpNextHeaderProtocols::Tcp {
-        return false;
-    }
 
     let tcp = match MutableTcpPacket::new(ipv4.payload_mut()) {
         Some(tcp) => tcp,
@@ -162,7 +155,7 @@ fn forward(from: &mut pv::NIC, to: &mut pv::NIC) {
         for packet in &mut packets1 {
             match process_packet(packet) {
                 true => {
-                    packets2.push(to.copy(packet).unwrap());
+                    packets2.push(to.copy_from(packet).unwrap());
                 }
                 false => {
                     send_rst(from, to, packet);
@@ -248,10 +241,6 @@ fn send_rst(from: &mut pv::NIC, to: &mut pv::NIC, received: &mut pv::Packet) {
         Some(eth) => eth,
         None => return,
     };
-    let src = eth.get_source();
-
-    eth.set_source(eth.get_destination());
-    eth.set_destination(src);
 
     let mut ipv4 = match MutableIpv4Packet::new(eth.payload_mut()) {
         Some(ipv4) => ipv4,

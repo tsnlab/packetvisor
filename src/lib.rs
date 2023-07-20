@@ -218,10 +218,10 @@ impl NIC {
         }
     }
 
-    pub fn copy(&mut self, src: &Packet) -> Option<Packet> {
-        let add = self.alloc();
+    pub fn copy_from(&mut self, src: &Packet) -> Option<Packet> {
+        let packet = self.alloc();
         let len = src.end - src.start;
-        match add {
+        match packet {
             Some(mut packet) => {
                 unsafe {
                     std::ptr::copy_nonoverlapping(
