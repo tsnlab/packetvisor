@@ -4,7 +4,6 @@ use pnet::{
     packet::ipv4::MutableIpv4Packet,
     packet::{
         ethernet::{EtherTypes, MutableEthernetPacket},
-        ip::IpNextHeaderProtocols,
         tcp::{MutableTcpPacket, TcpFlags},
     },
     packet::{MutablePacket, Packet},

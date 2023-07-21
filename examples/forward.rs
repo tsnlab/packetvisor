@@ -5,7 +5,6 @@ use pnet::{
     packet::MutablePacket,
     packet::{
         ethernet::{EtherTypes, MutableEthernetPacket},
-        ip::IpNextHeaderProtocols,
         tcp::MutableTcpPacket,
     },
 };
