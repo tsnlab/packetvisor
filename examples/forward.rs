@@ -1,12 +1,9 @@
 use clap::{arg, value_parser, Command};
 
 use pnet::{
-    packet::ipv4::MutableIpv4Packet,
+    packet::ethernet::{EtherTypes, MutableEthernetPacket},
     packet::MutablePacket,
-    packet::{
-        ethernet::{EtherTypes, MutableEthernetPacket},
-        tcp::MutableTcpPacket,
-    },
+    packet::{ipv4::MutableIpv4Packet, tcp::TcpPacket},
 };
 use signal_hook::SigId;
 use std::{
@@ -124,12 +121,9 @@ fn process_packet(packet: &mut pv::Packet) -> bool {
         }
     };
 
-    match MutableTcpPacket::new(ipv4.payload_mut()) {
-        None => {
-            return false;
-        }
-        _ => {}
-    };
+    if TcpPacket::new(ipv4.payload_mut()).is_none() {
+        return false;
+    }
 
     true
 }
