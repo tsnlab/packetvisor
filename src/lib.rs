@@ -219,10 +219,9 @@ impl NIC {
     }
 
     pub fn copy_from(&mut self, src: &Packet) -> Option<Packet> {
-        let packet = self.alloc();
         let len = src.end - src.start;
-        match packet {
-            Some(mut packet) => {
+
+        if let Some(packet) = self.alloc() {
                 unsafe {
                     std::ptr::copy_nonoverlapping(
                         src.buffer.add(src.start),
@@ -234,7 +233,7 @@ impl NIC {
                 self.chunk_pool.push(src.private as u64);
                 Some(packet)
             }
-            None => {
+            else {
                 println!("Failed to add packet to NIC.");
                 None
             }
