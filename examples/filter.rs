@@ -111,17 +111,17 @@ fn process_packet(packet: &mut pv::Packet) -> bool {
 
     let mut eth = match MutableEthernetPacket::new(buffer) {
         Some(eth) => eth,
-        None => return true
+        None => return true,
     };
 
     let mut ipv4 = match MutableIpv4Packet::new(eth.payload_mut()) {
         Some(ipv4) => ipv4,
-        None => return true
+        None => return true,
     };
 
     let tcp = match MutableTcpPacket::new(ipv4.payload_mut()) {
         Some(tcp) => tcp,
-        None => return true
+        None => return true,
     };
 
     if word.len() > 0 && (tcp.get_source() == port || tcp.get_destination() == port) {
