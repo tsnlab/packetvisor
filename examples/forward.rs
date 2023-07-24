@@ -101,33 +101,6 @@ fn main() {
     }
 }
 
-fn process_packet(packet: &mut pv::Packet) -> bool {
-    let buffer = packet.get_buffer_mut();
-    let mut eth = match MutableEthernetPacket::new(buffer) {
-        Some(eth) => eth,
-        None => {
-            return false;
-        }
-    };
-
-    if eth.get_ethertype() == EtherTypes::Arp {
-        return true;
-    }
-
-    let mut ipv4 = match MutableIpv4Packet::new(eth.payload_mut()) {
-        Some(ipv4) => ipv4,
-        None => {
-            return false;
-        }
-    };
-
-    if TcpPacket::new(ipv4.payload_mut()).is_none() {
-        return false;
-    }
-
-    true
-}
-
 fn forward(from: &mut pv::NIC, to: &mut pv::NIC) {
     /* initialize rx_batch_size and packet metadata */
     let rx_batch_size: u32 = 64;
@@ -136,17 +109,6 @@ fn forward(from: &mut pv::NIC, to: &mut pv::NIC) {
     let received = from.receive(&mut packets1);
 
     if received > 0 {
-        for packet in &mut packets1 {
-            match process_packet(packet) {
-                true => {
-                    packets2.push(to.copy_from(packet).unwrap());
-                }
-                false => {
-                    from.free(packet);
-                }
-            }
-        }
-
         for retry in (0..3).rev() {
             match (to.send(&mut packets2), retry) {
                 (cnt, _) if cnt > 0 => break, // Success
