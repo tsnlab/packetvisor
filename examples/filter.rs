@@ -3,7 +3,7 @@ use clap::{arg, value_parser, Command};
 use pnet::{
     packet::ipv4::MutableIpv4Packet,
     packet::{
-        ethernet::{EtherTypes, MutableEthernetPacket},
+        ethernet::MutableEthernetPacket,
         tcp::{MutableTcpPacket, TcpFlags},
     },
     packet::{MutablePacket, Packet},

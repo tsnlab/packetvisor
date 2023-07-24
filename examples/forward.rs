@@ -1,10 +1,5 @@
 use clap::{arg, value_parser, Command};
 
-use pnet::{
-    packet::ethernet::{EtherTypes, MutableEthernetPacket},
-    packet::MutablePacket,
-    packet::{ipv4::MutableIpv4Packet, tcp::TcpPacket},
-};
 use signal_hook::SigId;
 use std::{
     io::Error,
@@ -109,6 +104,10 @@ fn forward(from: &mut pv::NIC, to: &mut pv::NIC) {
     let received = from.receive(&mut packets1);
 
     if received > 0 {
+        for packet in &mut packets1 {
+            packets2.push(to.copy_from(packet).unwrap());
+        }
+
         for retry in (0..3).rev() {
             match (to.send(&mut packets2), retry) {
                 (cnt, _) if cnt > 0 => break, // Success
