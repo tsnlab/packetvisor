@@ -23,8 +23,8 @@ fn main() {
     let matches = Command::new("filter")
         .arg(arg!(nic1: --nic1 <nic1> "nic1 to use").required(true))
         .arg(arg!(nic2: -p --nic2 <nic2> "nic2 to use").required(true))
-        .arg(arg!(source: --source <source> "source to be change").required(true))
-        .arg(arg!(target: --target <target> "target to change").required(true))
+        .arg(arg!(source: --"source-word" <source_word> "source word to be changed").required(true))
+        .arg(arg!(target: --"target-word" <target_word> "target word to change").required(true))
         .arg(
             arg!(chunk_size: -s --"chunk-size" <size> "Chunk size")
                 .value_parser(value_parser!(usize))
@@ -71,8 +71,8 @@ fn main() {
     let tx_ring_size = *matches.get_one::<u32>("tx_ring_size").unwrap();
     let filling_ring_size = *matches.get_one::<u32>("fill_ring_size").unwrap();
     let completion_ring_size = *matches.get_one::<u32>("completion_ring_size").unwrap();
-    let source: String = matches.get_one::<String>("source").unwrap().clone();
-    let target: String = matches.get_one::<String>("target").unwrap().clone();
+    let source_word: String = matches.get_one::<String>("source").unwrap().clone();
+    let target_word: String = matches.get_one::<String>("target").unwrap().clone();
 
     // Signal handlers
     let term: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
@@ -105,12 +105,12 @@ fn main() {
     .unwrap();
 
     while !term.load(Ordering::Relaxed) {
-        forward(&mut nic1, &mut nic2, &source, &target);
-        forward(&mut nic2, &mut nic1, &source, &target);
+        forward(&mut nic1, &mut nic2, &source_word, &target_word);
+        forward(&mut nic2, &mut nic1, &source_word, &target_word);
     }
 }
 
-fn forward(from: &mut pv::NIC, to: &mut pv::NIC, source: &String, target: &String) {
+fn forward(from: &mut pv::NIC, to: &mut pv::NIC, source_word: &String, target_word: &String) {
     /* initialize rx_batch_size and packet metadata */
     let rx_batch_size: u32 = 64;
     let mut packets1: Vec<pv::Packet> = Vec::with_capacity(rx_batch_size as usize);
@@ -119,7 +119,7 @@ fn forward(from: &mut pv::NIC, to: &mut pv::NIC, source: &String, target: &Strin
 
     if received > 0 {
         for packet in &mut packets1 {
-            match process_packet(packet, source, target) {
+            match process_packet(packet, source_word, target_word) {
                 true => {
                     packets2.push(to.copy_from(packet).unwrap());
                 }
@@ -146,7 +146,7 @@ fn forward(from: &mut pv::NIC, to: &mut pv::NIC, source: &String, target: &Strin
     }
 }
 
-fn process_packet(packet: &mut pv::Packet, source: &String, target: &String) -> bool {
+fn process_packet(packet: &mut pv::Packet, source_word: &String, target_word: &String) -> bool {
     let buffer = packet.get_buffer_mut();
     let mut ipv4: MutableIpv4Packet<'_>;
     let mut udp: MutableUdpPacket<'_>;
@@ -174,9 +174,9 @@ fn process_packet(packet: &mut pv::Packet, source: &String, target: &String) -> 
         _ => return true,
     }
 
-    let payload: &mut [u8] = udp.payload_mut();
-    let message = String::from_utf8_lossy(&payload);
-    let new_message = message.replace(source, target);
+    let udp_payload: &mut [u8] = udp.payload_mut();
+    let message = String::from_utf8_lossy(&udp_payload);
+    let new_message = message.replace(source_word, target_word);
     udp.set_payload(new_message.as_bytes());
     udp.set_checksum(udp::ipv4_checksum(
         &udp.to_immutable(),
