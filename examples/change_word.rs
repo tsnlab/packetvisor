@@ -2,21 +2,22 @@ use clap::{arg, value_parser, Command};
 
 use pnet::{
     packet::ipv4::MutableIpv4Packet,
+    packet::MutablePacket,
     packet::{
-        ethernet::{MutableEthernetPacket, EtherTypes},
+        ethernet::{EtherTypes, MutableEthernetPacket},
         ip::IpNextHeaderProtocols,
         tcp::{MutableTcpPacket, TcpFlags},
         udp::{self, MutableUdpPacket},
     },
-    packet::{MutablePacket},
 };
 use signal_hook::SigId;
 use std::{
     io::Error,
+    net::Ipv4Addr,
     sync::atomic::{AtomicBool, Ordering},
     sync::Arc,
     thread,
-    time::Duration, net::Ipv4Addr,
+    time::Duration,
 };
 
 fn main() {
@@ -244,18 +245,18 @@ fn process_packet(packet: &mut pv::Packet, source: &String, target: &String) -> 
 
     match eth.get_ethertype() {
         EtherTypes::Ipv4 => {
-          ipv4 = MutableIpv4Packet::new(eth.payload_mut()).unwrap();
+            ipv4 = MutableIpv4Packet::new(eth.payload_mut()).unwrap();
         }
         _ => return true,
     }
 
     match ipv4.get_next_level_protocol() {
-      IpNextHeaderProtocols::Udp => {
-        source_addr = ipv4.get_source();
-        destination_addr = ipv4.get_destination();
-        udp = MutableUdpPacket::new(ipv4.payload_mut()).unwrap();
-      },
-      _ => return true,
+        IpNextHeaderProtocols::Udp => {
+            source_addr = ipv4.get_source();
+            destination_addr = ipv4.get_destination();
+            udp = MutableUdpPacket::new(ipv4.payload_mut()).unwrap();
+        }
+        _ => return true,
     }
 
     let payload: &mut [u8] = udp.payload_mut();
@@ -263,9 +264,9 @@ fn process_packet(packet: &mut pv::Packet, source: &String, target: &String) -> 
     let new_message = message.replace(source, target);
     udp.set_payload(new_message.as_bytes());
     udp.set_checksum(udp::ipv4_checksum(
-      &udp.to_immutable(),
-      &source_addr,
-      &destination_addr
+        &udp.to_immutable(),
+        &source_addr,
+        &destination_addr,
     ));
 
     true
