@@ -6,7 +6,6 @@ use pnet::{
     packet::{
         ethernet::{EtherTypes, MutableEthernetPacket},
         ip::IpNextHeaderProtocols,
-        tcp::{MutableTcpPacket, TcpFlags},
         udp::{self, MutableUdpPacket},
     },
 };
@@ -24,8 +23,8 @@ fn main() {
     let matches = Command::new("filter")
         .arg(arg!(nic1: --nic1 <nic1> "nic1 to use").required(true))
         .arg(arg!(nic2: -p --nic2 <nic2> "nic2 to use").required(true))
-        .arg(arg!(source: --source <source> "source to change").required(true))
-        .arg(arg!(target: --target <target> "target to be changed").required(true))
+        .arg(arg!(source: --source <source> "source to be change").required(true))
+        .arg(arg!(target: --target <target> "target to change").required(true))
         .arg(
             arg!(chunk_size: -s --"chunk-size" <size> "Chunk size")
                 .value_parser(value_parser!(usize))
@@ -124,9 +123,7 @@ fn forward(from: &mut pv::NIC, to: &mut pv::NIC, source: &String, target: &Strin
                 true => {
                     packets2.push(to.copy_from(packet).unwrap());
                 }
-                false => {
-                    send_rst(from, to, packet);
-                }
+                false => {}
             }
         }
 
@@ -147,88 +144,6 @@ fn forward(from: &mut pv::NIC, to: &mut pv::NIC, source: &String, target: &Strin
         // No packets received. Sleep
         thread::sleep(Duration::from_millis(100));
     }
-}
-
-fn send_rst(from: &mut pv::NIC, to: &mut pv::NIC, received: &mut pv::Packet) {
-    let mut packet = from.alloc().unwrap();
-
-    if packet
-        .replace_data(&received.get_buffer_mut().to_vec())
-        .is_err()
-    {
-        return;
-    }
-
-    let mut eth = match MutableEthernetPacket::new(packet.get_buffer_mut()) {
-        Some(eth) => eth,
-        None => return,
-    };
-    let src = eth.get_source();
-
-    eth.set_source(eth.get_destination());
-    eth.set_destination(src);
-
-    let mut ipv4 = match MutableIpv4Packet::new(eth.payload_mut()) {
-        Some(ipv4) => ipv4,
-        None => return,
-    };
-    let src_ip = ipv4.get_source();
-    let dst_ip = ipv4.get_destination();
-    let mut tcp = match MutableTcpPacket::new(ipv4.payload_mut()) {
-        Some(tcp) => tcp,
-        None => return,
-    };
-    let src_port = tcp.get_source();
-
-    tcp.set_source(tcp.get_destination());
-    tcp.set_destination(src_port);
-    tcp.set_sequence(tcp.get_acknowledgement());
-    tcp.set_flags(TcpFlags::RST);
-    tcp.set_checksum(pnet::packet::tcp::ipv4_checksum(
-        &tcp.to_immutable(),
-        &dst_ip,
-        &src_ip,
-    ));
-    ipv4.set_source(dst_ip);
-    ipv4.set_destination(src_ip);
-    ipv4.set_checksum(pnet::packet::ipv4::checksum(&ipv4.to_immutable()));
-    from.send(&mut vec![packet]);
-    from.free(&packet);
-
-    let mut packet = to.alloc().unwrap();
-
-    if packet
-        .replace_data(&received.get_buffer_mut().to_vec())
-        .is_err()
-    {
-        return;
-    }
-
-    let mut eth = match MutableEthernetPacket::new(packet.get_buffer_mut()) {
-        Some(eth) => eth,
-        None => return,
-    };
-
-    let mut ipv4 = match MutableIpv4Packet::new(eth.payload_mut()) {
-        Some(ipv4) => ipv4,
-        None => return,
-    };
-    let src_ip = ipv4.get_source();
-    let dst_ip = ipv4.get_destination();
-    let mut tcp = match MutableTcpPacket::new(ipv4.payload_mut()) {
-        Some(tcp) => tcp,
-        None => return,
-    };
-
-    tcp.set_flags(TcpFlags::RST);
-    tcp.set_checksum(pnet::packet::tcp::ipv4_checksum(
-        &tcp.to_immutable(),
-        &src_ip,
-        &dst_ip,
-    ));
-    ipv4.set_checksum(pnet::packet::ipv4::checksum(&ipv4.to_immutable()));
-    to.send(&mut vec![packet]);
-    to.free(&packet);
 }
 
 fn process_packet(packet: &mut pv::Packet, source: &String, target: &String) -> bool {
