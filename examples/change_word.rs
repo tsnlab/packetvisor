@@ -146,7 +146,6 @@ fn forward(from: &mut pv::NIC, to: &mut pv::NIC, source_word: &String, target_wo
     }
 }
 
-
 // check if packet is udp or not
 fn check_udp(packet: &mut pv::Packet) -> bool {
     let buffer = packet.get_buffer_mut();
