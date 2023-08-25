@@ -294,3 +294,28 @@ fn create_new_ipv4(ipv4: &MutableIpv4Packet<'_>, payload: &mut [u8]) -> Vec<u8> 
 
     new_ipv4
 }
+
+fn create_new_eth(eth: &MutableEthernetPacket<'_>, payload: &mut [u8]) -> Vec<u8> {
+    let mut new_eth: Vec<u8> = Vec::new();
+
+    let destination = eth.get_destination().octets();
+    for d in destination.into_iter() {
+        new_eth.push(d);
+    }
+
+    let source = eth.get_source().octets();
+    for s in source.into_iter() {
+        new_eth.push(s);
+    }
+
+    let protocol = eth.get_ethertype().0;
+    let slice = protocol.to_be_bytes();
+    new_eth.push(slice[0]);
+    new_eth.push(slice[1]);
+
+    for p in payload.into_iter() {
+        new_eth.push(*p);
+    }
+
+    new_eth
+}
