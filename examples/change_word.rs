@@ -120,7 +120,7 @@ fn forward(from: &mut pv::NIC, to: &mut pv::NIC, source_word: &String, target_wo
 
     if received > 0 {
         for packet in &mut packets1 {
-            match check_udp(packet) {
+            match is_udp(packet) {
                 true => change_word(packet, source_word, target_word),
                 false => {}
             }
@@ -147,7 +147,7 @@ fn forward(from: &mut pv::NIC, to: &mut pv::NIC, source_word: &String, target_wo
 }
 
 // check if packet is udp or not
-fn check_udp(packet: &mut pv::Packet) -> bool {
+fn is_udp(packet: &mut pv::Packet) -> bool {
     let buffer = packet.get_buffer_mut();
     let mut eth = match MutableEthernetPacket::new(buffer) {
         Some(eth) => eth,
@@ -171,8 +171,14 @@ fn change_word(packet: &mut pv::Packet, source_word: &String, target_word: &Stri
     let mut ipv4 = MutableIpv4Packet::new(eth.payload_mut()).unwrap();
     let mut udp = MutableUdpPacket::new(ipv4.payload_mut()).unwrap();
 
-    // export payload from packet & change source_words to target_words
+    // extract payload from packet & change source_words to target_words
     let payload = udp.payload_mut();
+
+    /*
+        In this exercise, we assume that payload is UTF-8 String.
+        But if payload is binary data such as Image, from_utf8_lossy function is bad.
+        Instead use from_utf8_unchecked function.
+    */
     let payload_data = String::from_utf8_lossy(&payload);
     let new_payload_data = payload_data.replace(source_word, target_word);
     let new_payload = new_payload_data.as_bytes();
