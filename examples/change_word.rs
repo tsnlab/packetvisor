@@ -13,7 +13,6 @@ use pnet::{
 use signal_hook::SigId;
 use std::{
     io::Error,
-    net::Ipv4Addr,
     sync::atomic::{AtomicBool, Ordering},
     sync::Arc,
     thread,
@@ -121,12 +120,11 @@ fn forward(from: &mut pv::NIC, to: &mut pv::NIC, source_word: &String, target_wo
 
     if received > 0 {
         for packet in &mut packets1 {
-            match process_packet(packet, source_word, target_word) {
-                true => {
-                    packets2.push(to.copy_from(packet).unwrap());
-                }
+            match check_udp(packet) {
+                true => change_word(packet, source_word, target_word),
                 false => {}
             }
+            packets2.push(to.copy_from(packet).unwrap());
         }
 
         for retry in (0..3).rev() {
@@ -148,90 +146,66 @@ fn forward(from: &mut pv::NIC, to: &mut pv::NIC, source_word: &String, target_wo
     }
 }
 
-fn process_packet(packet: &mut pv::Packet, source_word: &String, target_word: &String) -> bool {
+fn check_udp(packet: &mut pv::Packet) -> bool {
     let buffer = packet.get_buffer_mut();
-    let mut eth: MutableEthernetPacket<'_>;
-    let mut ipv4: MutableIpv4Packet<'_>;
-    let mut udp: MutableUdpPacket<'_>;
-
-    let source_addr: Ipv4Addr;
-    let destination_addr: Ipv4Addr;
-    let mut new_ipv4_vec: Vec<u8>;
-    let new_ipv4_slice: &mut [u8];
-    let mut new_ipv4: MutableIpv4Packet<'_>;
-
-    eth = match MutableEthernetPacket::new(buffer) {
+    let mut eth = match MutableEthernetPacket::new(buffer) {
         Some(eth) => eth,
-        None => return true,
+        None => return false,
     };
 
     match eth.get_ethertype() {
         EtherTypes::Ipv4 => {
-            ipv4 = MutableIpv4Packet::new(eth.payload_mut()).unwrap();
-
-            let new_message: String;
-            let new_message_len: u16;
-            let mut new_udp_vec: Vec<u8>;
-            let new_udp_slice: &mut [u8];
-            let mut new_udp: MutableUdpPacket<'_>;
-
+            let ipv4 = MutableIpv4Packet::new(eth.payload_mut()).unwrap();
             match ipv4.get_next_level_protocol() {
-                IpNextHeaderProtocols::Udp => {
-                  new_udp = change_word(&ipv4, &source_word, &target_word);
-                }
-                _ => return true,
+                IpNextHeaderProtocols::Udp => return true,
+                _ => return false,
             }
-            ipv4.set_total_length(28 + new_message_len);
-            new_ipv4_vec = create_new_ipv4(&ipv4, new_udp_slice);
-            new_ipv4_slice = new_ipv4_vec.as_mut_slice();
-            new_ipv4 = MutableIpv4Packet::new(new_ipv4_slice).unwrap();
-            new_ipv4.set_checksum(ipv4::checksum(&new_ipv4.to_immutable()));
         }
-        _ => return true,
+        _ => return false,
     }
-    let new_eth_vec = create_new_eth(&eth, new_ipv4_slice);
-    packet.replace_data(&new_eth_vec);
-    true
 }
 
-fn change_word(ipv4: &MutableIpv4Packet<'_>, source_word: &String, target_word: &String) -> MutableUdpPacket<'_> {
+fn change_word(packet: &mut pv::Packet, source_word: &String, target_word: &String) {
+    let mut eth = MutableEthernetPacket::new(packet.get_buffer_mut()).unwrap();
+    let mut ipv4 = MutableIpv4Packet::new(eth.payload_mut()).unwrap();
     let mut udp = MutableUdpPacket::new(ipv4.payload_mut()).unwrap();
 
-    let udp_payload: &mut [u8] = udp.payload_mut();
-    let message = String::from_utf8_lossy(&udp_payload);
+    let payload = udp.payload_mut();
+    let payload_data = String::from_utf8_lossy(&payload);
+    let new_payload_data = payload_data.replace(source_word, target_word);
+    let new_payload = new_payload_data.as_bytes();
 
-    let new_message = message.replace(source_word, target_word);
-    let new_message_len = new_message.as_bytes().len() as u16;
-
-    let mut new_udp_vec = create_new_udp(
-        udp.get_source(),
-        udp.get_destination(),
-        8 + new_message_len,
-        new_message.as_bytes(),
-    );
-    let new_udp_slice = new_udp_vec.as_mut_slice();
-    let mut new_udp = MutableUdpPacket::new(new_udp_slice).unwrap();
+    // create new udp vector & set checksum
+    let mut new_udp_vec = create_new_udp(&udp, new_payload);
+    let mut new_udp = MutableUdpPacket::new(new_udp_vec.as_mut_slice()).unwrap();
     new_udp.set_checksum(udp::ipv4_checksum(
         &new_udp.to_immutable(),
         &ipv4.get_source(),
         &ipv4.get_destination(),
     ));
 
-    new_udp
+    // create new ipv4 & set checksum
+    let mut new_ipv4_vec = create_new_ipv4(&ipv4, new_udp_vec.as_mut_slice());
+    let mut new_ipv4 = MutableIpv4Packet::new(new_ipv4_vec.as_mut_slice()).unwrap();
+    new_ipv4.set_checksum(ipv4::checksum(&new_ipv4.to_immutable()));
+
+    // create new eth & replace buffer
+    let new_eth = create_new_eth(&eth, new_ipv4_vec.as_mut_slice());
+    let _ = packet.replace_data(&new_eth);
 }
 
-fn create_new_udp(source_port: u16, destination_port: u16, length: u16, payload: &[u8]) -> Vec<u8> {
+fn create_new_udp(udp: &MutableUdpPacket<'_>, payload: &[u8]) -> Vec<u8> {
     let mut new_udp: Vec<u8> = Vec::new();
 
-    let slice = source_port.to_be_bytes();
+    let slice = udp.get_source().to_be_bytes();
     new_udp.push(slice[0]);
     new_udp.push(slice[1]);
 
-    let slice = destination_port.to_be_bytes();
+    let slice = udp.get_destination().to_be_bytes();
     new_udp.push(slice[0]);
     new_udp.push(slice[1]);
 
-    let slice = length.to_be_bytes();
+    let slice = (8 + payload.len() as u16).to_be_bytes();
     new_udp.push(slice[0]);
     new_udp.push(slice[1]);
 
@@ -244,7 +218,7 @@ fn create_new_udp(source_port: u16, destination_port: u16, length: u16, payload:
 
     new_udp
 }
-fn create_new_ipv4(ipv4: &MutableIpv4Packet<'_>, payload: &mut [u8]) -> Vec<u8> {
+fn create_new_ipv4(ipv4: &MutableIpv4Packet<'_>, payload: &[u8]) -> Vec<u8> {
     let mut new_ipv4: Vec<u8> = Vec::new();
 
     let version = ipv4.get_version() * 16;
@@ -255,8 +229,7 @@ fn create_new_ipv4(ipv4: &MutableIpv4Packet<'_>, payload: &mut [u8]) -> Vec<u8> 
     let ecn = ipv4.get_ecn();
     new_ipv4.push(dscp + ecn);
 
-    let total_length = ipv4.get_total_length();
-    let slice = total_length.to_be_bytes();
+    let slice = (20 + payload.len() as u16).to_be_bytes();
     new_ipv4.push(slice[0]);
     new_ipv4.push(slice[1]);
 
@@ -299,8 +272,7 @@ fn create_new_ipv4(ipv4: &MutableIpv4Packet<'_>, payload: &mut [u8]) -> Vec<u8> 
 
     new_ipv4
 }
-
-fn create_new_eth(eth: &MutableEthernetPacket<'_>, payload: &mut [u8]) -> Vec<u8> {
+fn create_new_eth(eth: &MutableEthernetPacket<'_>, payload: &[u8]) -> Vec<u8> {
     let mut new_eth: Vec<u8> = Vec::new();
 
     let destination = eth.get_destination().octets();
