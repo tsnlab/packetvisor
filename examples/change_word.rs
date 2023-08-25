@@ -146,6 +146,8 @@ fn forward(from: &mut pv::NIC, to: &mut pv::NIC, source_word: &String, target_wo
     }
 }
 
+
+// check if packet is udp or not
 fn check_udp(packet: &mut pv::Packet) -> bool {
     let buffer = packet.get_buffer_mut();
     let mut eth = match MutableEthernetPacket::new(buffer) {
@@ -170,6 +172,7 @@ fn change_word(packet: &mut pv::Packet, source_word: &String, target_word: &Stri
     let mut ipv4 = MutableIpv4Packet::new(eth.payload_mut()).unwrap();
     let mut udp = MutableUdpPacket::new(ipv4.payload_mut()).unwrap();
 
+    // export payload from packet & change source_words to target_words
     let payload = udp.payload_mut();
     let payload_data = String::from_utf8_lossy(&payload);
     let new_payload_data = payload_data.replace(source_word, target_word);
@@ -197,21 +200,26 @@ fn change_word(packet: &mut pv::Packet, source_word: &String, target_word: &Stri
 fn create_new_udp(udp: &MutableUdpPacket<'_>, payload: &[u8]) -> Vec<u8> {
     let mut new_udp: Vec<u8> = Vec::new();
 
+    // copy source port
     let slice = udp.get_source().to_be_bytes();
     new_udp.push(slice[0]);
     new_udp.push(slice[1]);
 
+    // copy destination port
     let slice = udp.get_destination().to_be_bytes();
     new_udp.push(slice[0]);
     new_udp.push(slice[1]);
 
+    // set udp length
     let slice = (8 + payload.len() as u16).to_be_bytes();
     new_udp.push(slice[0]);
     new_udp.push(slice[1]);
 
+    // arbitarily set checksum as 0
     new_udp.push(0);
     new_udp.push(0);
 
+    // copy payload
     for p in payload.into_iter() {
         new_udp.push(*p);
     }
@@ -221,51 +229,61 @@ fn create_new_udp(udp: &MutableUdpPacket<'_>, payload: &[u8]) -> Vec<u8> {
 fn create_new_ipv4(ipv4: &MutableIpv4Packet<'_>, payload: &[u8]) -> Vec<u8> {
     let mut new_ipv4: Vec<u8> = Vec::new();
 
+    // copy version & header length
     let version = ipv4.get_version() * 16;
     let header_length = ipv4.get_header_length();
     new_ipv4.push(version + header_length);
 
+    // copy dscn & ecn
     let dscp = ipv4.get_dscp() * 16;
     let ecn = ipv4.get_ecn();
     new_ipv4.push(dscp + ecn);
 
+    // set total length
     let slice = (20 + payload.len() as u16).to_be_bytes();
     new_ipv4.push(slice[0]);
     new_ipv4.push(slice[1]);
 
+    // copy identification
     let identification = ipv4.get_identification();
     let slice = identification.to_be_bytes();
     new_ipv4.push(slice[0]);
     new_ipv4.push(slice[1]);
 
+    // copy flags & fragment
     let flags: u16 = (ipv4.get_flags() as u16) * 32 * 256;
     let fragment_offset = ipv4.get_fragment_offset();
     let slice = (flags + fragment_offset).to_be_bytes();
     new_ipv4.push(slice[0]);
     new_ipv4.push(slice[1]);
 
+    // copy ttl
     let ttl = ipv4.get_ttl();
     new_ipv4.push(ttl);
 
+    // copy protocol
     let protocol = ipv4.get_next_level_protocol().0;
     new_ipv4.push(protocol);
 
-    // set checksum as 0
+    // arbitarily set checksum as 0
     new_ipv4.push(0);
     new_ipv4.push(0);
 
+    // copy source ip address
     let source_addr = ipv4.get_source().octets();
     new_ipv4.push(source_addr[0]);
     new_ipv4.push(source_addr[1]);
     new_ipv4.push(source_addr[2]);
     new_ipv4.push(source_addr[3]);
 
+    // copy destination ip address
     let destination_addr = ipv4.get_destination().octets();
     new_ipv4.push(destination_addr[0]);
     new_ipv4.push(destination_addr[1]);
     new_ipv4.push(destination_addr[2]);
     new_ipv4.push(destination_addr[3]);
 
+    // copy payload
     for p in payload.into_iter() {
         new_ipv4.push(*p);
     }
@@ -275,21 +293,25 @@ fn create_new_ipv4(ipv4: &MutableIpv4Packet<'_>, payload: &[u8]) -> Vec<u8> {
 fn create_new_eth(eth: &MutableEthernetPacket<'_>, payload: &[u8]) -> Vec<u8> {
     let mut new_eth: Vec<u8> = Vec::new();
 
+    // copy destination MAC address
     let destination = eth.get_destination().octets();
     for d in destination.into_iter() {
         new_eth.push(d);
     }
 
+    // copy source MAC address
     let source = eth.get_source().octets();
     for s in source.into_iter() {
         new_eth.push(s);
     }
 
+    // copy protocol
     let protocol = eth.get_ethertype().0;
     let slice = protocol.to_be_bytes();
     new_eth.push(slice[0]);
     new_eth.push(slice[1]);
 
+    // copy payload
     for p in payload.into_iter() {
         new_eth.push(*p);
     }
