@@ -239,3 +239,58 @@ fn create_new_udp(source_port: u16, destination_port: u16, length: u16, payload:
 
     new_udp
 }
+fn create_new_ipv4(ipv4: &MutableIpv4Packet<'_>, payload: &mut [u8]) -> Vec<u8> {
+    let mut new_ipv4: Vec<u8> = Vec::new();
+
+    let version = ipv4.get_version() * 16;
+    let header_length = ipv4.get_header_length();
+    new_ipv4.push(version + header_length);
+
+    let dscp = ipv4.get_dscp() * 16;
+    let ecn = ipv4.get_ecn();
+    new_ipv4.push(dscp + ecn);
+
+    let total_length = ipv4.get_total_length();
+    let slice = total_length.to_be_bytes();
+    new_ipv4.push(slice[0]);
+    new_ipv4.push(slice[1]);
+
+    let identification = ipv4.get_identification();
+    let slice = identification.to_be_bytes();
+    new_ipv4.push(slice[0]);
+    new_ipv4.push(slice[1]);
+
+    let flags: u16 = (ipv4.get_flags() as u16) * 32 * 256;
+    let fragment_offset = ipv4.get_fragment_offset();
+    let slice = (flags + fragment_offset).to_be_bytes();
+    new_ipv4.push(slice[0]);
+    new_ipv4.push(slice[1]);
+
+    let ttl = ipv4.get_ttl();
+    new_ipv4.push(ttl);
+
+    let protocol = ipv4.get_next_level_protocol().0;
+    new_ipv4.push(protocol);
+
+    // set checksum as 0
+    new_ipv4.push(0);
+    new_ipv4.push(0);
+
+    let source_addr = ipv4.get_source().octets();
+    new_ipv4.push(source_addr[0]);
+    new_ipv4.push(source_addr[1]);
+    new_ipv4.push(source_addr[2]);
+    new_ipv4.push(source_addr[3]);
+
+    let destination_addr = ipv4.get_destination().octets();
+    new_ipv4.push(destination_addr[0]);
+    new_ipv4.push(destination_addr[1]);
+    new_ipv4.push(destination_addr[2]);
+    new_ipv4.push(destination_addr[3]);
+
+    for p in payload.into_iter() {
+        new_ipv4.push(*p);
+    }
+
+    new_ipv4
+}
