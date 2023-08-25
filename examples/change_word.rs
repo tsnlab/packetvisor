@@ -153,6 +153,7 @@ fn process_packet(packet: &mut pv::Packet, source_word: &String, target_word: &S
     let mut eth: MutableEthernetPacket<'_>;
     let mut ipv4: MutableIpv4Packet<'_>;
     let mut udp: MutableUdpPacket<'_>;
+
     let source_addr: Ipv4Addr;
     let destination_addr: Ipv4Addr;
     let mut new_ipv4_vec: Vec<u8>;
@@ -176,29 +177,7 @@ fn process_packet(packet: &mut pv::Packet, source_word: &String, target_word: &S
 
             match ipv4.get_next_level_protocol() {
                 IpNextHeaderProtocols::Udp => {
-                    source_addr = ipv4.get_source();
-                    destination_addr = ipv4.get_destination();
-                    udp = MutableUdpPacket::new(ipv4.payload_mut()).unwrap();
-
-                    let udp_payload: &mut [u8] = udp.payload_mut();
-                    let message = String::from_utf8_lossy(&udp_payload);
-
-                    new_message = message.replace(source_word, target_word);
-                    new_message_len = new_message.as_bytes().len() as u16;
-
-                    new_udp_vec = create_new_udp(
-                        udp.get_source(),
-                        udp.get_destination(),
-                        8 + new_message_len,
-                        new_message.as_bytes(),
-                    );
-                    new_udp_slice = new_udp_vec.as_mut_slice();
-                    new_udp = MutableUdpPacket::new(new_udp_slice).unwrap();
-                    new_udp.set_checksum(udp::ipv4_checksum(
-                        &new_udp.to_immutable(),
-                        &source_addr,
-                        &destination_addr,
-                    ));
+                  new_udp = change_word(&ipv4, &source_word, &target_word);
                 }
                 _ => return true,
             }
@@ -213,6 +192,32 @@ fn process_packet(packet: &mut pv::Packet, source_word: &String, target_word: &S
     let new_eth_vec = create_new_eth(&eth, new_ipv4_slice);
     packet.replace_data(&new_eth_vec);
     true
+}
+
+fn change_word(ipv4: &MutableIpv4Packet<'_>, source_word: &String, target_word: &String) -> MutableUdpPacket<'_> {
+    let mut udp = MutableUdpPacket::new(ipv4.payload_mut()).unwrap();
+
+    let udp_payload: &mut [u8] = udp.payload_mut();
+    let message = String::from_utf8_lossy(&udp_payload);
+
+    let new_message = message.replace(source_word, target_word);
+    let new_message_len = new_message.as_bytes().len() as u16;
+
+    let mut new_udp_vec = create_new_udp(
+        udp.get_source(),
+        udp.get_destination(),
+        8 + new_message_len,
+        new_message.as_bytes(),
+    );
+    let new_udp_slice = new_udp_vec.as_mut_slice();
+    let mut new_udp = MutableUdpPacket::new(new_udp_slice).unwrap();
+    new_udp.set_checksum(udp::ipv4_checksum(
+        &new_udp.to_immutable(),
+        &ipv4.get_source(),
+        &ipv4.get_destination(),
+    ));
+
+    new_udp
 }
 
 fn create_new_udp(source_port: u16, destination_port: u16, length: u16, payload: &[u8]) -> Vec<u8> {
