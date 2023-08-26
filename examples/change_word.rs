@@ -168,7 +168,15 @@ fn is_udp(packet: &mut pv::Packet) -> bool {
 
 // change all matched source_word to target_word
 fn change_word(packet: &mut pv::Packet, source_word: &String, target_word: &String) {
+    /*
+      get difference of length between original payload and changed payload
+      get original payload data also.
+      because when extract payload from udp after change udp's length field,
+      original payload could be lost.
+    */
     let diff = get_diff(packet, source_word, target_word);
+    let original_payload_data = get_original_payload_data(packet);
+
     if diff.is_negative() {
         packet.resize(packet.end - packet.start - diff.wrapping_abs() as usize);
     } else {
@@ -183,23 +191,19 @@ fn change_word(packet: &mut pv::Packet, source_word: &String, target_word: &Stri
     // change ipv4 total length field
     ipv4.set_total_length((ipv4.get_total_length() as isize + diff) as u16);
 
+    // change udp length field
     let mut udp = MutableUdpPacket::new(ipv4.payload_mut()).unwrap();
     udp.set_length((udp.get_length() as isize + diff) as u16);
 
-    // extract payload from packet
-    let payload = udp.payload_mut();
-
-    /*
-        In this exercise, we assume that payload is UTF-8 String.
-        But if payload is binary data such as Image, from_utf8_lossy function is bad.
-        Instead use from_utf8_unchecked function.
-    */
-    let payload_data = String::from_utf8_lossy(&payload);
-
     // change source_words to target_words
-    let new_payload_data = payload_data.replace(source_word, target_word);
+    let payload = udp.payload_mut();
+    let new_payload_data = original_payload_data.replace(source_word, target_word);
     let new_payload = new_payload_data.as_bytes();
-    payload.copy_from_slice(&new_payload[0..payload.len()]);
+    if diff.is_negative() {
+        payload.copy_from_slice(new_payload);
+    } else {
+        payload.copy_from_slice(&new_payload[0..payload.len()]);
+    }
 
     // change udp checksum
     udp.set_checksum(udp::ipv4_checksum(
@@ -224,4 +228,12 @@ fn get_diff(packet: &mut pv::Packet, source_word: &String, target_word: &String)
     }
     let new_payload_data = payload_data.replace(source_word, target_word);
     new_payload_data.len() as isize - payload_data.len() as isize
+}
+
+fn get_original_payload_data(packet: &mut pv::Packet) -> String {
+    let mut eth = MutableEthernetPacket::new(packet.get_buffer_mut()).unwrap();
+    let mut ipv4 = MutableIpv4Packet::new(eth.payload_mut()).unwrap();
+    let mut udp = MutableUdpPacket::new(ipv4.payload_mut()).unwrap();
+    let payload = udp.payload_mut();
+    unsafe { String::from_utf8_unchecked(payload.to_vec()) }
 }
