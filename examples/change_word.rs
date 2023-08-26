@@ -166,12 +166,27 @@ fn is_udp(packet: &mut pv::Packet) -> bool {
     }
 }
 
+// change all matched source_word to target_word
 fn change_word(packet: &mut pv::Packet, source_word: &String, target_word: &String) {
+    let diff = get_diff(packet, source_word, target_word);
+    if diff.is_negative() {
+        packet.resize(packet.end - packet.start - diff.wrapping_abs() as usize);
+    } else {
+        packet.resize(packet.end - packet.start + diff as usize);
+    }
+
     let mut eth = MutableEthernetPacket::new(packet.get_buffer_mut()).unwrap();
     let mut ipv4 = MutableIpv4Packet::new(eth.payload_mut()).unwrap();
-    let mut udp = MutableUdpPacket::new(ipv4.payload_mut()).unwrap();
+    let ipv4_source_addr = ipv4.get_source();
+    let ipv4_destination_addr = ipv4.get_destination();
 
-    // extract payload from packet & change source_words to target_words
+    // change ipv4 total length field
+    ipv4.set_total_length((ipv4.get_total_length() as isize + diff) as u16);
+
+    let mut udp = MutableUdpPacket::new(ipv4.payload_mut()).unwrap();
+    udp.set_length((udp.get_length() as isize + diff) as u16);
+
+    // extract payload from packet
     let payload = udp.payload_mut();
 
     /*
@@ -180,146 +195,33 @@ fn change_word(packet: &mut pv::Packet, source_word: &String, target_word: &Stri
         Instead use from_utf8_unchecked function.
     */
     let payload_data = String::from_utf8_lossy(&payload);
+
+    // change source_words to target_words
     let new_payload_data = payload_data.replace(source_word, target_word);
     let new_payload = new_payload_data.as_bytes();
+    payload.copy_from_slice(&new_payload[0..payload.len()]);
 
-    // create new udp vector & set checksum
-    let mut new_udp_vec = create_new_udp(&udp, new_payload);
-    let mut new_udp = MutableUdpPacket::new(new_udp_vec.as_mut_slice()).unwrap();
-    new_udp.set_checksum(udp::ipv4_checksum(
-        &new_udp.to_immutable(),
-        &ipv4.get_source(),
-        &ipv4.get_destination(),
+    // change udp checksum
+    udp.set_checksum(udp::ipv4_checksum(
+        &udp.to_immutable(),
+        &ipv4_source_addr,
+        &ipv4_destination_addr,
     ));
 
-    // create new ipv4 & set checksum
-    let mut new_ipv4_vec = create_new_ipv4(&ipv4, new_udp_vec.as_mut_slice());
-    let mut new_ipv4 = MutableIpv4Packet::new(new_ipv4_vec.as_mut_slice()).unwrap();
-    new_ipv4.set_checksum(ipv4::checksum(&new_ipv4.to_immutable()));
-
-    // create new eth & replace buffer
-    let new_eth = create_new_eth(&eth, new_ipv4_vec.as_mut_slice());
-    let _ = packet.replace_data(&new_eth);
+    ipv4.set_checksum(ipv4::checksum(&ipv4.to_immutable()));
 }
 
-fn create_new_udp(udp: &MutableUdpPacket<'_>, payload: &[u8]) -> Vec<u8> {
-    let mut new_udp: Vec<u8> = Vec::new();
+fn get_diff(packet: &mut pv::Packet, source_word: &String, target_word: &String) -> isize {
+    let payload_data: String;
 
-    // copy source port
-    let slice = udp.get_source().to_be_bytes();
-    new_udp.push(slice[0]);
-    new_udp.push(slice[1]);
+    let mut eth = MutableEthernetPacket::new(packet.get_buffer_mut()).unwrap();
+    let mut ipv4 = MutableIpv4Packet::new(eth.payload_mut()).unwrap();
+    let mut udp = MutableUdpPacket::new(ipv4.payload_mut()).unwrap();
 
-    // copy destination port
-    let slice = udp.get_destination().to_be_bytes();
-    new_udp.push(slice[0]);
-    new_udp.push(slice[1]);
-
-    // set udp length
-    let slice = (8 + payload.len() as u16).to_be_bytes();
-    new_udp.push(slice[0]);
-    new_udp.push(slice[1]);
-
-    // arbitarily set checksum as 0
-    new_udp.push(0);
-    new_udp.push(0);
-
-    // copy payload
-    for p in payload.into_iter() {
-        new_udp.push(*p);
+    let payload = udp.payload_mut();
+    unsafe {
+        payload_data = String::from_utf8_unchecked(payload.to_vec());
     }
-
-    new_udp
-}
-fn create_new_ipv4(ipv4: &MutableIpv4Packet<'_>, payload: &[u8]) -> Vec<u8> {
-    let mut new_ipv4: Vec<u8> = Vec::new();
-
-    // copy version & header length
-    let version = ipv4.get_version() * 16;
-    let header_length = ipv4.get_header_length();
-    new_ipv4.push(version + header_length);
-
-    // copy dscn & ecn
-    let dscp = ipv4.get_dscp() * 16;
-    let ecn = ipv4.get_ecn();
-    new_ipv4.push(dscp + ecn);
-
-    // set total length
-    let slice = (20 + payload.len() as u16).to_be_bytes();
-    new_ipv4.push(slice[0]);
-    new_ipv4.push(slice[1]);
-
-    // copy identification
-    let identification = ipv4.get_identification();
-    let slice = identification.to_be_bytes();
-    new_ipv4.push(slice[0]);
-    new_ipv4.push(slice[1]);
-
-    // copy flags & fragment
-    let flags: u16 = (ipv4.get_flags() as u16) * 32 * 256;
-    let fragment_offset = ipv4.get_fragment_offset();
-    let slice = (flags + fragment_offset).to_be_bytes();
-    new_ipv4.push(slice[0]);
-    new_ipv4.push(slice[1]);
-
-    // copy ttl
-    let ttl = ipv4.get_ttl();
-    new_ipv4.push(ttl);
-
-    // copy protocol
-    let protocol = ipv4.get_next_level_protocol().0;
-    new_ipv4.push(protocol);
-
-    // arbitarily set checksum as 0
-    new_ipv4.push(0);
-    new_ipv4.push(0);
-
-    // copy source ip address
-    let source_addr = ipv4.get_source().octets();
-    new_ipv4.push(source_addr[0]);
-    new_ipv4.push(source_addr[1]);
-    new_ipv4.push(source_addr[2]);
-    new_ipv4.push(source_addr[3]);
-
-    // copy destination ip address
-    let destination_addr = ipv4.get_destination().octets();
-    new_ipv4.push(destination_addr[0]);
-    new_ipv4.push(destination_addr[1]);
-    new_ipv4.push(destination_addr[2]);
-    new_ipv4.push(destination_addr[3]);
-
-    // copy payload
-    for p in payload.into_iter() {
-        new_ipv4.push(*p);
-    }
-
-    new_ipv4
-}
-fn create_new_eth(eth: &MutableEthernetPacket<'_>, payload: &[u8]) -> Vec<u8> {
-    let mut new_eth: Vec<u8> = Vec::new();
-
-    // copy destination MAC address
-    let destination = eth.get_destination().octets();
-    for d in destination.into_iter() {
-        new_eth.push(d);
-    }
-
-    // copy source MAC address
-    let source = eth.get_source().octets();
-    for s in source.into_iter() {
-        new_eth.push(s);
-    }
-
-    // copy protocol
-    let protocol = eth.get_ethertype().0;
-    let slice = protocol.to_be_bytes();
-    new_eth.push(slice[0]);
-    new_eth.push(slice[1]);
-
-    // copy payload
-    for p in payload.into_iter() {
-        new_eth.push(*p);
-    }
-
-    new_eth
+    let new_payload_data = payload_data.replace(source_word, target_word);
+    new_payload_data.len() as isize - payload_data.len() as isize
 }
