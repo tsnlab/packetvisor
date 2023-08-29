@@ -6,20 +6,6 @@ use std::process;
 fn main() {
     let src_dir = path::PathBuf::from(env::var_os("CARGO_MANIFEST_DIR").unwrap());
 
-    let git_submodule_update_status = process::Command::new("git")
-        .arg("submodule")
-        .arg("update")
-        .arg("--init")
-        .arg("--recursive")
-        .current_dir(&src_dir)
-        .status()
-        .expect("could not complete submodule update");
-
-    assert!(
-        git_submodule_update_status.success(),
-        "submodule update failed"
-    );
-
     let bpftool_dir = src_dir.join("bpftool/src");
     let xdptools_dir = src_dir.join("xdp-tools");
     let libxdp_dir = xdptools_dir.join("lib/libxdp");
