@@ -18,6 +18,8 @@ jobs:
         with:
           toolchain: stable
           components: clippy, rustfmt
+      - name: Submodules
+        run: git submodule update --init --recursive
       - name: Cache rust
         uses: Swatinem/rust-cache@v2
       - name: Setup system dependencies
