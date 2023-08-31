@@ -30,7 +30,7 @@ fn main() {
         COMPLETION_RING_SIZE,
     ) {
         Ok(_) => {}
-        Err(error) => println!("{error}"),
+        Err(error) => println!("Failed to open ethernet interface.\nError: {error}"),
     }
     let socket = UdpSocket::bind(source).unwrap();
     socket
@@ -51,6 +51,7 @@ fn main() {
                     .send_to(packets[i].get_buffer_mut(), destination)
                     .expect("Socket send Error");
             }
+            packets.clear();
         }
 
         // Listening for socket
@@ -58,11 +59,9 @@ fn main() {
             Ok(_n) => {
                 // received data from socket and send to interface
                 let mut packet = interface.alloc().unwrap();
-                let data = buf.to_vec();
-                let mut packets: Vec<pv::Packet> = Vec::with_capacity(RX_BATCH_SIZE as usize);
-                packet.replace_data(&data).unwrap();
-                packets.push(interface.copy_from(&mut packet).unwrap());
-                interface.send(&mut packets);
+                packet.replace_data(&buf.to_vec()).unwrap();
+                interface.copy_from(&mut packet).unwrap();
+                interface.send(&mut vec![packet]);
             }
             Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
                 // wait until network socket is ready, typically implemented
