@@ -3,10 +3,10 @@ use std::{io, net::UdpSocket, thread, time::Duration};
 
 fn main() {
     let matches = Command::new("tunnel")
-        .arg(arg!(interface: -i --interface <interface> "Interface"))
-        .arg(arg!(source: -s --source <source> "Source IP address"))
+        .arg(arg!(interface: -i --interface <interface> "Interface to send or receive packet from inner host.").required(true))
+        .arg(arg!(source: -s --source <source> "Source IP address:port to open and bind UDP socket. ex) 192.160.0.1:8080").required(true))
         .arg(
-            arg!(destination: -d --destination <destination> "Destination IP address")
+            arg!(destination: -d --destination <destination> "Destination IP address:port to send packet. ex) 192.160.0.2:8080")
                 .required(true),
         )
         .get_matches();
