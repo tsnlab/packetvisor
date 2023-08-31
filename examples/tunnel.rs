@@ -1,5 +1,5 @@
 use clap::{arg, Command};
-use std::{io, net::UdpSocket};
+use std::{io, net::UdpSocket, thread, time::Duration};
 
 fn main() {
     let matches = Command::new("tunnel")
@@ -55,7 +55,7 @@ fn main() {
 
         // Listening for socket
         match socket.recv_from(&mut buf) {
-            Ok(n) => {
+            Ok(_n) => {
                 // received data from socket and send to interface
                 let mut packet = interface.alloc().unwrap();
                 let data = buf.to_vec();
@@ -63,6 +63,11 @@ fn main() {
                 packet.replace_data(&data).unwrap();
                 packets.push(interface.copy_from(&mut packet).unwrap());
                 interface.send(&mut packets);
+            }
+            Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
+                // wait until network socket is ready, typically implemented
+                // via platform-specific APIs such as epoll or IOCP
+                thread::sleep(Duration::from_millis(100));
             }
             Err(e) => panic!("encountered IO error: {e}"),
         }
