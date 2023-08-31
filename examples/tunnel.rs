@@ -1,5 +1,5 @@
 use clap::{arg, Command};
-use std::{net::UdpSocket, io};
+use std::{io, net::UdpSocket};
 
 fn main() {
     let matches = Command::new("tunnel")
@@ -47,7 +47,9 @@ fn main() {
         if recieved > 0 {
             for i in 0..recieved as usize {
                 // send received packet to destination socket
-                socket.send_to(packets[i].get_buffer_mut(), destination).expect("Socket send Error");
+                socket
+                    .send_to(packets[i].get_buffer_mut(), destination)
+                    .expect("Socket send Error");
             }
         }
 
@@ -61,7 +63,7 @@ fn main() {
                 packet.replace_data(&data).unwrap();
                 packets.push(interface.copy_from(&mut packet).unwrap());
                 interface.send(&mut packets);
-            },
+            }
             Err(e) => panic!("encountered IO error: {e}"),
         }
     }
