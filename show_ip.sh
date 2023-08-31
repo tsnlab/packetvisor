@@ -1,6 +1,6 @@
 #!/bin/sh
 clear
-echo "\n--------client--------"
+echo "--------client--------"
 sudo ip netns exec client ip -br a
 echo "--------host--------"
 sudo ip -br a
