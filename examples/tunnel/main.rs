@@ -38,8 +38,9 @@ fn main() {
         .expect("Socket Nonblocking Error");
 
     const RX_BATCH_SIZE: u32 = 64;
+    const ETH_MTU: usize = 1514;
     let mut packets: Vec<pv::Packet> = Vec::with_capacity(RX_BATCH_SIZE as usize);
-    let mut buf = [0; 1500];
+    let mut buf = [0; ETH_MTU];
 
     loop {
         // Listening for interface
@@ -56,12 +57,14 @@ fn main() {
 
         // Listening for socket
         match socket.recv_from(&mut buf) {
-            Ok(_n) => {
+            Ok((n, _addr)) => {
                 // received data from socket and send to interface
                 let mut packet = interface.alloc().unwrap();
-                packet.replace_data(&buf.to_vec()).unwrap();
+                let fit_buffer = &buf[0..n];
+                packet.replace_data(&fit_buffer.to_vec()).unwrap();
                 interface.copy_from(&mut packet).unwrap();
                 interface.send(&mut vec![packet]);
+                buf.fill(0);
             }
             Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
                 // wait until network socket is ready, typically implemented
