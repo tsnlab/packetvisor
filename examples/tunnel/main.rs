@@ -1,4 +1,11 @@
 use clap::{arg, Command};
+use pnet::packet::{
+    ethernet::{EtherTypes, MutableEthernetPacket},
+    ip::IpNextHeaderProtocols,
+    ipv4::{self, MutableIpv4Packet},
+    tcp::{ipv4_checksum, MutableTcpPacket, TcpOptionNumbers},
+    MutablePacket,
+};
 use std::{io, net::UdpSocket, thread, time::Duration};
 
 fn main() {
@@ -41,12 +48,15 @@ fn main() {
     const ETH_MTU: usize = 1514;
     let mut packets: Vec<pv::Packet> = Vec::with_capacity(RX_BATCH_SIZE as usize);
     let mut buf = [0; ETH_MTU];
-
     loop {
         // Listening for interface
-        let recieved = interface.receive(&mut packets);
-        if recieved > 0 {
-            for i in 0..recieved as usize {
+        let received = interface.receive(&mut packets);
+        if received > 0 {
+            for i in 0..received as usize {
+                // check TCP handshake & update MMS field
+                const MMS: u16 = 1418;
+                set_mms(&mut packets[i], MMS);
+
                 // send received packet to destination socket
                 socket
                     .send_to(packets[i].get_buffer_mut(), destination)
@@ -74,4 +84,54 @@ fn main() {
             Err(e) => panic!("encountered IO error: {e}"),
         }
     }
+}
+
+fn set_mms(packet: &mut pv::Packet, mms: u16) {
+    let mut eth = MutableEthernetPacket::new(packet.get_buffer_mut()).unwrap();
+
+    let mut ipv4 = match eth.get_ethertype() {
+        EtherTypes::Ipv4 => MutableIpv4Packet::new(eth.payload_mut()).unwrap(),
+        _ => {
+            return;
+        }
+    };
+
+    let source_ip_addr = ipv4.get_source();
+    let destination_ip_addr = ipv4.get_destination();
+
+    let mut tcp = match ipv4.get_next_level_protocol() {
+        IpNextHeaderProtocols::Tcp => MutableTcpPacket::new(ipv4.payload_mut()).unwrap(),
+        _ => {
+            return;
+        }
+    };
+
+    let options = tcp.get_options_iter();
+
+    let mut index = 0;
+
+    // check that TCP packet has MMS option & set MMS field
+    for option in options.into_iter() {
+        match option.get_number() {
+            TcpOptionNumbers::MSS => {
+                index += 2;
+                let option_raw = tcp.get_options_raw_mut();
+                let mms_slice = mms.to_be_bytes();
+                option_raw[index] = mms_slice[0];
+                option_raw[index + 1] = mms_slice[1];
+                break;
+            }
+            _ => match option.get_length().len() {
+                0 => index += 1,
+                _ => index += option.get_length()[0] as usize,
+            },
+        }
+    }
+
+    tcp.set_checksum(ipv4_checksum(
+        &tcp.to_immutable(),
+        &source_ip_addr,
+        &destination_ip_addr,
+    ));
+    ipv4.set_checksum(ipv4::checksum(&ipv4.to_immutable()));
 }

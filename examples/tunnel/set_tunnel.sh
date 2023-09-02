@@ -25,8 +25,6 @@ sudo ip netns exec server ip addr add 192.168.0.44/24 dev server
 # Activate veth
 sudo ip netns exec client ip link set dev client up
 sudo ip link set dev client_gateway up
-sudo ip link set dev client_tunnel up
-sudo ip link set dev server_tunnel up
 sudo ip link set dev server_gateway up
 sudo ip netns exec server ip link set dev server up
 
@@ -35,4 +33,3 @@ sudo ip netns exec client ethtool --offload client tx off
 sudo ip netns exec client ethtool --offload client rx off
 sudo ip netns exec server ethtool --offload server tx off
 sudo ip netns exec server ethtool --offload server rx off
-
