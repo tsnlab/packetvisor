@@ -1,4 +1,5 @@
 use clap::{arg, Command};
+use libc::option;
 use pnet::packet::{
     ethernet::{EtherTypes, MutableEthernetPacket},
     ip::IpNextHeaderProtocols,
@@ -45,9 +46,10 @@ fn main() {
         .expect("Socket Nonblocking Error");
 
     const RX_BATCH_SIZE: u32 = 64;
-    const ETH_MTU: usize = 1514;
+    const ETH_HEADER: usize = 14;
+    const ETH_MTU: usize = 1500;
     let mut packets: Vec<pv::Packet> = Vec::with_capacity(RX_BATCH_SIZE as usize);
-    let mut buf = [0; ETH_MTU];
+    let mut buf = [0; ETH_HEADER + ETH_MTU];
     loop {
         // Listening for interface
         let received = interface.receive(&mut packets);
@@ -108,7 +110,6 @@ fn set_mms(packet: &mut pv::Packet, mms: u16) {
     };
 
     let options = tcp.get_options_iter();
-
     let mut index = 0;
 
     // check that TCP packet has MMS option & set MMS field
@@ -128,7 +129,6 @@ fn set_mms(packet: &mut pv::Packet, mms: u16) {
             },
         }
     }
-
     tcp.set_checksum(ipv4_checksum(
         &tcp.to_immutable(),
         &source_ip_addr,
