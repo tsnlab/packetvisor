@@ -54,6 +54,7 @@ fn main() {
         if received > 0 {
             for i in 0..received as usize {
                 // check TCP handshake & update MMS field
+                // 1500 - 20(IPv4) - 8(UDP) - 14(ETH) - 20(IPv4) - 20(TCP)
                 const MMS: u16 = 1418;
                 set_mms(&mut packets[i], MMS);
 
