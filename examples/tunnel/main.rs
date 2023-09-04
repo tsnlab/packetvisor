@@ -1,5 +1,4 @@
 use clap::{arg, Command};
-use libc::option;
 use pnet::packet::{
     ethernet::{EtherTypes, MutableEthernetPacket},
     ip::IpNextHeaderProtocols,
@@ -54,15 +53,15 @@ fn main() {
         // Listening for interface
         let received = interface.receive(&mut packets);
         if received > 0 {
-            for i in 0..received as usize {
+            for packet in &mut packets {
                 // check TCP handshake & update MMS field
                 // 1500 - 20(IPv4) - 8(UDP) - 14(ETH) - 20(IPv4) - 20(TCP)
                 const MMS: u16 = 1418;
-                set_mms(&mut packets[i], MMS);
+                set_mms(packet, MMS);
 
                 // send received packet to destination socket
                 socket
-                    .send_to(packets[i].get_buffer_mut(), destination)
+                    .send_to(packet.get_buffer_mut(), destination)
                     .expect("Socket send Error");
             }
             packets.clear();
