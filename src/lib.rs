@@ -18,6 +18,12 @@ use std::cell::RefCell;
 
 const DEFAULT_HEADROOM: usize = 256;
 
+#[derive(Debug)]
+pub struct ChunkPool {
+    chunk_size: usize,
+    pool: Vec<u64>,
+}
+
 #[derive(Debug, Clone)]
 pub struct Packet {
     pub start: usize,       // payload offset pointing the start of payload. ex. 256
@@ -25,6 +31,8 @@ pub struct Packet {
     pub buffer_size: usize, // total size of buffer. ex. 2048
     pub buffer: *mut u8,    // buffer address.
     private: *mut c_void,   // DO NOT touch this.
+
+    chunk_pool: Rc<RefCell<ChunkPool>>,
 }
 
 #[derive(Debug)]
@@ -36,7 +44,7 @@ pub struct NIC {
     buffer: *mut c_void,
     chunk_size: usize,
 
-    chunk_pool: Rc<RefCell<Vec<u64>>>,
+    chunk_pool: Rc<RefCell<ChunkPool>>,
 
     /* XSK rings */
     fq: xsk_ring_prod,
@@ -45,14 +53,42 @@ pub struct NIC {
     tx: xsk_ring_prod,
 }
 
+impl ChunkPool {
+    fn new(chunk_size: usize, capacity: usize) -> Self {
+        ChunkPool {
+            chunk_size,
+            pool: Vec::with_capacity(capacity),
+        }
+    }
+
+    fn pop(&mut self) -> u64 {
+        match self.pool.pop() {
+            Some(chunk_addr) => chunk_addr,
+            None => u64::MAX,
+        }
+    }
+
+    fn push(&mut self, chunk_addr: u64) {
+        // align **chunk_addr with chunk size
+        let remainder = chunk_addr % (self.chunk_size as u64);
+        let chunk_addr = chunk_addr - remainder;
+        self.pool.push(chunk_addr);
+    }
+
+    fn capacity(&self) -> usize {
+        self.pool.capacity()
+    }
+}
+
 impl Packet {
-    fn new() -> Packet {
+    fn new(chunk_pool: &Rc<RefCell<ChunkPool>>) -> Packet {
         Packet {
             start: 0,
             end: 0,
             buffer_size: 0,
             buffer: std::ptr::null_mut(),
             private: std::ptr::null_mut(),
+            chunk_pool: chunk_pool.clone(),
         }
     }
 
@@ -120,7 +156,7 @@ impl Packet {
 
 impl Drop for Packet {
     fn drop(&mut self) {
-        println!("{:?}", self);
+        self.chunk_pool.borrow_mut().push(self.private as u64);
     }
 }
 
@@ -209,7 +245,7 @@ impl NIC {
                             umem: umem_ptr.cast::<xsk_umem>(), // umem is needed to be dealloc after using packetvisor library.
                             buffer: std::ptr::null_mut(),
                             chunk_size: set_chunk_size,
-                            chunk_pool: Rc::new(RefCell::new(Vec::with_capacity(set_chunk_count))),
+                            chunk_pool: Rc::new(RefCell::new(ChunkPool::new(set_chunk_size, set_chunk_count))),
                             fq: std::ptr::read(fq_ptr.cast::<xsk_ring_prod>()),
                             rx: std::ptr::read(rx_ptr.cast::<xsk_ring_cons>()),
                             cq: std::ptr::read(cq_ptr.cast::<xsk_ring_cons>()),
@@ -245,10 +281,7 @@ impl NIC {
     }
 
     fn alloc_idx(&mut self) -> u64 {
-        match self.chunk_pool.borrow_mut().pop() {
-            Some(chunk_addr) => chunk_addr,
-            None => u64::MAX,
-        }
+        self.chunk_pool.borrow_mut().pop()
     }
 
     pub fn alloc(&mut self) -> Option<Packet> {
@@ -257,7 +290,7 @@ impl NIC {
         match idx {
             u64::MAX => None,
             _ => {
-                let mut packet: Packet = Packet::new();
+                let mut packet: Packet = Packet::new(&self.chunk_pool);
                 packet.start = DEFAULT_HEADROOM;
                 packet.end = DEFAULT_HEADROOM;
                 packet.buffer_size = self.chunk_size;
@@ -269,15 +302,8 @@ impl NIC {
         }
     }
 
-    fn free_idx(&mut self, chunk_addr: u64) {
-        // align **chunk_addr with chunk size
-        let remainder = chunk_addr % (self.chunk_size as u64);
-        let chunk_addr = chunk_addr - remainder;
-        self.chunk_pool.borrow_mut().push(chunk_addr);
-    }
-
-    pub fn free(&mut self, packet: &Packet) {
-        self.free_idx(packet.private as u64);
+    #[deprecated(note = "Free does nothing now. Packet is automatically freed when it is dropped.")]
+    pub fn free(&mut self, _packet: &Packet) {
     }
 
     fn configure_umem(
@@ -433,9 +459,6 @@ impl NIC {
 
         if filled > 0 {
             for _ in 0..filled {
-                unsafe {
-                    self.free_idx(*xsk_ring_cons__comp_addr(&self.cq, cq_idx));
-                } // free UMEM chunks as much as the number of sent packets (same as **filled)
                 cq_idx += 1;
             }
             unsafe {
@@ -526,7 +549,7 @@ impl NIC {
             let mut metadata_count: u32 = 0;
             while metadata_count < received {
                 /* create packet metadata */
-                packets.push(Packet::new());
+                packets.push(Packet::new(&self.chunk_pool));
                 let rx_desc_ptr: *const xdp_desc =
                     unsafe { xsk_ring_cons__rx_desc(&self.rx, rx_idx + metadata_count) }; // bringing information(packet address, packet length) of received packets through descriptors in RX ring
 
