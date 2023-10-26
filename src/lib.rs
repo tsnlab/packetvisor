@@ -24,7 +24,7 @@ pub struct ChunkPool {
     pool: Vec<u64>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Packet {
     pub start: usize,       // payload offset pointing the start of payload. ex. 256
     pub end: usize,         // payload offset point the end of payload. ex. 1000
@@ -266,7 +266,7 @@ impl NIC {
     pub fn copy_from(&mut self, src: &Packet) -> Option<Packet> {
         let len = src.end - src.start;
 
-        if let Some(packet) = self.alloc().as_mut() {
+        if let Some(mut packet) = self.alloc() {
             unsafe {
                 std::ptr::copy_nonoverlapping(
                     src.buffer.add(src.start),
@@ -276,7 +276,7 @@ impl NIC {
             }
             packet.end = packet.start + len;
             self.chunk_pool.borrow_mut().push(src.private as u64);
-            Some(packet.to_owned())
+            Some(packet)
         } else {
             println!("Failed to add packet to NIC.");
             None
