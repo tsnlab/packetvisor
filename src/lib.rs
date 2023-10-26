@@ -37,7 +37,6 @@ pub struct NIC {
     chunk_size: usize,
 
     chunk_pool: Rc<RefCell<Vec<u64>>>,
-    chunk_pool_idx: usize,
 
     /* XSK rings */
     fq: xsk_ring_prod,
@@ -211,7 +210,6 @@ impl NIC {
                             buffer: std::ptr::null_mut(),
                             chunk_size: set_chunk_size,
                             chunk_pool: Rc::new(RefCell::new(Vec::with_capacity(set_chunk_count))),
-                            chunk_pool_idx: set_chunk_count,
                             fq: std::ptr::read(fq_ptr.cast::<xsk_ring_prod>()),
                             rx: std::ptr::read(rx_ptr.cast::<xsk_ring_cons>()),
                             cq: std::ptr::read(cq_ptr.cast::<xsk_ring_cons>()),
@@ -247,11 +245,9 @@ impl NIC {
     }
 
     fn alloc_idx(&mut self) -> u64 {
-        if self.chunk_pool_idx > 0 {
-            self.chunk_pool_idx -= 1;
-            self.chunk_pool.borrow_mut()[self.chunk_pool_idx]
-        } else {
-            u64::MAX
+        match self.chunk_pool.borrow_mut().pop() {
+            Some(chunk_addr) => chunk_addr,
+            None => u64::MAX,
         }
     }
 
@@ -277,8 +273,7 @@ impl NIC {
         // align **chunk_addr with chunk size
         let remainder = chunk_addr % (self.chunk_size as u64);
         let chunk_addr = chunk_addr - remainder;
-        self.chunk_pool.borrow_mut()[self.chunk_pool_idx] = chunk_addr;
-        self.chunk_pool_idx += 1;
+        self.chunk_pool.borrow_mut().push(chunk_addr);
     }
 
     pub fn free(&mut self, packet: &Packet) {
