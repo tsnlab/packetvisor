@@ -11,10 +11,10 @@ use bindings::*;
 use core::ffi::*;
 use pnet::datalink::{interfaces, NetworkInterface};
 use std::alloc::{alloc_zeroed, Layout};
+use std::cell::RefCell;
 use std::ffi::CString;
 use std::ptr::copy;
 use std::rc::Rc;
-use std::cell::RefCell;
 
 const DEFAULT_HEADROOM: usize = 256;
 
@@ -245,7 +245,10 @@ impl NIC {
                             umem: umem_ptr.cast::<xsk_umem>(), // umem is needed to be dealloc after using packetvisor library.
                             buffer: std::ptr::null_mut(),
                             chunk_size: set_chunk_size,
-                            chunk_pool: Rc::new(RefCell::new(ChunkPool::new(set_chunk_size, set_chunk_count))),
+                            chunk_pool: Rc::new(RefCell::new(ChunkPool::new(
+                                set_chunk_size,
+                                set_chunk_count,
+                            ))),
                             fq: std::ptr::read(fq_ptr.cast::<xsk_ring_prod>()),
                             rx: std::ptr::read(rx_ptr.cast::<xsk_ring_cons>()),
                             cq: std::ptr::read(cq_ptr.cast::<xsk_ring_cons>()),
@@ -303,8 +306,7 @@ impl NIC {
     }
 
     #[deprecated(note = "Free does nothing now. Packet is automatically freed when it is dropped.")]
-    pub fn free(&mut self, _packet: &Packet) {
-    }
+    pub fn free(&mut self, _packet: &Packet) {}
 
     fn configure_umem(
         &mut self,
@@ -375,7 +377,9 @@ impl NIC {
         /* initialize UMEM chunk information */
         let capacity = self.chunk_pool.borrow().capacity();
         for i in 0..capacity {
-            self.chunk_pool.borrow_mut().push((i * self.chunk_size) as u64); // put chunk address
+            self.chunk_pool
+                .borrow_mut()
+                .push((i * self.chunk_size) as u64); // put chunk address
         }
 
         /* configure UMEM */
