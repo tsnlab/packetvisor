@@ -13,16 +13,37 @@ use pnet::datalink::{interfaces, NetworkInterface};
 use std::alloc::{alloc_zeroed, Layout};
 use std::ffi::CString;
 use std::ptr::copy;
+use std::rc::Rc;
+use std::cell::RefCell;
 
 const DEFAULT_HEADROOM: usize = 256;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct Packet {
     pub start: usize,       // payload offset pointing the start of payload. ex. 256
     pub end: usize,         // payload offset point the end of payload. ex. 1000
     pub buffer_size: usize, // total size of buffer. ex. 2048
     pub buffer: *mut u8,    // buffer address.
     private: *mut c_void,   // DO NOT touch this.
+}
+
+#[derive(Debug)]
+pub struct NIC {
+    pub interface: NetworkInterface,
+    xsk: *mut xsk_socket,
+
+    umem: *mut xsk_umem,
+    buffer: *mut c_void,
+    chunk_size: usize,
+
+    chunk_pool: Rc<RefCell<Vec<u64>>>,
+    chunk_pool_idx: usize,
+
+    /* XSK rings */
+    fq: xsk_ring_prod,
+    rx: xsk_ring_cons,
+    cq: xsk_ring_cons,
+    tx: xsk_ring_prod,
 }
 
 impl Packet {
@@ -98,23 +119,10 @@ impl Packet {
     }
 }
 
-#[derive(Debug)]
-pub struct NIC {
-    pub interface: NetworkInterface,
-    xsk: *mut xsk_socket,
-
-    umem: *mut xsk_umem,
-    buffer: *mut c_void,
-    chunk_size: usize,
-
-    chunk_pool: Vec<u64>,
-    chunk_pool_idx: usize,
-
-    /* XSK rings */
-    fq: xsk_ring_prod,
-    rx: xsk_ring_cons,
-    cq: xsk_ring_cons,
-    tx: xsk_ring_prod,
+impl Drop for Packet {
+    fn drop(&mut self) {
+        println!("{:?}", self);
+    }
 }
 
 impl NIC {
@@ -202,7 +210,7 @@ impl NIC {
                             umem: umem_ptr.cast::<xsk_umem>(), // umem is needed to be dealloc after using packetvisor library.
                             buffer: std::ptr::null_mut(),
                             chunk_size: set_chunk_size,
-                            chunk_pool: Vec::with_capacity(set_chunk_count),
+                            chunk_pool: Rc::new(RefCell::new(Vec::with_capacity(set_chunk_count))),
                             chunk_pool_idx: set_chunk_count,
                             fq: std::ptr::read(fq_ptr.cast::<xsk_ring_prod>()),
                             rx: std::ptr::read(rx_ptr.cast::<xsk_ring_cons>()),
@@ -230,8 +238,8 @@ impl NIC {
                 );
             }
             packet.end = packet.start + len;
-            self.chunk_pool.push(src.private as u64);
-            Some(*packet)
+            self.chunk_pool.borrow_mut().push(src.private as u64);
+            Some(packet.to_owned())
         } else {
             println!("Failed to add packet to NIC.");
             None
@@ -241,7 +249,7 @@ impl NIC {
     fn alloc_idx(&mut self) -> u64 {
         if self.chunk_pool_idx > 0 {
             self.chunk_pool_idx -= 1;
-            self.chunk_pool[self.chunk_pool_idx]
+            self.chunk_pool.borrow_mut()[self.chunk_pool_idx]
         } else {
             u64::MAX
         }
@@ -269,7 +277,7 @@ impl NIC {
         // align **chunk_addr with chunk size
         let remainder = chunk_addr % (self.chunk_size as u64);
         let chunk_addr = chunk_addr - remainder;
-        self.chunk_pool[self.chunk_pool_idx] = chunk_addr;
+        self.chunk_pool.borrow_mut()[self.chunk_pool_idx] = chunk_addr;
         self.chunk_pool_idx += 1;
     }
 
@@ -344,14 +352,16 @@ impl NIC {
         completion_ring_size: u32,
     ) -> Result<(), String> {
         /* initialize UMEM chunk information */
-        for i in 0..self.chunk_pool.capacity() {
-            self.chunk_pool.push((i * self.chunk_size) as u64); // put chunk address
+        let capacity = self.chunk_pool.borrow().capacity();
+        for i in 0..capacity {
+            self.chunk_pool.borrow_mut().push((i * self.chunk_size) as u64); // put chunk address
         }
 
         /* configure UMEM */
+        let capacity = self.chunk_pool.borrow().capacity();
         let ret = self.configure_umem(
             self.chunk_size,
-            self.chunk_pool.capacity(),
+            capacity,
             filling_ring_size,
             completion_ring_size,
         );
