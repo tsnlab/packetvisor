@@ -462,9 +462,6 @@ impl NIC {
             unsafe { xsk_ring_cons__peek(&mut self.cq, packets.len() as u32, &mut cq_idx) }; // fetch the number of filled slots(the number of packets completely sent) in cq
 
         if filled > 0 {
-            for _ in 0..filled {
-                cq_idx += 1;
-            }
             unsafe {
                 xsk_ring_cons__release(&mut self.cq, filled);
             } // notify kernel that cq has empty slots with **filled (Dequeue)
