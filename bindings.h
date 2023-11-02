@@ -4,3 +4,4 @@
 #include <xdp_stats_kern_user.h>
 #include <xdp_helpers.h>
 #include <xsk.h>
+#include <linux/if_link.h>

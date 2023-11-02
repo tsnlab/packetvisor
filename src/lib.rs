@@ -380,7 +380,7 @@ impl NIC {
             /* zero means loading default XDP program.
             if you need to load other XDP program, set 1 on this flag and use xdp_program__open_file(), xdp_program__attach() in libxdp. */
             __bindgen_anon_1: xsk_socket_config__bindgen_ty_1 { libxdp_flags: 0 },
-            xdp_flags: 4, // XDP_FLAGS_DRV_MODE in if_link.h (driver mode (Native mode))
+            xdp_flags: XDP_FLAGS_DRV_MODE,
             bind_flags: XDP_USE_NEED_WAKEUP as u16,
         };
         let if_name = CString::new(self.interface.name.clone()).unwrap();
