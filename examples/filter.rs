@@ -157,9 +157,6 @@ fn forward(from: &mut pv::NIC, to: &mut pv::NIC) {
                 (cnt, _) if cnt > 0 => break, // Success
                 (0, 0) => {
                     // Failed 3 times
-                    for packet in packets2 {
-                        to.free(&packet);
-                    }
                     break;
                 }
                 _ => continue, // Retrying
@@ -215,7 +212,6 @@ fn send_rst(from: &mut pv::NIC, to: &mut pv::NIC, received: &mut pv::Packet) {
     ipv4.set_destination(src_ip);
     ipv4.set_checksum(pnet::packet::ipv4::checksum(&ipv4.to_immutable()));
     from.send(&mut vec![packet]);
-    from.free(&packet);
 
     let mut packet = to.alloc().unwrap();
 
@@ -250,5 +246,4 @@ fn send_rst(from: &mut pv::NIC, to: &mut pv::NIC, received: &mut pv::Packet) {
     ));
     ipv4.set_checksum(pnet::packet::ipv4::checksum(&ipv4.to_immutable()));
     to.send(&mut vec![packet]);
-    to.free(&packet);
 }

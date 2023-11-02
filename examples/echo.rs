@@ -136,7 +136,6 @@ fn main() {
             match process_packet(&mut packets[i], &nic) {
                 true => {}
                 false => {
-                    nic.free(&mut packets[i]);
                     packets.remove(i);
                 }
             }
