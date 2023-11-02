@@ -132,9 +132,6 @@ fn forward(from: &mut pv::NIC, to: &mut pv::NIC, source_word: &String, target_wo
                 (cnt, _) if cnt > 0 => break, // Success
                 (0, 0) => {
                     // Failed 3 times
-                    for packet in packets2 {
-                        to.free(&packet);
-                    }
                     break;
                 }
                 _ => continue, // Retrying
