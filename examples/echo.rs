@@ -132,14 +132,7 @@ fn main() {
             received = nic.receive(&mut packets);
         }
 
-        for i in 0..received as usize {
-            match process_packet(&mut packets[i], &nic) {
-                true => {}
-                false => {
-                    packets.remove(i);
-                }
-            }
-        }
+        packets.retain_mut(|p| process_packet(p, &nic));
 
         for retry in (0..3).rev() {
             match (nic.send(&mut packets), retry) {
