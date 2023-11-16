@@ -498,10 +498,8 @@ impl NIC {
             /* insert packets to be send into TX ring (Enqueue) */
             let tx_desc_ptr = unsafe { xsk_ring_prod__tx_desc(&mut self.tx, tx_idx + i) };
             unsafe {
-                tx_desc_ptr.as_mut().unwrap().addr =
-                    pkt.private as u64 + pkt.start as u64;
-                tx_desc_ptr.as_mut().unwrap().len =
-                    (pkt.end - pkt.start) as u32;
+                tx_desc_ptr.as_mut().unwrap().addr = pkt.private as u64 + pkt.start as u64;
+                tx_desc_ptr.as_mut().unwrap().len = (pkt.end - pkt.start) as u32;
             }
         }
         packets.drain(0..reserved as usize); // remove packets which have been sent from packets vector
