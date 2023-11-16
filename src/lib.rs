@@ -494,19 +494,16 @@ impl NIC {
 
         /* send packets if reservation of slots in TX ring is same as batch_size */
         for i in 0..reserved {
-            let pkt_index: usize = (reserved - 1 - i) as usize;
+            let pkt = &packets[i as usize];
             /* insert packets to be send into TX ring (Enqueue) */
             let tx_desc_ptr = unsafe { xsk_ring_prod__tx_desc(&mut self.tx, tx_idx + i) };
             unsafe {
-                tx_desc_ptr.as_mut().unwrap().addr =
-                    packets[pkt_index].private as u64 + packets[pkt_index].start as u64;
-                tx_desc_ptr.as_mut().unwrap().len =
-                    (packets[pkt_index].end - packets[pkt_index].start) as u32;
+                let tx_desc = tx_desc_ptr.as_mut().unwrap();
+                tx_desc.addr = pkt.private as u64 + pkt.start as u64;
+                tx_desc.len = (pkt.end - pkt.start) as u32;
             }
-            // packet_dump(&packets[pkt_index]);
-
-            packets.pop(); // free packet metadata of sent packets.
         }
+        packets.drain(0..reserved as usize); // remove packets which have been sent from packets vector
 
         unsafe {
             xsk_ring_prod__submit(&mut self.tx, reserved); // notify kernel of enqueuing TX ring as much as reserved.
