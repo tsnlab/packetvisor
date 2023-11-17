@@ -128,6 +128,7 @@ impl Packet {
         let chunk_address = self.private as u64;
         let buffer_address: *const u8 = self.buffer.cast_const();
 
+        let length: usize = self.end - self.start;
         let mut count: usize = 0;
 
         unsafe {
@@ -139,7 +140,7 @@ impl Packet {
                 print!("{:02X?} ", std::ptr::read(read_address));
 
                 count += 1;
-                if count == self.end - self.start {
+                if count == length {
                     break;
                 } else if count % 8 == 0 {
                     print!(" ");
