@@ -128,19 +128,18 @@ impl Packet {
         let chunk_address = self.private as u64;
         let buffer_address: *const u8 = self.buffer.cast_const();
 
-        let length: usize = self.buffer_size;
         let mut count: usize = 0;
 
         unsafe {
             println!("---packet dump--- chunk addr: {}", chunk_address);
 
             loop {
-                let read_offset: usize = count;
+                let read_offset: usize = count + self.start;
                 let read_address: *const u8 = buffer_address.add(read_offset);
                 print!("{:02X?} ", std::ptr::read(read_address));
 
                 count += 1;
-                if count == length {
+                if count == self.end - self.start {
                     break;
                 } else if count % 8 == 0 {
                     print!(" ");
