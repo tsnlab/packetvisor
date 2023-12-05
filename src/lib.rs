@@ -37,6 +37,7 @@ pub struct Packet {
 
 #[derive(Debug)]
 pub struct Umem {
+    pub chunk_count: usize,
     pub chunk_size: usize,
 
     umem: *mut xsk_umem,
@@ -53,6 +54,7 @@ pub struct NIC {
     pub interface: NetworkInterface,
     xsk: *mut xsk_socket,
 
+    umem_rc: Rc<RefCell<Umem>>,
     umem: *mut xsk_umem,
     buffer: *mut c_void,
     chunk_size: usize,
@@ -186,7 +188,8 @@ impl Umem {
 
         let mut obj = unsafe { Self {
             umem: umem_ptr.cast::<xsk_umem>(), // umem is needed to be dealloc after using packetvisor library.
-            buffer: std::ptr::null_mut(),
+            buffer: std::ptr::null_mut(), // Initialized later
+            chunk_count,
             chunk_size,
             chunk_pool: Rc::new(RefCell::new(ChunkPool::new(
                 chunk_size,
@@ -212,15 +215,7 @@ impl Umem {
         }
 
         /* configure UMEM */
-        // let ret = self.configure_umem(
-        //     self.chunk_size,
-        //     capacity,
-        //     filling_ring_size,
-        //     completion_ring_size,
-        // );
-        // if ret.is_err() {
-        //     return Err(format!("Failed to configure UMEM: {}", ret.unwrap_err()));
-        // }
+        self.configure_umem(fq_size, cq_size)?;
 
         /* pre-allocate UMEM chunks into fq */
         let mut fq_idx: u32 = 0;
@@ -236,6 +231,53 @@ impl Umem {
             xsk_ring_prod__submit(&mut self.fq, reserved);
         } // notify kernel of allocating UMEM chunks into fq as much as **reserved.
 
+        Ok(())
+    }
+
+    fn configure_umem(&mut self, fq_size: usize, cq_size: usize) -> Result<(), String> {
+        let umem_buffer_size = self.chunk_count * self.chunk_size;
+        let mmap_address = unsafe {
+            libc::mmap(
+                std::ptr::null_mut::<libc::c_void>(),
+                umem_buffer_size,
+                libc::PROT_READ | libc::PROT_WRITE,
+                libc::MAP_PRIVATE | libc::MAP_ANONYMOUS,
+                -1, // fd
+                0, // offset
+            )
+        };
+        if mmap_address == libc::MAP_FAILED {
+            return Err(String::from("Failed to allocate memory for UMEM."));
+        }
+
+        let umem_cfg = xsk_umem_config {
+            fill_size: fq_size as u32,
+            comp_size: cq_size as u32,
+            frame_size: self.chunk_size as u32,
+            frame_headroom: XSK_UMEM__DEFAULT_FRAME_HEADROOM,
+            flags: XSK_UMEM__DEFAULT_FLAGS,
+        };
+
+        let ret = unsafe {
+            xsk_umem__create(
+                &mut self.umem,
+                mmap_address,
+                umem_buffer_size as u64,
+                &mut self.fq,
+                &mut self.cq,
+                &umem_cfg,
+            )
+        };
+
+        if ret != 0 {
+            unsafe {
+                // Unmap first
+                libc::munmap(mmap_address, umem_buffer_size);
+            }
+            return Err(format!("Failed to create UMEM: {}", ret));
+        }
+
+        self.buffer = mmap_address;
         Ok(())
     }
 
@@ -265,6 +307,7 @@ impl Umem {
 impl NIC {
     pub fn new(
         if_name: &str,
+        umem_rc: Rc<RefCell<Umem>>,
         set_chunk_size: usize,
         set_chunk_count: usize,
     ) -> Result<NIC, String> {
@@ -284,6 +327,7 @@ impl NIC {
             NIC {
                 interface: interface.clone(),
                 xsk: xsk_ptr.cast::<xsk_socket>(),
+                umem_rc,
                 umem: umem_ptr.cast::<xsk_umem>(), // umem is needed to be dealloc after using packetvisor library.
                 buffer: std::ptr::null_mut(),
                 chunk_size: set_chunk_size,
