@@ -166,101 +166,36 @@ impl NIC {
         set_chunk_size: usize,
         set_chunk_count: usize,
     ) -> Result<NIC, String> {
-        let mut is_creation_failed: bool = false;
+        let interface = interfaces()
+            .into_iter()
+            .find(|elem| elem.name.as_str() == if_name)
+            .ok_or(format!("Interface {} not found.", if_name))?;
 
-        let xsk_ptr;
-        unsafe {
-            let xsk_layout = Layout::new::<xsk_socket>();
-            xsk_ptr = alloc_zeroed(xsk_layout);
+        let xsk_ptr = alloc_zeroed_layout::<xsk_socket>()?;
+        let umem_ptr = alloc_zeroed_layout::<xsk_umem>()?;
+        let fq_ptr = alloc_zeroed_layout::<xsk_ring_prod>()?;
+        let rx_ptr = alloc_zeroed_layout::<xsk_ring_cons>()?;
+        let cq_ptr = alloc_zeroed_layout::<xsk_ring_cons>()?;
+        let tx_ptr = alloc_zeroed_layout::<xsk_ring_prod>()?;
 
-            if xsk_ptr.is_null() {
-                is_creation_failed = true;
+        let nic: NIC = unsafe {
+            NIC {
+                interface: interface.clone(),
+                xsk: xsk_ptr.cast::<xsk_socket>(),
+                umem: umem_ptr.cast::<xsk_umem>(), // umem is needed to be dealloc after using packetvisor library.
+                buffer: std::ptr::null_mut(),
+                chunk_size: set_chunk_size,
+                chunk_pool: Rc::new(RefCell::new(ChunkPool::new(
+                    set_chunk_size,
+                    set_chunk_count,
+                ))),
+                fq: std::ptr::read(fq_ptr.cast::<xsk_ring_prod>()),
+                rx: std::ptr::read(rx_ptr.cast::<xsk_ring_cons>()),
+                cq: std::ptr::read(cq_ptr.cast::<xsk_ring_cons>()),
+                tx: std::ptr::read(tx_ptr.cast::<xsk_ring_prod>()),
             }
-        }
-
-        let umem_ptr;
-        unsafe {
-            let umem_layout = Layout::new::<xsk_umem>();
-            umem_ptr = alloc_zeroed(umem_layout);
-
-            if umem_ptr.is_null() {
-                is_creation_failed = true;
-            }
-        }
-
-        let fq_ptr;
-        unsafe {
-            let fq_layout = Layout::new::<xsk_ring_prod>();
-            fq_ptr = alloc_zeroed(fq_layout);
-
-            if fq_ptr.is_null() {
-                is_creation_failed = true;
-            }
-        }
-
-        let rx_ptr;
-        unsafe {
-            let rx_layout = Layout::new::<xsk_ring_cons>();
-            rx_ptr = alloc_zeroed(rx_layout);
-
-            if rx_ptr.is_null() {
-                is_creation_failed = true;
-            }
-        }
-
-        let cq_ptr;
-        unsafe {
-            let cq_layout = Layout::new::<xsk_ring_cons>();
-            cq_ptr = alloc_zeroed(cq_layout);
-
-            if cq_ptr.is_null() {
-                is_creation_failed = true;
-            }
-        }
-
-        let tx_ptr;
-        unsafe {
-            let tx_layout = Layout::new::<xsk_ring_prod>();
-            tx_ptr = alloc_zeroed(tx_layout);
-
-            if tx_ptr.is_null() {
-                is_creation_failed = true;
-            }
-        }
-
-        if is_creation_failed {
-            Err(String::from("Failed to allocate memory for NIC."))
-        } else {
-            /* check interface name to be attached XDP program is valid */
-            let all_interfaces: Vec<NetworkInterface> = interfaces();
-            let matched_interface: Option<&NetworkInterface> = all_interfaces
-                .iter()
-                .find(|element| element.name.as_str() == if_name);
-            match matched_interface {
-                Some(a) => {
-                    let nic: NIC = unsafe {
-                        NIC {
-                            interface: a.clone(),
-                            xsk: xsk_ptr.cast::<xsk_socket>(),
-                            umem: umem_ptr.cast::<xsk_umem>(), // umem is needed to be dealloc after using packetvisor library.
-                            buffer: std::ptr::null_mut(),
-                            chunk_size: set_chunk_size,
-                            chunk_pool: Rc::new(RefCell::new(ChunkPool::new(
-                                set_chunk_size,
-                                set_chunk_count,
-                            ))),
-                            fq: std::ptr::read(fq_ptr.cast::<xsk_ring_prod>()),
-                            rx: std::ptr::read(rx_ptr.cast::<xsk_ring_cons>()),
-                            cq: std::ptr::read(cq_ptr.cast::<xsk_ring_cons>()),
-                            tx: std::ptr::read(tx_ptr.cast::<xsk_ring_prod>()),
-                        }
-                    };
-
-                    Ok(nic)
-                }
-                None => Err(String::from("Invalid interface name.")),
-            }
-        }
+        };
+        Ok(nic)
     }
 
     pub fn copy_from(&mut self, src: &Packet) -> Option<Packet> {
@@ -592,5 +527,18 @@ impl NIC {
         }
 
         received
+    }
+}
+
+fn alloc_zeroed_layout<T: 'static>() -> Result<*mut u8, String> {
+    let ptr;
+    unsafe {
+        let layout = Layout::new::<T>();
+        ptr = alloc_zeroed(layout);
+    }
+    if ptr.is_null() {
+        Err(format!("failed to allocate memory"))
+    } else {
+        Ok(ptr)
     }
 }
