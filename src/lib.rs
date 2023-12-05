@@ -36,6 +36,19 @@ pub struct Packet {
 }
 
 #[derive(Debug)]
+pub struct Umem {
+    pub chunk_size: usize,
+
+    umem: *mut xsk_umem,
+    buffer: *mut c_void,
+    chunk_pool: Rc<RefCell<ChunkPool>>,
+
+    // XSK rings
+    fq: xsk_ring_prod, // Fill queue
+    cq: xsk_ring_cons, // Completion queue
+}
+
+#[derive(Debug)]
 pub struct NIC {
     pub interface: NetworkInterface,
     xsk: *mut xsk_socket,
@@ -157,6 +170,95 @@ impl Packet {
 impl Drop for Packet {
     fn drop(&mut self) {
         self.chunk_pool.borrow_mut().push(self.private as u64);
+    }
+}
+
+impl Umem {
+    pub fn new(
+        chunk_size: usize,
+        chunk_count: usize,
+        fq_size: usize,
+        cq_size: usize,
+    ) -> Result<Rc<RefCell<Self>>, String> {
+        let umem_ptr = alloc_zeroed_layout::<xsk_umem>()?;
+        let fq_ptr = alloc_zeroed_layout::<xsk_ring_prod>()?;
+        let cq_ptr = alloc_zeroed_layout::<xsk_ring_cons>()?;
+
+        let mut obj = unsafe { Self {
+            umem: umem_ptr.cast::<xsk_umem>(), // umem is needed to be dealloc after using packetvisor library.
+            buffer: std::ptr::null_mut(),
+            chunk_size,
+            chunk_pool: Rc::new(RefCell::new(ChunkPool::new(
+                chunk_size,
+                chunk_count,
+            ))),
+            fq: std::ptr::read(fq_ptr.cast::<xsk_ring_prod>()),
+            cq: std::ptr::read(cq_ptr.cast::<xsk_ring_cons>()),
+        } };
+
+        obj.initialize_umem(fq_size, cq_size)?;
+
+        Ok(Rc::new(RefCell::new(obj)))
+    }
+
+    fn initialize_umem(&mut self, fq_size: usize, cq_size: usize) -> Result<(), String> {
+        /* initialize UMEM chunk information */
+        let capacity = self.chunk_pool.borrow().capacity();
+        {
+            let mut chunk_pool = self.chunk_pool.borrow_mut();
+            for i in 0..capacity {
+                chunk_pool.push((i * self.chunk_size) as u64); // Put chunk address
+            }
+        }
+
+        /* configure UMEM */
+        // let ret = self.configure_umem(
+        //     self.chunk_size,
+        //     capacity,
+        //     filling_ring_size,
+        //     completion_ring_size,
+        // );
+        // if ret.is_err() {
+        //     return Err(format!("Failed to configure UMEM: {}", ret.unwrap_err()));
+        // }
+
+        /* pre-allocate UMEM chunks into fq */
+        let mut fq_idx: u32 = 0;
+        let reserved: u32 =
+            unsafe { xsk_ring_prod__reserve(&mut self.fq, fq_size as u32, &mut fq_idx) };
+
+        for i in 0..reserved {
+            unsafe {
+                *xsk_ring_prod__fill_addr(&mut self.fq, fq_idx + i) = self.alloc_idx();
+            } // allocation of UMEM chunks into fq.
+        }
+        unsafe {
+            xsk_ring_prod__submit(&mut self.fq, reserved);
+        } // notify kernel of allocating UMEM chunks into fq as much as **reserved.
+
+        Ok(())
+    }
+
+    fn alloc_idx(&mut self) -> u64 {
+        self.chunk_pool.borrow_mut().pop()
+    }
+
+    pub fn alloc(&mut self) -> Option<Packet> {
+        let idx: u64 = self.alloc_idx();
+
+        match idx {
+            u64::MAX => None,
+            _ => {
+                let mut packet: Packet = Packet::new(&self.chunk_pool);
+                packet.start = DEFAULT_HEADROOM;
+                packet.end = DEFAULT_HEADROOM;
+                packet.buffer_size = self.chunk_size;
+                packet.buffer = unsafe { xsk_umem__get_data(self.buffer, idx).cast::<u8>() };
+                packet.private = idx as *mut c_void;
+
+                Some(packet)
+            }
+        }
     }
 }
 
