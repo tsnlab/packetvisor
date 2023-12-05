@@ -377,17 +377,9 @@ impl NIC {
         Ok(())
     }
 
-    // move ownership of nic
+    #[deprecated(note = "Close does nothing now. Socket is automatically closed when it is dropped.")]
     pub fn close(self) -> c_int {
-        /* xsk delete */
-        unsafe {
-            xsk_socket__delete(self.xsk);
-        }
-
-        /* UMEM free */
-        let ret: c_int = unsafe { xsk_umem__delete(self.umem) };
-
-        ret
+        0
     }
 
     pub fn send(&mut self, packets: &mut Vec<Packet>) -> u32 {
@@ -527,6 +519,24 @@ impl NIC {
         }
 
         received
+    }
+}
+
+impl Drop for NIC {
+    // move ownership of nic
+    fn drop(&mut self) {
+        println!("Drop NIC");
+        // xsk delete
+        unsafe {
+            xsk_socket__delete(self.xsk);
+        }
+
+        // TODO: Not free umem
+        // Free UMEM
+        let ret: c_int = unsafe { xsk_umem__delete(self.umem) };
+        if ret != 0 {
+            eprintln!("failed to free umem");
+        }
     }
 }
 
