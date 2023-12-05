@@ -19,7 +19,7 @@ use std::rc::Rc;
 const DEFAULT_HEADROOM: usize = 256;
 
 #[derive(Debug)]
-pub struct ChunkPool {
+struct ChunkPool {
     chunk_size: usize,
     pool: Vec<u64>,
 }
