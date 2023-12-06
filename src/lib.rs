@@ -344,6 +344,46 @@ impl NIC {
         Ok(nic)
     }
 
+    pub fn open(
+        &mut self,
+        rx_ring_size: u32,
+        tx_ring_size: u32,
+    ) -> Result<(), String> {
+
+        /* setting xsk, RX ring, TX ring configuration */
+        let xsk_cfg: xsk_socket_config = xsk_socket_config {
+            rx_size: rx_ring_size,
+            tx_size: tx_ring_size,
+            /* zero means loading default XDP program.
+            if you need to load other XDP program, set 1 on this flag and use xdp_program__open_file(), xdp_program__attach() in libxdp. */
+            __bindgen_anon_1: xsk_socket_config__bindgen_ty_1 { libxdp_flags: 0 },
+            xdp_flags: XDP_FLAGS_DRV_MODE,
+            bind_flags: XDP_USE_NEED_WAKEUP as u16,
+        };
+        let if_name = CString::new(self.interface.name.clone()).unwrap();
+        let if_ptr = if_name.as_ptr() as *const c_char;
+        /* create xsk socket */
+        let ret: c_int = unsafe {
+            xsk_socket__create(
+                &mut self.xsk,
+                if_ptr,
+                // self.interface.name.as_ptr().clone() as *const c_char,
+                0,
+                self.umem,
+                &mut self.rx,
+                &mut self.tx,
+                &xsk_cfg,
+            )
+        };
+        if ret != 0 {
+            return Err(format!(
+                "xsk_socket__create failed: {}",
+                std::io::Error::last_os_error()
+            ));
+        }
+        Ok(())
+    }
+
     pub fn copy_from(&mut self, src: &Packet) -> Option<Packet> {
         let len = src.end - src.start;
 
@@ -446,81 +486,6 @@ impl NIC {
                 Err(ret)
             }
         }
-    }
-
-    pub fn open(
-        &mut self,
-        rx_ring_size: u32,
-        tx_ring_size: u32,
-        filling_ring_size: u32,
-        completion_ring_size: u32,
-    ) -> Result<(), String> {
-        /* initialize UMEM chunk information */
-        let capacity = self.chunk_pool.borrow().capacity();
-        for i in 0..capacity {
-            self.chunk_pool
-                .borrow_mut()
-                .push((i * self.chunk_size) as u64); // put chunk address
-        }
-
-        /* configure UMEM */
-        let capacity = self.chunk_pool.borrow().capacity();
-        let ret = self.configure_umem(
-            self.chunk_size,
-            capacity,
-            filling_ring_size,
-            completion_ring_size,
-        );
-        if ret.is_err() {
-            return Err(format!("Failed to configure UMEM: {}", ret.unwrap_err()));
-        }
-
-        /* pre-allocate UMEM chunks into fq */
-        let mut fq_idx: u32 = 0;
-        let reserved: u32 =
-            unsafe { xsk_ring_prod__reserve(&mut self.fq, filling_ring_size, &mut fq_idx) };
-
-        for i in 0..reserved {
-            unsafe {
-                *xsk_ring_prod__fill_addr(&mut self.fq, fq_idx + i) = self.alloc_idx();
-            } // allocation of UMEM chunks into fq.
-        }
-        unsafe {
-            xsk_ring_prod__submit(&mut self.fq, reserved);
-        } // notify kernel of allocating UMEM chunks into fq as much as **reserved.
-
-        /* setting xsk, RX ring, TX ring configuration */
-        let xsk_cfg: xsk_socket_config = xsk_socket_config {
-            rx_size: rx_ring_size,
-            tx_size: tx_ring_size,
-            /* zero means loading default XDP program.
-            if you need to load other XDP program, set 1 on this flag and use xdp_program__open_file(), xdp_program__attach() in libxdp. */
-            __bindgen_anon_1: xsk_socket_config__bindgen_ty_1 { libxdp_flags: 0 },
-            xdp_flags: XDP_FLAGS_DRV_MODE,
-            bind_flags: XDP_USE_NEED_WAKEUP as u16,
-        };
-        let if_name = CString::new(self.interface.name.clone()).unwrap();
-        let if_ptr = if_name.as_ptr() as *const c_char;
-        /* create xsk socket */
-        let ret: c_int = unsafe {
-            xsk_socket__create(
-                &mut self.xsk,
-                if_ptr,
-                // self.interface.name.as_ptr().clone() as *const c_char,
-                0,
-                self.umem,
-                &mut self.rx,
-                &mut self.tx,
-                &xsk_cfg,
-            )
-        };
-        if ret != 0 {
-            return Err(format!(
-                "xsk_socket__create failed: {}",
-                std::io::Error::last_os_error()
-            ));
-        }
-        Ok(())
     }
 
     #[deprecated(note = "Close does nothing now. Socket is automatically closed when it is dropped.")]
