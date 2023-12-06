@@ -283,7 +283,7 @@ impl Umem {
         self.chunk_pool.borrow_mut().pop()
     }
 
-    pub fn alloc(&mut self) -> Option<Packet> {
+    pub fn alloc_packet(&mut self) -> Option<Packet> {
         let idx: u64 = self.alloc_idx();
 
         match idx {
@@ -400,8 +400,7 @@ impl Umem {
 
         // println!("reserved: {}, {}", reserved.count, reserved.idx);
 
-        for i in 0..reserved.count as usize {
-            let pkt = &packets[i];
+        for (i, pkt) in packets.iter().enumerate().take(reserved.count as usize) {
             // Insert packets to be sent into the TX ring (Enqueue)
             let tx_desc_ptr = unsafe {
                 xsk_ring_prod__tx_desc(tx, reserved.idx + i as u32)
@@ -506,7 +505,7 @@ impl NIC {
     pub fn copy_from(&mut self, src: &Packet) -> Option<Packet> {
         let len = src.end - src.start;
 
-        if let Some(mut packet) = self.alloc() {
+        if let Some(mut packet) = self.alloc_packet() {
             unsafe {
                 std::ptr::copy_nonoverlapping(
                     src.buffer.add(src.start),
@@ -523,8 +522,8 @@ impl NIC {
         }
     }
 
-    pub fn alloc(&mut self) -> Option<Packet> {
-        self.umem_rc.borrow_mut().alloc()
+    pub fn alloc_packet(&mut self) -> Option<Packet> {
+        self.umem_rc.borrow_mut().alloc_packet()
     }
 
     #[deprecated(note = "Free does nothing now. Packet is automatically freed when it is dropped.")]
@@ -583,7 +582,7 @@ fn alloc_zeroed_layout<T: 'static>() -> Result<*mut u8, String> {
         ptr = alloc_zeroed(layout);
     }
     if ptr.is_null() {
-        Err(format!("failed to allocate memory"))
+        Err("failed to allocate memory".to_string())
     } else {
         Ok(ptr)
     }
