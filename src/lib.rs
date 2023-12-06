@@ -37,8 +37,8 @@ pub struct Packet {
 
 #[derive(Debug)]
 pub struct Umem {
-    pub chunk_count: usize,
-    pub chunk_size: usize,
+    chunk_count: usize, // TODO: getter
+    chunk_size: usize, // TODO: getter
 
     umem: *mut xsk_umem,
     buffer: *mut c_void,
@@ -61,9 +61,9 @@ pub struct NIC {
     tx: xsk_ring_prod,
 }
 
-pub struct ReservedResult {
-    pub count: u32,
-    pub idx: u32,
+struct ReservedResult {
+    count: u32,
+    idx: u32,
 }
 
 impl ChunkPool {
@@ -105,7 +105,7 @@ impl Packet {
         }
     }
 
-    // replace payload with new data
+    /// replace payload with new data
     pub fn replace_data(&mut self, new_data: &Vec<u8>) -> Result<(), String> {
         if new_data.len() <= self.buffer_size {
             unsafe {
@@ -123,6 +123,7 @@ impl Packet {
         }
     }
 
+    /// get payload as Vec<u8>
     pub fn get_buffer_mut(&mut self) -> &mut [u8] {
         unsafe {
             std::slice::from_raw_parts_mut(
@@ -132,10 +133,12 @@ impl Packet {
         }
     }
 
+    /// Resize payload size
     pub fn resize(&mut self, size: usize) {
         self.end = self.start + size;
     }
 
+    /// Dump packet payload as hex
     #[allow(dead_code)]
     pub fn dump(&self) {
         let chunk_address = self.private as u64;
@@ -174,6 +177,11 @@ impl Drop for Packet {
 }
 
 impl Umem {
+    /// Create Umem
+    /// chunk_size: size of chunk. ex. 2048
+    /// chunk_count: number of chunks. ex. 1024
+    /// fq_size: size of fill queue. ex. 1024
+    /// cq_size: size of completion queue. ex. 1024
     pub fn new(
         chunk_size: usize,
         chunk_count: usize,
@@ -283,7 +291,8 @@ impl Umem {
         self.chunk_pool.borrow_mut().pop()
     }
 
-    pub fn alloc_packet(&mut self) -> Option<Packet> {
+    /// Allocate packet from UMEM
+    pub fn try_alloc_packet(&mut self) -> Option<Packet> {
         let idx: u64 = self.alloc_idx();
 
         match idx {
@@ -502,10 +511,14 @@ impl NIC {
         Ok(())
     }
 
+    /// Clone a packet
+    #[deprecated(
+        note = "Don't need to clone in same UMEM. Packet::try_clone will be implemented soon"
+    )]
     pub fn copy_from(&mut self, src: &Packet) -> Option<Packet> {
         let len = src.end - src.start;
 
-        if let Some(mut packet) = self.alloc_packet() {
+        if let Some(mut packet) = self.try_alloc_packet() {
             unsafe {
                 std::ptr::copy_nonoverlapping(
                     src.buffer.add(src.start),
@@ -522,16 +535,9 @@ impl NIC {
         }
     }
 
-    pub fn alloc_packet(&mut self) -> Option<Packet> {
-        self.umem_rc.borrow_mut().alloc_packet()
-    }
-
-    #[deprecated(note = "Free does nothing now. Packet is automatically freed when it is dropped.")]
-    pub fn free(&mut self, _packet: &Packet) {}
-
-    #[deprecated(note = "Close does nothing now. Socket is automatically closed when it is dropped.")]
-    pub fn close(self) -> c_int {
-        0
+    /// Reserve a packet from UMEM
+    pub fn try_alloc_packet(&mut self) -> Option<Packet> {
+        self.umem_rc.borrow_mut().try_alloc_packet()
     }
 
     /// Send packets using NIC
