@@ -438,6 +438,8 @@ impl NIC {
     pub fn new(
         if_name: &str,
         umem_rc: Rc<RefCell<Umem>>,
+        tx_size: usize,
+        rx_size: usize,
     ) -> Result<NIC, String> {
         let interface = interfaces()
             .into_iter()
@@ -448,7 +450,7 @@ impl NIC {
         let rx_ptr = alloc_zeroed_layout::<xsk_ring_cons>()?;
         let tx_ptr = alloc_zeroed_layout::<xsk_ring_prod>()?;
 
-        let nic: NIC = unsafe {
+        let mut nic: NIC = unsafe {
             NIC {
                 interface: interface.clone(),
                 xsk: xsk_ptr.cast::<xsk_socket>(),
@@ -457,20 +459,20 @@ impl NIC {
                 tx: std::ptr::read(tx_ptr.cast::<xsk_ring_prod>()),
             }
         };
+        nic.open(tx_size, rx_size)?;
         Ok(nic)
     }
 
-    // TODO: Remove this function
-    pub fn open(
+    fn open(
         &mut self,
-        rx_ring_size: u32,
-        tx_ring_size: u32,
+        rx_ring_size: usize,
+        tx_ring_size: usize,
     ) -> Result<(), String> {
 
         /* setting xsk, RX ring, TX ring configuration */
         let xsk_cfg: xsk_socket_config = xsk_socket_config {
-            rx_size: rx_ring_size,
-            tx_size: tx_ring_size,
+            rx_size: rx_ring_size.try_into().unwrap(),
+            tx_size: tx_ring_size.try_into().unwrap(),
             /* zero means loading default XDP program.
             if you need to load other XDP program, set 1 on this flag and use xdp_program__open_file(), xdp_program__attach() in libxdp. */
             __bindgen_anon_1: xsk_socket_config__bindgen_ty_1 { libxdp_flags: 0 },
