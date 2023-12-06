@@ -55,7 +55,6 @@ pub struct NIC {
     xsk: *mut xsk_socket,
 
     umem_rc: Rc<RefCell<Umem>>,
-    chunk_pool: Rc<RefCell<ChunkPool>>,
 
     /* XSK rings */
     rx: xsk_ring_cons,
@@ -302,6 +301,7 @@ impl Umem {
         }
     }
 
+    /// Reserve packet metadata and UMEM chunks as much as **len
     fn reserve(&mut self, len: usize) -> Result<ReservedResult, String> {
         let mut idx = 0;
         let reserved = unsafe {
@@ -393,14 +393,51 @@ impl Umem {
 
         packets
     }
+
+    fn send(&mut self, packets: &mut Vec<Packet>, xsk: &*mut xsk_socket, tx: &mut xsk_ring_prod) -> usize {
+        let _filled = self.fill(packets.len()).unwrap();
+        let reserved = self.reserve(packets.len()).unwrap();
+
+        // println!("reserved: {}, {}", reserved.count, reserved.idx);
+
+        for i in 0..reserved.count as usize {
+            let pkt = &packets[i];
+            // Insert packets to be sent into the TX ring (Enqueue)
+            let tx_desc_ptr = unsafe {
+                xsk_ring_prod__tx_desc(tx, reserved.idx + i as u32)
+            };
+            unsafe {
+                let tx_desc = tx_desc_ptr.as_mut().unwrap();
+                tx_desc.addr = pkt.private as u64 + pkt.start as u64;
+                tx_desc.len = (pkt.end - pkt.start) as u32;
+            }
+        }
+
+        packets.drain(0..reserved.count as usize);
+
+        unsafe {
+            xsk_ring_prod__submit(&mut *tx, reserved.count);
+            if xsk_ring_prod__needs_wakeup(tx) != 0 {
+                // Interrupt the kernel to send packets
+                libc::sendto(
+                    xsk_socket__fd(*xsk),
+                    std::ptr::null::<libc::c_void>(),
+                    0 as libc::size_t,
+                    libc::MSG_DONTWAIT,
+                    std::ptr::null::<libc::sockaddr>(),
+                    0 as libc::socklen_t,
+                );
+            }
+        }
+
+        reserved.count.try_into().unwrap()
+    }
 }
 
 impl NIC {
     pub fn new(
         if_name: &str,
         umem_rc: Rc<RefCell<Umem>>,
-        set_chunk_size: usize,
-        set_chunk_count: usize,
     ) -> Result<NIC, String> {
         let interface = interfaces()
             .into_iter()
@@ -416,10 +453,6 @@ impl NIC {
                 interface: interface.clone(),
                 xsk: xsk_ptr.cast::<xsk_socket>(),
                 umem_rc,
-                chunk_pool: Rc::new(RefCell::new(ChunkPool::new(
-                    set_chunk_size,
-                    set_chunk_count,
-                ))),
                 rx: std::ptr::read(rx_ptr.cast::<xsk_ring_cons>()),
                 tx: std::ptr::read(tx_ptr.cast::<xsk_ring_prod>()),
             }
@@ -427,6 +460,7 @@ impl NIC {
         Ok(nic)
     }
 
+    // TODO: Remove this function
     pub fn open(
         &mut self,
         rx_ring_size: u32,
@@ -479,7 +513,7 @@ impl NIC {
                 );
             }
             packet.end = packet.start + len;
-            self.chunk_pool.borrow_mut().push(src.private as u64);
+            self.umem_rc.borrow_mut().chunk_pool.borrow_mut().push(src.private as u64);
             Some(packet)
         } else {
             println!("Failed to add packet to NIC.");
@@ -499,44 +533,21 @@ impl NIC {
         0
     }
 
-    pub fn send(&mut self, packets: &mut Vec<Packet>) -> u32 {
-        let _ = self.umem_rc.borrow_mut().fill(packets.len());
-
-        /* reserve TX ring as much as batch_size before sending packets. */
-        let tx_idx: u32 = 0;
-        let reserved = self.umem_rc.borrow_mut().reserve(packets.len()).unwrap().count;
-
-        /* send packets if reservation of slots in TX ring is same as batch_size */
-        for i in 0..reserved {
-            let pkt = &packets[i as usize];
-            /* insert packets to be send into TX ring (Enqueue) */
-            let tx_desc_ptr = unsafe { xsk_ring_prod__tx_desc(&mut self.tx, tx_idx + i) };
-            unsafe {
-                let tx_desc = tx_desc_ptr.as_mut().unwrap();
-                tx_desc.addr = pkt.private as u64 + pkt.start as u64;
-                tx_desc.len = (pkt.end - pkt.start) as u32;
-            }
-        }
-        packets.drain(0..reserved as usize); // remove packets which have been sent from packets vector
-
-        unsafe {
-            xsk_ring_prod__submit(&mut self.tx, reserved); // notify kernel of enqueuing TX ring as much as reserved.
-
-            if xsk_ring_prod__needs_wakeup(&self.tx) != 0 {
-                libc::sendto(
-                    xsk_socket__fd(self.xsk),
-                    std::ptr::null::<libc::c_void>(),
-                    0 as libc::size_t,
-                    libc::MSG_DONTWAIT,
-                    std::ptr::null::<libc::sockaddr>(),
-                    0 as libc::socklen_t,
-                ); // interrupt kernel to send packets.
-            }
-        }
-
-        reserved
+    /// Send packets using NIC
+    /// # Arguments
+    /// * `packets` - Packets to send
+    /// Sent packets are removed from the vector.
+    /// # Returns
+    /// Number of packets sent
+    pub fn send(&mut self, packets: &mut Vec<Packet>) -> usize {
+        self.umem_rc.borrow_mut().send(packets, &self.xsk, &mut self.tx)
     }
 
+    /// Receive packets using NIC
+    /// # Arguments
+    /// * `len` - Number of packets to receive
+    /// # Returns
+    /// Received packets
     pub fn receive(&mut self, len: usize) -> Vec<Packet> {
         self.umem_rc.borrow_mut().recv(len, &self.xsk, &mut self.rx)
     }
