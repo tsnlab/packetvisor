@@ -55,17 +55,16 @@ pub struct NIC {
     xsk: *mut xsk_socket,
 
     umem_rc: Rc<RefCell<Umem>>,
-    umem: *mut xsk_umem,
-    buffer: *mut c_void,
-    chunk_size: usize,
-
     chunk_pool: Rc<RefCell<ChunkPool>>,
 
     /* XSK rings */
-    fq: xsk_ring_prod,
     rx: xsk_ring_cons,
-    cq: xsk_ring_cons,
     tx: xsk_ring_prod,
+}
+
+pub struct ReservedResult {
+    pub count: u32,
+    pub idx: u32,
 }
 
 impl ChunkPool {
@@ -302,6 +301,98 @@ impl Umem {
             }
         }
     }
+
+    fn reserve(&mut self, len: usize) -> Result<ReservedResult, String> {
+        let mut idx = 0;
+        let reserved = unsafe {
+            xsk_ring_prod__reserve(&mut self.fq, len as u32, &mut idx)
+        };
+
+        // Allocate UMEM chunks into fq
+        for i in 0..reserved {
+            unsafe {
+                *xsk_ring_prod__fill_addr(&mut self.fq, idx + i) = self.alloc_idx();
+            }
+        }
+
+        // Notify kernel of allocation UMEM chunks into fq as much as **reserved
+        unsafe {
+            xsk_ring_prod__submit(&mut self.fq, reserved);
+        }
+
+        Ok(ReservedResult {
+            count: reserved,
+            idx,
+        })
+    }
+
+    /// Free packet metadata and UMEM chunks as much as the # of filled slots in CQ
+    fn fill(&mut self, len: usize) -> Result<u32, String> {
+        let mut cq_idx = 0;
+        let filled = unsafe {
+            // Fetch the number of filled slots(the # of packets completely sent) in cq
+            xsk_ring_cons__peek(&mut self.cq, len as u32, &mut cq_idx)
+        };
+        if filled > 0 {
+            // Notify kernel that cq has empty slots with **filled (Dequeue)
+            unsafe {
+                xsk_ring_cons__release(&mut self.cq, filled);
+            }
+        }
+
+        Ok(filled)
+    }
+
+    fn recv(&mut self, len: usize, xsk: &*mut xsk_socket, rx: &mut xsk_ring_cons) -> Vec<Packet> {
+        if self.reserve(len).is_err() {
+            // Pass
+        };
+        let mut packets = Vec::<Packet>::with_capacity(len);
+
+        let mut rx_idx = 0;
+        let received = unsafe {
+            xsk_ring_cons__peek(rx, len as u32, &mut rx_idx)
+        };
+
+        for i in 0..received {
+            let mut packet = Packet::new(&self.chunk_pool);
+            let rx_desc_ptr = unsafe {
+                xsk_ring_cons__rx_desc(&*rx, rx_idx + i)
+            };
+            packet.start = DEFAULT_HEADROOM;
+            packet.end = DEFAULT_HEADROOM + unsafe { rx_desc_ptr.as_ref().unwrap().len as usize };
+            packet.buffer_size = self.chunk_size;
+            packet.buffer = unsafe {
+                xsk_umem__get_data(self.buffer, rx_desc_ptr.as_ref().unwrap().addr)
+                    .cast::<u8>()
+                    .sub(DEFAULT_HEADROOM)
+            };
+            packet.private = unsafe {
+                (rx_desc_ptr.as_ref().unwrap().addr - DEFAULT_HEADROOM as u64) as *mut c_void
+            };
+
+            packets.push(packet);
+        }
+
+        unsafe {
+            xsk_ring_cons__release(rx, received);
+        }
+
+        unsafe {
+            if xsk_ring_prod__needs_wakeup(&self.fq) != 0 {
+                libc::recvfrom(
+                    xsk_socket__fd(*xsk),
+                    std::ptr::null_mut::<libc::c_void>(),
+                    0 as libc::size_t,
+                    libc::MSG_DONTWAIT,
+                    std::ptr::null_mut::<libc::sockaddr>(),
+                    std::ptr::null_mut::<u32>(),
+                );
+            }
+        }
+
+        packets
+    }
 }
 
 impl NIC {
@@ -317,10 +408,7 @@ impl NIC {
             .ok_or(format!("Interface {} not found.", if_name))?;
 
         let xsk_ptr = alloc_zeroed_layout::<xsk_socket>()?;
-        let umem_ptr = alloc_zeroed_layout::<xsk_umem>()?;
-        let fq_ptr = alloc_zeroed_layout::<xsk_ring_prod>()?;
         let rx_ptr = alloc_zeroed_layout::<xsk_ring_cons>()?;
-        let cq_ptr = alloc_zeroed_layout::<xsk_ring_cons>()?;
         let tx_ptr = alloc_zeroed_layout::<xsk_ring_prod>()?;
 
         let nic: NIC = unsafe {
@@ -328,16 +416,11 @@ impl NIC {
                 interface: interface.clone(),
                 xsk: xsk_ptr.cast::<xsk_socket>(),
                 umem_rc,
-                umem: umem_ptr.cast::<xsk_umem>(), // umem is needed to be dealloc after using packetvisor library.
-                buffer: std::ptr::null_mut(),
-                chunk_size: set_chunk_size,
                 chunk_pool: Rc::new(RefCell::new(ChunkPool::new(
                     set_chunk_size,
                     set_chunk_count,
                 ))),
-                fq: std::ptr::read(fq_ptr.cast::<xsk_ring_prod>()),
                 rx: std::ptr::read(rx_ptr.cast::<xsk_ring_cons>()),
-                cq: std::ptr::read(cq_ptr.cast::<xsk_ring_cons>()),
                 tx: std::ptr::read(tx_ptr.cast::<xsk_ring_prod>()),
             }
         };
@@ -369,7 +452,7 @@ impl NIC {
                 if_ptr,
                 // self.interface.name.as_ptr().clone() as *const c_char,
                 0,
-                self.umem,
+                self.umem_rc.borrow_mut().umem,
                 &mut self.rx,
                 &mut self.tx,
                 &xsk_cfg,
@@ -404,89 +487,12 @@ impl NIC {
         }
     }
 
-    fn alloc_idx(&mut self) -> u64 {
-        self.chunk_pool.borrow_mut().pop()
-    }
-
     pub fn alloc(&mut self) -> Option<Packet> {
-        let idx: u64 = self.alloc_idx();
-
-        match idx {
-            u64::MAX => None,
-            _ => {
-                let mut packet: Packet = Packet::new(&self.chunk_pool);
-                packet.start = DEFAULT_HEADROOM;
-                packet.end = DEFAULT_HEADROOM;
-                packet.buffer_size = self.chunk_size;
-                packet.buffer = unsafe { xsk_umem__get_data(self.buffer, idx).cast::<u8>() };
-                packet.private = idx as *mut c_void;
-
-                Some(packet)
-            }
-        }
+        self.umem_rc.borrow_mut().alloc()
     }
 
     #[deprecated(note = "Free does nothing now. Packet is automatically freed when it is dropped.")]
     pub fn free(&mut self, _packet: &Packet) {}
-
-    fn configure_umem(
-        &mut self,
-        set_chunk_size: usize,
-        set_chunk_count: usize,
-        set_fill_size: u32,
-        set_complete_size: u32,
-    ) -> Result<(), i32> {
-        let umem_buffer_size: usize = set_chunk_count * set_chunk_size; // chunk_count is UMEM size.
-
-        /* Reserve memory for the UMEM. */
-        let mmap_address = unsafe {
-            libc::mmap(
-                std::ptr::null_mut::<libc::c_void>(),
-                umem_buffer_size,
-                libc::PROT_READ | libc::PROT_WRITE,
-                libc::MAP_PRIVATE | libc::MAP_ANONYMOUS,
-                -1,
-                0,
-            )
-        };
-
-        if mmap_address == libc::MAP_FAILED {
-            return Err(-1);
-        }
-
-        /* create UMEM, filling ring, completion ring for xsk */
-        let umem_cfg: xsk_umem_config = xsk_umem_config {
-            // ring sizes aren't usually over 1024
-            fill_size: set_fill_size,
-            comp_size: set_complete_size,
-            frame_size: set_chunk_size as u32,
-            frame_headroom: XSK_UMEM__DEFAULT_FRAME_HEADROOM,
-            flags: XSK_UMEM__DEFAULT_FLAGS,
-        };
-
-        let ret: c_int = unsafe {
-            xsk_umem__create(
-                &mut self.umem,
-                mmap_address,
-                umem_buffer_size as u64,
-                &mut self.fq,
-                &mut self.cq,
-                &umem_cfg,
-            )
-        };
-        match ret {
-            0 => {
-                self.buffer = mmap_address;
-                Ok(())
-            }
-            _ => {
-                unsafe {
-                    libc::munmap(mmap_address, umem_buffer_size);
-                }
-                Err(ret)
-            }
-        }
-    }
 
     #[deprecated(note = "Close does nothing now. Socket is automatically closed when it is dropped.")]
     pub fn close(self) -> c_int {
@@ -494,41 +500,11 @@ impl NIC {
     }
 
     pub fn send(&mut self, packets: &mut Vec<Packet>) -> u32 {
-        /* free packet metadata and UMEM chunks as much as the number of filled slots in cq. */
-        let mut cq_idx: u32 = 0;
-        let filled: u32 =
-            unsafe { xsk_ring_cons__peek(&mut self.cq, packets.len() as u32, &mut cq_idx) }; // fetch the number of filled slots(the number of packets completely sent) in cq
-
-        if filled > 0 {
-            unsafe {
-                xsk_ring_cons__release(&mut self.cq, filled);
-            } // notify kernel that cq has empty slots with **filled (Dequeue)
-        }
+        let _ = self.umem_rc.borrow_mut().fill(packets.len());
 
         /* reserve TX ring as much as batch_size before sending packets. */
-        let mut tx_idx: u32 = 0;
-        let reserved: u32 =
-            unsafe { xsk_ring_prod__reserve(&mut self.tx, packets.len() as u32, &mut tx_idx) };
-
-        /* If reservation of slots in TX ring is not sufficient, Don't send them and return 0. */
-        if reserved < packets.len() as u32 {
-            /* in case that kernel lost interrupt signal in the previous sending packets procedure,
-            repeat to interrupt kernel to send packets which ketnel could have still held.
-            (this procedure is for clearing filled slots in cq, so that cq can be reserved as much as **batch_size in the next execution of pv_send(). */
-            unsafe {
-                if xsk_ring_prod__needs_wakeup(&self.tx) != 0 {
-                    libc::sendto(
-                        xsk_socket__fd(self.xsk),
-                        std::ptr::null::<libc::c_void>(),
-                        0 as libc::size_t,
-                        libc::MSG_DONTWAIT,
-                        std::ptr::null::<libc::sockaddr>(),
-                        0 as libc::socklen_t,
-                    );
-                }
-            }
-            return 0;
-        }
+        let tx_idx: u32 = 0;
+        let reserved = self.umem_rc.borrow_mut().reserve(packets.len()).unwrap().count;
 
         /* send packets if reservation of slots in TX ring is same as batch_size */
         for i in 0..reserved {
@@ -561,75 +537,8 @@ impl NIC {
         reserved
     }
 
-    pub fn receive(&mut self, packets: &mut Vec<Packet>) -> u32 {
-        /* pre-allocate UMEM chunks into fq as much as **batch_size to receive packets */
-        let mut fq_idx: u32 = 0;
-        let reserved: u32 =
-            unsafe { xsk_ring_prod__reserve(&mut self.fq, packets.capacity() as u32, &mut fq_idx) }; // reserve slots in fq as much as **batch_size.
-
-        for i in 0..reserved {
-            unsafe {
-                *xsk_ring_prod__fill_addr(&mut self.fq, fq_idx + i) = self.alloc_idx();
-            } // allocate UMEM chunks into fq.
-        }
-        unsafe {
-            xsk_ring_prod__submit(&mut self.fq, reserved);
-        } // notify kernel of allocating UMEM chunks into fq as much as **reserved.
-
-        /* save packet metadata from received packets in RX ring. */
-        let mut rx_idx: u32 = 0;
-        let mut received: u32 =
-            unsafe { xsk_ring_cons__peek(&mut self.rx, packets.capacity() as u32, &mut rx_idx) }; // fetch the number of received packets in RX ring.
-
-        if received > 0 {
-            let mut metadata_count: u32 = 0;
-            while metadata_count < received {
-                /* create packet metadata */
-                packets.push(Packet::new(&self.chunk_pool));
-                let rx_desc_ptr: *const xdp_desc =
-                    unsafe { xsk_ring_cons__rx_desc(&self.rx, rx_idx + metadata_count) }; // bringing information(packet address, packet length) of received packets through descriptors in RX ring
-
-                /* save metadata */
-                packets[metadata_count as usize].start = DEFAULT_HEADROOM;
-                packets[metadata_count as usize].end =
-                    DEFAULT_HEADROOM + unsafe { rx_desc_ptr.as_ref().unwrap().len as usize };
-                packets[metadata_count as usize].buffer_size = self.chunk_size;
-                packets[metadata_count as usize].buffer = unsafe {
-                    xsk_umem__get_data(self.buffer, rx_desc_ptr.as_ref().unwrap().addr)
-                        .cast::<u8>()
-                        .sub(DEFAULT_HEADROOM)
-                };
-                packets[metadata_count as usize].private = unsafe {
-                    (rx_desc_ptr.as_ref().unwrap().addr - DEFAULT_HEADROOM as u64) as *mut c_void
-                };
-
-                // packet_dump(&packets[metadata_count as usize]);
-                metadata_count += 1;
-            }
-
-            unsafe {
-                xsk_ring_cons__release(&mut self.rx, received);
-            } // notify kernel of using filled slots in RX ring as much as **received
-
-            if metadata_count != received {
-                received = metadata_count;
-            }
-        }
-
-        unsafe {
-            if xsk_ring_prod__needs_wakeup(&self.fq) != 0 {
-                libc::recvfrom(
-                    xsk_socket__fd(self.xsk),
-                    std::ptr::null_mut::<libc::c_void>(),
-                    0 as libc::size_t,
-                    libc::MSG_DONTWAIT,
-                    std::ptr::null_mut::<libc::sockaddr>(),
-                    std::ptr::null_mut::<u32>(),
-                );
-            }
-        }
-
-        received
+    pub fn receive(&mut self, len: usize) -> Vec<Packet> {
+        self.umem_rc.borrow_mut().recv(len, &self.xsk, &mut self.rx)
     }
 }
 
@@ -641,8 +550,11 @@ impl Drop for NIC {
         unsafe {
             xsk_socket__delete(self.xsk);
         }
+    }
+}
 
-        // TODO: Not free umem
+impl Drop for Umem {
+    fn drop(&mut self) {
         // Free UMEM
         let ret: c_int = unsafe { xsk_umem__delete(self.umem) };
         if ret != 0 {
