@@ -38,7 +38,7 @@ pub struct Packet {
 #[derive(Debug)]
 pub struct Umem {
     chunk_count: usize, // TODO: getter
-    chunk_size: usize, // TODO: getter
+    chunk_size: usize,  // TODO: getter
 
     umem: *mut xsk_umem,
     buffer: *mut c_void,
@@ -192,18 +192,17 @@ impl Umem {
         let fq_ptr = alloc_zeroed_layout::<xsk_ring_prod>()?;
         let cq_ptr = alloc_zeroed_layout::<xsk_ring_cons>()?;
 
-        let mut obj = unsafe { Self {
-            umem: umem_ptr.cast::<xsk_umem>(), // umem is needed to be dealloc after using packetvisor library.
-            buffer: std::ptr::null_mut(), // Initialized later
-            chunk_count,
-            chunk_size,
-            chunk_pool: Rc::new(RefCell::new(ChunkPool::new(
-                chunk_size,
+        let mut obj = unsafe {
+            Self {
+                umem: umem_ptr.cast::<xsk_umem>(), // umem is needed to be dealloc after using packetvisor library.
+                buffer: std::ptr::null_mut(),      // Initialized later
                 chunk_count,
-            ))),
-            fq: std::ptr::read(fq_ptr.cast::<xsk_ring_prod>()),
-            cq: std::ptr::read(cq_ptr.cast::<xsk_ring_cons>()),
-        } };
+                chunk_size,
+                chunk_pool: Rc::new(RefCell::new(ChunkPool::new(chunk_size, chunk_count))),
+                fq: std::ptr::read(fq_ptr.cast::<xsk_ring_prod>()),
+                cq: std::ptr::read(cq_ptr.cast::<xsk_ring_cons>()),
+            }
+        };
 
         obj.initialize_umem(fq_size, cq_size)?;
 
@@ -249,7 +248,7 @@ impl Umem {
                 libc::PROT_READ | libc::PROT_WRITE,
                 libc::MAP_PRIVATE | libc::MAP_ANONYMOUS,
                 -1, // fd
-                0, // offset
+                0,  // offset
             )
         };
         if mmap_address == libc::MAP_FAILED {
@@ -313,9 +312,7 @@ impl Umem {
     /// Reserve packet metadata and UMEM chunks as much as **len
     fn reserve(&mut self, len: usize) -> Result<ReservedResult, String> {
         let mut idx = 0;
-        let reserved = unsafe {
-            xsk_ring_prod__reserve(&mut self.fq, len as u32, &mut idx)
-        };
+        let reserved = unsafe { xsk_ring_prod__reserve(&mut self.fq, len as u32, &mut idx) };
 
         // Allocate UMEM chunks into fq
         for i in 0..reserved {
@@ -359,15 +356,11 @@ impl Umem {
         let mut packets = Vec::<Packet>::with_capacity(len);
 
         let mut rx_idx = 0;
-        let received = unsafe {
-            xsk_ring_cons__peek(rx, len as u32, &mut rx_idx)
-        };
+        let received = unsafe { xsk_ring_cons__peek(rx, len as u32, &mut rx_idx) };
 
         for i in 0..received {
             let mut packet = Packet::new(&self.chunk_pool);
-            let rx_desc_ptr = unsafe {
-                xsk_ring_cons__rx_desc(&*rx, rx_idx + i)
-            };
+            let rx_desc_ptr = unsafe { xsk_ring_cons__rx_desc(&*rx, rx_idx + i) };
             packet.start = DEFAULT_HEADROOM;
             packet.end = DEFAULT_HEADROOM + unsafe { rx_desc_ptr.as_ref().unwrap().len as usize };
             packet.buffer_size = self.chunk_size;
@@ -403,7 +396,12 @@ impl Umem {
         packets
     }
 
-    fn send(&mut self, packets: &mut Vec<Packet>, xsk: &*mut xsk_socket, tx: &mut xsk_ring_prod) -> usize {
+    fn send(
+        &mut self,
+        packets: &mut Vec<Packet>,
+        xsk: &*mut xsk_socket,
+        tx: &mut xsk_ring_prod,
+    ) -> usize {
         let _filled = self.fill(packets.len()).unwrap();
         let reserved = self.reserve(packets.len()).unwrap();
 
@@ -411,9 +409,7 @@ impl Umem {
 
         for (i, pkt) in packets.iter().enumerate().take(reserved.count as usize) {
             // Insert packets to be sent into the TX ring (Enqueue)
-            let tx_desc_ptr = unsafe {
-                xsk_ring_prod__tx_desc(tx, reserved.idx + i as u32)
-            };
+            let tx_desc_ptr = unsafe { xsk_ring_prod__tx_desc(tx, reserved.idx + i as u32) };
             unsafe {
                 let tx_desc = tx_desc_ptr.as_mut().unwrap();
                 tx_desc.addr = pkt.private as u64 + pkt.start as u64;
@@ -471,12 +467,7 @@ impl NIC {
         Ok(nic)
     }
 
-    fn open(
-        &mut self,
-        rx_ring_size: usize,
-        tx_ring_size: usize,
-    ) -> Result<(), String> {
-
+    fn open(&mut self, rx_ring_size: usize, tx_ring_size: usize) -> Result<(), String> {
         /* setting xsk, RX ring, TX ring configuration */
         let xsk_cfg: xsk_socket_config = xsk_socket_config {
             rx_size: rx_ring_size.try_into().unwrap(),
@@ -527,7 +518,11 @@ impl NIC {
                 );
             }
             packet.end = packet.start + len;
-            self.umem_rc.borrow_mut().chunk_pool.borrow_mut().push(src.private as u64);
+            self.umem_rc
+                .borrow_mut()
+                .chunk_pool
+                .borrow_mut()
+                .push(src.private as u64);
             Some(packet)
         } else {
             println!("Failed to add packet to NIC.");
@@ -547,7 +542,9 @@ impl NIC {
     /// # Returns
     /// Number of packets sent
     pub fn send(&mut self, packets: &mut Vec<Packet>) -> usize {
-        self.umem_rc.borrow_mut().send(packets, &self.xsk, &mut self.tx)
+        self.umem_rc
+            .borrow_mut()
+            .send(packets, &self.xsk, &mut self.tx)
     }
 
     /// Receive packets using NIC
