@@ -441,7 +441,7 @@ impl Umem {
 impl NIC {
     pub fn new(
         if_name: &str,
-        umem_rc: Rc<RefCell<Umem>>,
+        umem_rc: &Rc<RefCell<Umem>>,
         tx_size: usize,
         rx_size: usize,
     ) -> Result<NIC, String> {
@@ -458,7 +458,7 @@ impl NIC {
             NIC {
                 interface: interface.clone(),
                 xsk: xsk_ptr.cast::<xsk_socket>(),
-                umem_rc,
+                umem_rc: umem_rc.clone(),
                 rx: std::ptr::read(rx_ptr.cast::<xsk_ring_cons>()),
                 tx: std::ptr::read(tx_ptr.cast::<xsk_ring_prod>()),
             }
