@@ -309,7 +309,7 @@ impl Umem {
         }
     }
 
-    /// Reserve packet metadata and UMEM chunks as much as **len
+    /// Reserve FQ and UMEM chunks as much as **len
     fn reserve(&mut self, len: usize) -> Result<ReservedResult, String> {
         let mut idx = 0;
         let reserved = unsafe { xsk_ring_prod__reserve(&mut self.fq, len as u32, &mut idx) };
@@ -333,7 +333,7 @@ impl Umem {
     }
 
     /// Free packet metadata and UMEM chunks as much as the # of filled slots in CQ
-    fn fill(&mut self, len: usize) -> Result<u32, String> {
+    fn release(&mut self, len: usize) -> Result<u32, String> {
         let mut cq_idx = 0;
         let filled = unsafe {
             // Fetch the number of filled slots(the # of packets completely sent) in cq
@@ -402,15 +402,15 @@ impl Umem {
         xsk: &*mut xsk_socket,
         tx: &mut xsk_ring_prod,
     ) -> usize {
-        let _filled = self.fill(packets.len()).unwrap();
+        let _released = self.release(packets.len()).unwrap();
         let reserved = self.reserve(packets.len()).unwrap();
 
         // println!("reserved: {}, {}", reserved.count, reserved.idx);
 
         for (i, pkt) in packets.iter().enumerate().take(reserved.count as usize) {
             // Insert packets to be sent into the TX ring (Enqueue)
-            let tx_desc_ptr = unsafe { xsk_ring_prod__tx_desc(tx, reserved.idx + i as u32) };
             unsafe {
+                let tx_desc_ptr = xsk_ring_prod__tx_desc(tx, reserved.idx + i as u32);
                 let tx_desc = tx_desc_ptr.as_mut().unwrap();
                 tx_desc.addr = pkt.private as u64 + pkt.start as u64;
                 tx_desc.len = (pkt.end - pkt.start) as u32;
