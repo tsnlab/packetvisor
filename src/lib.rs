@@ -446,6 +446,7 @@ impl NIC {
         umem_rc: &Rc<RefCell<Umem>>,
         tx_size: usize,
         rx_size: usize,
+        shared_umem: bool,
     ) -> Result<NIC, String> {
         let interface = interfaces()
             .into_iter()
@@ -475,7 +476,7 @@ impl NIC {
         }
     }
 
-    fn open(&mut self, rx_ring_size: usize, tx_ring_size: usize) -> Result<(), String> {
+    fn open(&mut self, rx_ring_size: usize, tx_ring_size: usize, shared_umem: bool) -> Result<(), String> {
         /* setting xsk, RX ring, TX ring configuration */
         let xsk_cfg: xsk_socket_config = xsk_socket_config {
             rx_size: rx_ring_size.try_into().unwrap(),
@@ -489,17 +490,33 @@ impl NIC {
         let if_name = CString::new(self.interface.name.clone()).unwrap();
         let if_ptr = if_name.as_ptr() as *const c_char;
         /* create xsk socket */
+        let mut umem = self.umem_rc.borrow_mut();
         let ret: c_int = unsafe {
-            xsk_socket__create(
-                &mut self.xsk,
-                if_ptr,
-                // self.interface.name.as_ptr().clone() as *const c_char,
-                0,
-                self.umem_rc.borrow_mut().umem,
-                &mut self.rx,
-                &mut self.tx,
-                &xsk_cfg,
-            )
+            if shared_umem {
+                xsk_socket__create_shared(
+                    &mut self.xsk,
+                    if_ptr,
+                    // self.interface.name.as_ptr().clone() as *const c_char,
+                    0,
+                    umem.umem,
+                    &mut self.rx,
+                    &mut self.tx,
+                    &mut umem.fq,
+                    &mut umem.cq,
+                    &xsk_cfg,
+                )
+            } else {
+                xsk_socket__create(
+                    &mut self.xsk,
+                    if_ptr,
+                    // self.interface.name.as_ptr().clone() as *const c_char,
+                    0,
+                    umem.umem,
+                    &mut self.rx,
+                    &mut self.tx,
+                    &xsk_cfg,
+                )
+            }
         };
         if ret != 0 {
             let msg = unsafe {
