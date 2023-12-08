@@ -12,9 +12,11 @@ use core::ffi::*;
 use pnet::datalink::{interfaces, NetworkInterface};
 use std::alloc::{alloc_zeroed, Layout};
 use std::cell::RefCell;
-use std::ffi::CString;
+use std::ffi::{CStr, CString};
 use std::ptr::copy;
 use std::rc::Rc;
+
+use libc::strerror;
 
 const DEFAULT_HEADROOM: usize = 256;
 
@@ -463,8 +465,14 @@ impl NIC {
                 tx: std::ptr::read(tx_ptr.cast::<xsk_ring_prod>()),
             }
         };
-        nic.open(tx_size, rx_size)?;
-        Ok(nic)
+        match NIC::open(&mut nic, tx_size, rx_size, shared_umem) {
+            Ok(_) => Ok(nic),
+            Err(e) => {
+                // FIXME: Print here is fine. But segfault happened when printing in the caller.
+                eprintln!("Failed to open NIC: {}", e);
+                Err(e)
+            }
+        }
     }
 
     fn open(&mut self, rx_ring_size: usize, tx_ring_size: usize) -> Result<(), String> {
@@ -494,9 +502,13 @@ impl NIC {
             )
         };
         if ret != 0 {
+            let msg = unsafe {
+                CStr::from_ptr(strerror(-ret)).to_string_lossy().into_owned()
+            };
+            let message = format!("Error: {}", msg);
             return Err(format!(
                 "xsk_socket__create failed: {}",
-                std::io::Error::last_os_error()
+                message
             ));
         }
         Ok(())
@@ -525,7 +537,7 @@ impl NIC {
                 .push(src.private as u64);
             Some(packet)
         } else {
-            println!("Failed to add packet to NIC.");
+            eprintln!("Failed to add packet to NIC.");
             None
         }
     }
