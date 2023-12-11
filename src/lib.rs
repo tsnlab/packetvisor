@@ -18,6 +18,11 @@ use std::rc::Rc;
 
 const DEFAULT_HEADROOM: usize = 256;
 
+pub enum XdpMode {
+    NativeMode,
+    GenericMode,
+}
+
 #[derive(Debug)]
 pub struct ChunkPool {
     chunk_size: usize,
@@ -373,6 +378,7 @@ impl NIC {
         tx_ring_size: u32,
         filling_ring_size: u32,
         completion_ring_size: u32,
+        xdp_mode: XdpMode,
     ) -> Result<(), String> {
         /* initialize UMEM chunk information */
         let capacity = self.chunk_pool.borrow().capacity();
@@ -409,17 +415,23 @@ impl NIC {
         } // notify kernel of allocating UMEM chunks into fq as much as **reserved.
 
         /* setting xsk, RX ring, TX ring configuration */
-        let xsk_cfg: xsk_socket_config = xsk_socket_config {
+        let mut xsk_cfg: xsk_socket_config = xsk_socket_config {
             rx_size: rx_ring_size,
             tx_size: tx_ring_size,
             /* zero means loading default XDP program.
             if you need to load other XDP program, set 1 on this flag and use xdp_program__open_file(), xdp_program__attach() in libxdp. */
             __bindgen_anon_1: xsk_socket_config__bindgen_ty_1 { libxdp_flags: 0 },
-            xdp_flags: XDP_FLAGS_DRV_MODE,
+            xdp_flags: 0, // This field is currently not initialized here.
             bind_flags: XDP_USE_NEED_WAKEUP as u16,
         };
         let if_name = CString::new(self.interface.name.clone()).unwrap();
         let if_ptr = if_name.as_ptr() as *const c_char;
+
+        xsk_cfg.xdp_flags = match xdp_mode {
+            XdpMode::NativeMode => XDP_FLAGS_DRV_MODE,
+            _ => XDP_FLAGS_SKB_MODE,
+        };
+
         /* create xsk socket */
         let ret: c_int = unsafe {
             xsk_socket__create(
