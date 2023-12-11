@@ -79,6 +79,7 @@ fn main() {
         tx_ring_size,
         filling_ring_size,
         completion_ring_size,
+        pv::XdpMode::GenericMode,
     )
     .unwrap();
     let mut nic2 = pv::NIC::new(&name2, chunk_size, chunk_count).unwrap();
@@ -87,6 +88,7 @@ fn main() {
         tx_ring_size,
         filling_ring_size,
         completion_ring_size,
+        pv::XdpMode::GenericMode,
     )
     .unwrap();
 

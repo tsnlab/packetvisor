@@ -35,6 +35,7 @@ fn main() {
         TX_RING_SIZE,
         FILLING_RING_SIZE,
         COMPLETION_RING_SIZE,
+        pv::XdpMode::GenericMode,
     ) {
         Ok(_) => {}
         Err(error) => println!("Failed to open ethernet interface.\nError: {error}"),

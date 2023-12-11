@@ -112,13 +112,17 @@ fn main() {
     }
 
     let mut nic = pv::NIC::new(&if_name, chunk_size, chunk_count).unwrap();
-    nic.open(
+    match nic.open(
         rx_ring_size,
         tx_ring_size,
         filling_ring_size,
         completion_ring_size,
-    )
-    .unwrap();
+        pv::XdpMode::GenericMode,
+    ) {
+        Ok(_) => {}
+        Err(_) => std::process::exit(1),
+    };
+
     /* initialize rx_batch_size and packet metadata */
     let rx_batch_size: u32 = 64;
     let mut packets: Vec<pv::Packet> = Vec::with_capacity(rx_batch_size as usize);
