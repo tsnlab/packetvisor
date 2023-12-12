@@ -117,7 +117,6 @@ fn main() {
         tx_ring_size,
         filling_ring_size,
         completion_ring_size,
-        pv::XdpMode::GenericMode,
     ) {
         Ok(_) => {}
         Err(_) => std::process::exit(1),
