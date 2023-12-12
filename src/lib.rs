@@ -205,7 +205,7 @@ impl ChunkPool {
         let _released = self.release(packets.len()).unwrap();
         let reserved = self.reserve(packets.len()).unwrap();
 
-        // println!("reserved: {}, {}", reserved.count, reserved.idx);
+        println!("reserved: {}, {}", reserved.count, reserved.idx);
 
         for (i, pkt) in packets.iter().enumerate().take(reserved.count as usize) {
             // Insert packets to be sent into the TX ring (Enqueue)
@@ -217,7 +217,7 @@ impl ChunkPool {
             }
         }
 
-        packets.drain(0..reserved.count as usize);
+        // packets.drain(0..reserved.count as usize);
 
         unsafe {
             xsk_ring_prod__submit(&mut *tx, reserved.count);
@@ -551,9 +551,12 @@ impl Nic {
     /// # Returns
     /// Number of packets sent
     pub fn send(&mut self, packets: &mut Vec<Packet>) -> usize {
-        self.chunk_pool
+        let sent_count = self.chunk_pool
             .borrow_mut()
-            .send(packets, &self.xsk, &mut self.tx)
+            .send(packets, &self.xsk, &mut self.tx);
+        packets.drain(0..sent_count);
+
+        sent_count
     }
 
     /// Receive packets using NIC
