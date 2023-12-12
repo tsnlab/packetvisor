@@ -504,6 +504,7 @@ impl Nic {
         let if_name = CString::new(self.interface.name.clone()).unwrap();
         let if_ptr = if_name.as_ptr() as *const c_char;
         /* create xsk socket */
+        let mut chunk_pool = pool.chunk_pool.borrow_mut();
         let ret: c_int = unsafe {
             if pool.is_shared() {
                 xsk_socket__create_shared(
@@ -514,8 +515,8 @@ impl Nic {
                     pool.umem,
                     &mut self.rx,
                     &mut self.tx,
-                    &mut pool.chunk_pool.borrow_mut().fq,
-                    &mut pool.chunk_pool.borrow_mut().cq,
+                    &mut chunk_pool.fq,
+                    &mut chunk_pool.cq,
                     &xsk_cfg,
                 )
             } else {
