@@ -49,6 +49,7 @@ fn main() {
                 .required(false)
                 .default_value("64"),
         )
+        .arg(arg!(dump: -d --dump "Dump packets").required(false))
         .get_matches();
 
     let name1 = matches.get_one::<String>("nic1").unwrap().clone();
@@ -59,6 +60,7 @@ fn main() {
     let tx_ring_size = *matches.get_one::<usize>("tx_ring_size").unwrap();
     let filling_ring_size = *matches.get_one::<usize>("fill_ring_size").unwrap();
     let completion_ring_size = *matches.get_one::<usize>("completion_ring_size").unwrap();
+    let dump = *matches.get_one::<bool>("dump").unwrap_or(&false);
 
     // Signal handlers
     let term: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
@@ -97,18 +99,18 @@ fn main() {
     };
 
     while !term.load(Ordering::Relaxed) {
-        let processed2 = forward(&mut nic2, &mut nic1);
-        let processed1 = forward(&mut nic1, &mut nic2);
+        let processed2 = forward(&mut nic2, &mut nic1, dump);
+        let processed1 = forward(&mut nic1, &mut nic2, dump);
 
-        if processed1 == 0 && processed2 == 0 {
+        if processed1 + processed2 == 0 {
             thread::sleep(Duration::from_millis(100));
-        } else {
+        } else if dump {
             println!("Processed {}, {} packets", processed1, processed2)
         }
     }
 }
 
-fn forward(nic1: &mut pv::Nic, nic2: &mut pv::Nic) -> usize {
+fn forward(nic1: &mut pv::Nic, nic2: &mut pv::Nic, dump: bool) -> usize {
     /* initialize rx_batch_size and packet metadata */
     let rx_batch_size = 64;
     let mut packets = nic1.receive(rx_batch_size);
@@ -118,8 +120,10 @@ fn forward(nic1: &mut pv::Nic, nic2: &mut pv::Nic) -> usize {
         return 0;
     }
 
-    for packet in packets.iter_mut() {
-        packet.dump();
+    if dump {
+        for packet in packets.iter_mut() {
+            packet.dump();
+        }
     }
 
     for retry in (0..3).rev() {
