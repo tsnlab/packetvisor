@@ -208,8 +208,6 @@ impl ChunkPool {
         self.release(self.cq_size).unwrap();
         let reserved = self.reserve_txq(tx, packets.len()).unwrap();
 
-        println!("reserved: {}, {}", reserved.count, reserved.idx);
-
         for (i, pkt) in packets.iter().enumerate().take(reserved.count as usize) {
             // Insert packets to be sent into the TX ring (Enqueue)
             let tx_desc = unsafe {
