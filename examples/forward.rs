@@ -75,23 +75,27 @@ fn main() {
         panic!("signal is forbidden");
     }
 
-    let umem_rc = pv::Pool::new(
+    let pool = match pv::Pool::new(
         chunk_size,
         chunk_count,
         filling_ring_size,
         completion_ring_size,
         true,
-    )
-    .expect("Failed to create umem");
+    ) {
+        Ok(pool) => pool,
+        Err(err) => {
+            panic!("Failed to create buffer pool: {}", err);
+        }
+    };
 
-    let mut nic1 = match pv::Nic::new(&name1, &umem_rc, tx_ring_size, rx_ring_size) {
+    let mut nic1 = match pv::Nic::new(&name1, &pool, tx_ring_size, rx_ring_size) {
         Ok(nic) => nic,
         Err(err) => {
             panic!("Failed to create NIC1: {}", err);
         }
     };
 
-    let mut nic2 = match pv::Nic::new(&name2, &umem_rc, tx_ring_size, rx_ring_size) {
+    let mut nic2 = match pv::Nic::new(&name2, &pool, tx_ring_size, rx_ring_size) {
         Ok(nic) => nic,
         Err(err) => {
             panic!("Failed to create NIC2: {}", err);
