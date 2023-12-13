@@ -385,7 +385,13 @@ impl Pool {
                 // Unmap first
                 libc::munmap(mmap_address, umem_buffer_size);
             }
-            return Err(format!("Failed to create UMEM: {}", -ret));
+            let msg = unsafe {
+                CStr::from_ptr(strerror(-ret))
+                    .to_string_lossy()
+                    .into_owned()
+            };
+            let message = format!("Error: {}", msg);
+            return Err(format!("Failed to create UMEM: {}", message));
         }
 
         let buffer_addr = mmap_address;
