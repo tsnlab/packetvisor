@@ -409,7 +409,7 @@ impl NIC {
         } // notify kernel of allocating UMEM chunks into fq as much as **reserved.
 
         /* setting xsk, RX ring, TX ring configuration */
-        let xsk_cfg: xsk_socket_config = xsk_socket_config {
+        let mut xsk_cfg: xsk_socket_config = xsk_socket_config {
             rx_size: rx_ring_size,
             tx_size: tx_ring_size,
             /* zero means loading default XDP program.
@@ -420,6 +420,7 @@ impl NIC {
         };
         let if_name = CString::new(self.interface.name.clone()).unwrap();
         let if_ptr = if_name.as_ptr() as *const c_char;
+
         /* create xsk socket */
         let ret: c_int = unsafe {
             xsk_socket__create(
@@ -433,11 +434,56 @@ impl NIC {
                 &xsk_cfg,
             )
         };
+
         if ret != 0 {
-            return Err(format!(
-                "xsk_socket__create failed: {}",
-                std::io::Error::last_os_error()
-            ));
+            /* If failed to create XSK socket with native(DRV) mode
+             * Then create XSK socket with generic(SKB) mode */
+            eprintln!(
+                "Failed to create XSK in native mode on '{}'",
+                self.interface.name
+            );
+            eprintln!(
+                "Falling back to XSK in generic mode on '{}'",
+                self.interface.name
+            );
+
+            /* Clear UMEM to retry XSK init */
+            unsafe { xsk_umem__delete(self.umem) };
+
+            /* Wait for UMEM to be completely clear */
+            std::thread::sleep(std::time::Duration::from_millis(100));
+
+            /* Retry UMEM init */
+            let ret = self.configure_umem(
+                self.chunk_size,
+                capacity,
+                filling_ring_size,
+                completion_ring_size,
+            );
+            if ret.is_err() {
+                return Err(format!("Failed to configure UMEM: {}", ret.unwrap_err()));
+            }
+
+            /* Retry XSK init */
+            xsk_cfg.xdp_flags = XDP_FLAGS_SKB_MODE; // Set XSK to generic mode
+            let ret: c_int = unsafe {
+                xsk_socket__create(
+                    &mut self.xsk,
+                    if_ptr,
+                    0,
+                    self.umem,
+                    &mut self.rx,
+                    &mut self.tx,
+                    &xsk_cfg,
+                )
+            };
+
+            if ret != 0 {
+                return Err(format!(
+                    "xsk_socket__create failed: {}",
+                    std::io::Error::last_os_error()
+                ));
+            }
         }
         Ok(())
     }

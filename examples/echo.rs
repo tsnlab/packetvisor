@@ -118,7 +118,8 @@ fn main() {
         filling_ring_size,
         completion_ring_size,
     )
-    .unwrap();
+    .expect("Cannot open NIC");
+
     /* initialize rx_batch_size and packet metadata */
     let rx_batch_size: u32 = 64;
     let mut packets: Vec<pv::Packet> = Vec::with_capacity(rx_batch_size as usize);
