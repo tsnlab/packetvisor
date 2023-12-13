@@ -390,14 +390,7 @@ impl Pool {
 
         let buffer_addr = mmap_address;
 
-        let chunk_pool = ChunkPool::new(
-            chunk_size,
-            chunk_count,
-            buffer_addr,
-            fq,
-            cq,
-            cq_size,
-        );
+        let chunk_pool = ChunkPool::new(chunk_size, chunk_count, buffer_addr, fq, cq, cq_size);
 
         let mut obj = Self {
             chunk_size,
