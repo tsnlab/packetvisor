@@ -438,13 +438,19 @@ impl NIC {
         if ret != 0 {
             /* If failed to create XSK socket with native(DRV) mode
              * Then create XSK socket with generic(SKB) mode */
-            println!("Failed to create native mode of XSK");
-            println!("Fallback to create generic mode of XSK");
+            eprintln!(
+                "Failed to create XSK in native mode on '{}'",
+                self.interface.name
+            );
+            eprintln!(
+                "Falling back to XSK in generic mode on '{}'",
+                self.interface.name
+            );
 
             /* Clear UMEM to retry XSK init */
             unsafe { xsk_umem__delete(self.umem) };
 
-            /* Sleep to completely clear UMEM */
+            /* Wait for UMEM to be completely clear */
             std::thread::sleep(std::time::Duration::from_millis(100));
 
             /* Retry UMEM init */
