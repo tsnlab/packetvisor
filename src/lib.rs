@@ -165,13 +165,14 @@ impl ChunkPool {
         xsk: &*mut xsk_socket,
         rx: &mut xsk_ring_cons,
     ) -> Vec<Packet> {
-        if self.reserve_fq(len).is_err() {
-            // Pass
-        };
         let mut packets = Vec::<Packet>::with_capacity(len);
 
         let mut rx_idx = 0;
         let received = unsafe { xsk_ring_cons__peek(rx, len as u32, &mut rx_idx) };
+
+        if received == 0 {
+            return packets;
+        }
 
         for i in 0..received {
             let mut packet = Packet::new(chunk_pool_rc);
@@ -193,18 +194,7 @@ impl ChunkPool {
             xsk_ring_cons__release(rx, received);
         }
 
-        unsafe {
-            if xsk_ring_prod__needs_wakeup(&self.fq) != 0 {
-                libc::recvfrom(
-                    xsk_socket__fd(*xsk),
-                    std::ptr::null_mut::<libc::c_void>(),
-                    0 as libc::size_t,
-                    libc::MSG_DONTWAIT,
-                    std::ptr::null_mut::<libc::sockaddr>(),
-                    std::ptr::null_mut::<u32>(),
-                );
-            }
-        }
+        self.reserve_fq(packets.len()).unwrap();
 
         packets
     }
