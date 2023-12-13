@@ -30,6 +30,7 @@ struct ChunkPool {
 
     fq: xsk_ring_prod, // Fill queue
     cq: xsk_ring_cons, // Completion queue
+    cq_size: usize,
 }
 
 #[derive(Debug)]
@@ -77,6 +78,7 @@ impl ChunkPool {
         buffer: *mut c_void,
         fq: xsk_ring_prod,
         cq: xsk_ring_cons,
+        cq_size: usize,
     ) -> Self {
         /* initialize UMEM chunk information */
         let pool = (0..chunk_count)
@@ -88,6 +90,7 @@ impl ChunkPool {
             buffer,
             fq,
             cq,
+            cq_size,
         }
     }
 
@@ -106,14 +109,15 @@ impl ChunkPool {
     }
 
     /// Reserve FQ and UMEM chunks as much as **len
-    fn reserve(&mut self, len: usize) -> Result<ReservedResult, &'static str> {
-        let mut idx = 0;
-        let reserved = unsafe { xsk_ring_prod__reserve(&mut self.fq, len as u32, &mut idx) };
+    fn reserve_fq(&mut self, len: usize) -> Result<usize, &'static str> {
+        let mut cq_idx = 0;
+
+        let reserved = unsafe { xsk_ring_prod__reserve(&mut self.fq, len as u32, &mut cq_idx) };
 
         // Allocate UMEM chunks into fq
         for i in 0..reserved {
             unsafe {
-                *xsk_ring_prod__fill_addr(&mut self.fq, idx + i) = self.alloc_addr()?;
+                *xsk_ring_prod__fill_addr(&mut self.fq, cq_idx + i) = self.alloc_addr()?;
             }
         }
 
@@ -122,27 +126,36 @@ impl ChunkPool {
             xsk_ring_prod__submit(&mut self.fq, reserved);
         }
 
-        Ok(ReservedResult {
-            count: reserved,
-            idx,
-        })
+        Ok(reserved.try_into().unwrap())
+    }
+
+    /// Reserve for txq
+    fn reserve_txq(
+        &mut self,
+        txq: &mut xsk_ring_prod,
+        len: usize,
+    ) -> Result<ReservedResult, &'static str> {
+        let mut idx = 0;
+        let count = unsafe { xsk_ring_prod__reserve(txq, len as u32, &mut idx) };
+
+        Ok(ReservedResult { count, idx })
     }
 
     /// Free packet metadata and UMEM chunks as much as the # of filled slots in CQ
     fn release(&mut self, len: usize) -> Result<u32, String> {
         let mut cq_idx = 0;
-        let filled = unsafe {
+        let count = unsafe {
             // Fetch the number of filled slots(the # of packets completely sent) in cq
             xsk_ring_cons__peek(&mut self.cq, len as u32, &mut cq_idx)
         };
-        if filled > 0 {
+        if count > 0 {
             // Notify kernel that cq has empty slots with **filled (Dequeue)
             unsafe {
-                xsk_ring_cons__release(&mut self.cq, filled);
+                xsk_ring_cons__release(&mut self.cq, count);
             }
         }
 
-        Ok(filled)
+        Ok(count)
     }
 
     fn recv(
@@ -152,7 +165,7 @@ impl ChunkPool {
         xsk: &*mut xsk_socket,
         rx: &mut xsk_ring_cons,
     ) -> Vec<Packet> {
-        if self.reserve(len).is_err() {
+        if self.reserve_fq(len).is_err() {
             // Pass
         };
         let mut packets = Vec::<Packet>::with_capacity(len);
@@ -202,21 +215,24 @@ impl ChunkPool {
         xsk: &*mut xsk_socket,
         tx: &mut xsk_ring_prod,
     ) -> usize {
-        let _released = self.release(packets.len()).unwrap();
-        let reserved = self.reserve(packets.len()).unwrap();
+        self.release(self.cq_size).unwrap();
+        let reserved = self.reserve_txq(tx, packets.len()).unwrap();
 
         println!("reserved: {}, {}", reserved.count, reserved.idx);
 
         for (i, pkt) in packets.iter().enumerate().take(reserved.count as usize) {
             // Insert packets to be sent into the TX ring (Enqueue)
-            unsafe {
-                let tx_desc_ptr = xsk_ring_prod__tx_desc(tx, reserved.idx + i as u32);
-                let tx_desc = tx_desc_ptr.as_mut().unwrap();
-                tx_desc.addr = pkt.private as u64 + pkt.start as u64;
-                tx_desc.len = (pkt.end - pkt.start) as u32;
-            }
+            let tx_desc = unsafe {
+                xsk_ring_prod__tx_desc(tx, reserved.idx + i as u32)
+                    .as_mut()
+                    .unwrap()
+            };
+            tx_desc.addr = pkt.private as u64 + pkt.start as u64;
+            tx_desc.len = (pkt.end - pkt.start) as u32;
         }
 
+        // NOTE: Dropping packet here will cause Already Borrowed error.
+        // So, we should drain packets after this function call.
         // packets.drain(0..reserved.count as usize);
 
         unsafe {
@@ -386,7 +402,14 @@ impl Pool {
 
         let buffer_addr = mmap_address;
 
-        let chunk_pool = ChunkPool::new(chunk_size, chunk_count, buffer_addr, fq, cq);
+        let chunk_pool = ChunkPool::new(
+            chunk_size,
+            chunk_count,
+            buffer_addr,
+            fq,
+            cq,
+            cq_size,
+        );
 
         let mut obj = Self {
             chunk_size,
@@ -404,25 +427,20 @@ impl Pool {
     /// Use when attach a NIC
     fn pre_alloc(&mut self, fq_size: usize) -> Result<(), &'static str> {
         /* pre-allocate UMEM chunks into fq */
+        let mut fq = self.chunk_pool.borrow_mut().fq;
         let mut fq_idx: u32 = 0;
-        let reserved: u32 = unsafe {
-            xsk_ring_prod__reserve(
-                &mut self.chunk_pool.borrow_mut().fq,
-                fq_size as u32,
-                &mut fq_idx,
-            )
-        };
 
-        for i in 0..reserved {
+        let reserved: u32 = unsafe { xsk_ring_prod__reserve(&mut fq, fq_size as u32, &mut fq_idx) };
+
+        for i in 0..fq_size as u32 {
             let idx = self.alloc_addr()?;
             unsafe {
-                *xsk_ring_prod__fill_addr(&mut self.chunk_pool.borrow_mut().fq, fq_idx + i) = idx;
+                *xsk_ring_prod__fill_addr(&mut fq, fq_idx + i) = idx;
             } // allocation of UMEM chunks into fq.
         }
 
-        let mut chunk_pool = self.chunk_pool.borrow_mut();
         unsafe {
-            xsk_ring_prod__submit(&mut chunk_pool.fq, reserved);
+            xsk_ring_prod__submit(&mut fq, reserved);
         } // notify kernel of allocating UMEM chunks into fq as much as **reserved.
 
         Ok(())
@@ -551,7 +569,8 @@ impl Nic {
     /// # Returns
     /// Number of packets sent
     pub fn send(&mut self, packets: &mut Vec<Packet>) -> usize {
-        let sent_count = self.chunk_pool
+        let sent_count = self
+            .chunk_pool
             .borrow_mut()
             .send(packets, &self.xsk, &mut self.tx);
         packets.drain(0..sent_count);
