@@ -15,6 +15,7 @@ use std::cell::RefCell;
 use std::ffi::{CStr, CString};
 use std::ptr::copy;
 use std::rc::Rc;
+use std::collections::hash_set::HashSet;
 
 use libc::strerror;
 
@@ -24,7 +25,7 @@ const DEFAULT_HEADROOM: usize = 256;
 struct ChunkPool {
     chunk_size: usize, // TODO: getter
 
-    pool: Vec<u64>,
+    pool: HashSet<u64>,
 
     pub buffer: *mut c_void, // buffer address.
 
@@ -83,7 +84,7 @@ impl ChunkPool {
         /* initialize UMEM chunk information */
         let pool = (0..chunk_count)
             .map(|i| (i * chunk_size).try_into().unwrap())
-            .collect::<Vec<u64>>();
+            .collect::<HashSet<u64>>();
         ChunkPool {
             chunk_size,
             pool,
@@ -95,17 +96,25 @@ impl ChunkPool {
     }
 
     fn alloc_addr(&mut self) -> Result<u64, &'static str> {
-        if self.pool.is_empty() {
-            Err("Chunk Pool is empty")
+        if let Some(addr) = self.pool.iter().next() {
+            let addr = *addr;
+            self.pool.remove(&addr);
+            Ok(addr)
         } else {
-            Ok(self.pool.pop().unwrap())
+            Err("Chunk Pool is empty")
         }
     }
 
     fn free_addr(&mut self, chunk_addr: u64) {
         // Align
         let chunk_addr = chunk_addr - (chunk_addr % self.chunk_size as u64);
-        self.pool.push(chunk_addr);
+
+        #[cfg(debug_assertions)]
+        if self.pool.contains(&chunk_addr) {
+            eprintln!("Chunk is already freed");
+        }
+
+        self.pool.insert(chunk_addr);
     }
 
     /// Reserve FQ and UMEM chunks as much as **len
