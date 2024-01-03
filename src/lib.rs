@@ -131,10 +131,7 @@ impl BufferPool {
     /// Reserve FQ and UMEM chunks as much as **len
     fn reserve_fq(&mut self, fq: &mut xsk_ring_prod, len: usize) -> Result<usize, &'static str> {
         let mut cq_idx = 0;
-
-        //println!("Requesting {} chunks", len);
         let reserved = unsafe { xsk_ring_prod__reserve(fq, len as u32, &mut cq_idx) };
-        //println!("Reserved {} chunks, {}", reserved, cq_idx);
 
         // Allocate UMEM chunks into fq
         for i in 0..reserved {
@@ -555,14 +552,14 @@ impl Nic {
 
         /*
          * After calling xsk_umem__create(), the fill_q and comp_q of the UMEM are initialized.
-         * These are assigned to the first XSK through xsk_socket__create_shared().
+         * These are assigned to the first XSK through xsk_socket__create() or  _shared().
          * However, this does not work properly in Rust.
          *
          * Therefore, we stored the fill_q and comp_q in the Pool object before calling xsk_umem__create().
-         * After xsk_socket__create_shared() finishes, the stored fill_q and comp_q are assigned to the Nic object.
+         * After xsk_socket__create() or _shared() finishes, the stored fill_q and comp_q are assigned to the Nic object.
          * This resolves the Segmentation Fault issue.
          */
-        if pool.is_shared() && pool.refcount == 0 {
+        if pool.refcount == 0 {
             self.umem_fq = pool.umem_fq;
             self.umem_cq = pool.umem_cq;
 
