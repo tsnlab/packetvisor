@@ -33,7 +33,7 @@ use std::{
 
 fn main() {
     let matches = Command::new("echo")
-        .arg(arg!(interface: -i --interface <interface> "Interface to use").required(true))
+        .arg(arg!(interface: <interface> "Interface to use").required(true))
         .arg(
             arg!(chunk_size: -s --"chunk-size" <size> "Chunk size")
                 .required(false)
@@ -154,8 +154,6 @@ fn main() {
                 _ => continue, // Retrying
             }
         }
-
-        packets.clear();
     }
 }
 

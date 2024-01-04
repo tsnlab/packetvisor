@@ -11,8 +11,8 @@ use std::{
 
 fn main() {
     let matches = Command::new("filter")
-        .arg(arg!(nic1: --nic1 <nic1> "nic1 to use").required(true))
-        .arg(arg!(nic2: -p --nic2 <nic2> "nic2 to use").required(true))
+        .arg(arg!(nic1: <nic1> "nic1 to use").required(true))
+        .arg(arg!(nic2: <nic2> "nic2 to use").required(true))
         .arg(
             arg!(chunk_size: -s --"chunk-size" <size> "Chunk size")
                 .value_parser(value_parser!(usize))
@@ -50,6 +50,7 @@ fn main() {
                 .default_value("64"),
         )
         .arg(arg!(dump: -d --dump "Dump packets").required(false))
+        .arg(arg!(stat: -S --stat "Show statistics").required(false))
         .get_matches();
 
     let name1 = matches.get_one::<String>("nic1").unwrap().clone();
@@ -61,6 +62,7 @@ fn main() {
     let filling_ring_size = *matches.get_one::<usize>("fill_ring_size").unwrap();
     let completion_ring_size = *matches.get_one::<usize>("completion_ring_size").unwrap();
     let dump = *matches.get_one::<bool>("dump").unwrap_or(&false);
+    let stat = *matches.get_one::<bool>("stat").unwrap_or(&false);
 
     // Signal handlers
     let term: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
@@ -87,6 +89,7 @@ fn main() {
             panic!("Failed to create buffer pool: {}", err);
         }
     };
+    println!("Pool created");
 
     let mut nic1 = match pv::Nic::new(&name1, &mut pool, tx_ring_size, rx_ring_size) {
         Ok(nic) => nic,
@@ -94,6 +97,7 @@ fn main() {
             panic!("Failed to create NIC1: {}", err);
         }
     };
+    println!("Nic1 created");
 
     let mut nic2 = match pv::Nic::new(&name2, &mut pool, tx_ring_size, rx_ring_size) {
         Ok(nic) => nic,
@@ -101,15 +105,16 @@ fn main() {
             panic!("Failed to create NIC2: {}", err);
         }
     };
+    println!("Nic2 created");
 
     while !term.load(Ordering::Relaxed) {
-        let processed2 = forward(&mut nic2, &mut nic1, dump);
         let processed1 = forward(&mut nic1, &mut nic2, dump);
+        let processed2 = forward(&mut nic2, &mut nic1, dump);
 
         if processed1 + processed2 == 0 {
-            thread::sleep(Duration::from_millis(100));
-        } else if dump {
-            println!("Processed {}, {} packets", processed1, processed2)
+            // thread::sleep(Duration::from_millis(100));
+        } else if stat {
+            println!("Processed {}, {} packets", processed1, processed2);
         }
     }
 }
