@@ -12,6 +12,7 @@ use core::ffi::*;
 use pnet::datalink::{interfaces, NetworkInterface};
 use std::alloc::{alloc_zeroed, Layout};
 use std::cell::RefCell;
+use std::collections::hash_set::HashSet;
 use std::ffi::{CStr, CString};
 use std::ptr::copy;
 use std::rc::Rc;
@@ -21,15 +22,15 @@ use libc::strerror;
 const DEFAULT_HEADROOM: usize = 256;
 
 #[derive(Debug)]
-struct ChunkPool {
+struct BufferPool {
     chunk_size: usize, // TODO: getter
+    chunk_count: usize,
 
-    pool: Vec<u64>,
+    pool: HashSet<u64>,
 
     pub buffer: *mut c_void, // buffer address.
 
-    fq: xsk_ring_prod, // Fill queue
-    cq: xsk_ring_cons, // Completion queue
+    fq_size: usize,
     cq_size: usize,
 }
 
@@ -41,7 +42,7 @@ pub struct Packet {
     pub buffer: *mut u8,    // buffer address.
     private: *mut c_void,   // DO NOT touch this.
 
-    chunk_pool: Rc<RefCell<ChunkPool>>,
+    buffer_pool: Rc<RefCell<BufferPool>>,
 }
 
 #[derive(Debug)]
@@ -49,9 +50,14 @@ pub struct Pool {
     chunk_size: usize,
 
     umem: *mut xsk_umem,
-    chunk_pool: Rc<RefCell<ChunkPool>>,
+    buffer_pool: Rc<RefCell<BufferPool>>,
 
     is_shared: bool,
+
+    umem_fq: xsk_ring_prod,
+    umem_cq: xsk_ring_cons,
+
+    refcount: usize,
 }
 
 #[derive(Debug)]
@@ -59,11 +65,13 @@ pub struct Nic {
     pub interface: NetworkInterface,
     xsk: *mut xsk_socket,
 
-    chunk_pool: Rc<RefCell<ChunkPool>>,
+    buffer_pool: Rc<RefCell<BufferPool>>,
 
     /* XSK rings */
-    rx: xsk_ring_cons,
-    tx: xsk_ring_prod,
+    rxq: xsk_ring_cons,
+    txq: xsk_ring_prod,
+    umem_fq: xsk_ring_prod,
+    umem_cq: xsk_ring_cons,
 }
 
 struct ReservedResult {
@@ -71,59 +79,70 @@ struct ReservedResult {
     idx: u32,
 }
 
-impl ChunkPool {
+impl BufferPool {
     fn new(
         chunk_size: usize,
         chunk_count: usize,
         buffer: *mut c_void,
-        fq: xsk_ring_prod,
-        cq: xsk_ring_cons,
+        fq_size: usize,
         cq_size: usize,
     ) -> Self {
         /* initialize UMEM chunk information */
         let pool = (0..chunk_count)
             .map(|i| (i * chunk_size).try_into().unwrap())
-            .collect::<Vec<u64>>();
-        ChunkPool {
+            .collect::<HashSet<u64>>();
+        Self {
             chunk_size,
+            chunk_count,
             pool,
             buffer,
-            fq,
-            cq,
+            fq_size,
             cq_size,
         }
     }
 
     fn alloc_addr(&mut self) -> Result<u64, &'static str> {
-        if self.pool.is_empty() {
-            Err("Chunk Pool is empty")
+        if let Some(addr) = self.pool.iter().next() {
+            let addr = *addr;
+            self.pool.remove(&addr);
+            Ok(addr)
         } else {
-            Ok(self.pool.pop().unwrap())
+            Err("Chunk Pool is empty")
         }
     }
 
     fn free_addr(&mut self, chunk_addr: u64) {
         // Align
         let chunk_addr = chunk_addr - (chunk_addr % self.chunk_size as u64);
-        self.pool.push(chunk_addr);
+
+        #[cfg(debug_assertions)]
+        if self.pool.contains(&chunk_addr) {
+            eprintln!("Chunk Pool already contains chunk_addr: {}", chunk_addr);
+        }
+
+        self.pool.insert(chunk_addr);
+
+        #[cfg(debug_assertions)]
+        if self.pool.len() > self.chunk_count {
+            eprintln!("Chunk Pool is overflowed");
+        }
     }
 
     /// Reserve FQ and UMEM chunks as much as **len
-    fn reserve_fq(&mut self, len: usize) -> Result<usize, &'static str> {
+    fn reserve_fq(&mut self, fq: &mut xsk_ring_prod, len: usize) -> Result<usize, &'static str> {
         let mut cq_idx = 0;
-
-        let reserved = unsafe { xsk_ring_prod__reserve(&mut self.fq, len as u32, &mut cq_idx) };
+        let reserved = unsafe { xsk_ring_prod__reserve(fq, len as u32, &mut cq_idx) };
 
         // Allocate UMEM chunks into fq
         for i in 0..reserved {
             unsafe {
-                *xsk_ring_prod__fill_addr(&mut self.fq, cq_idx + i) = self.alloc_addr()?;
+                *xsk_ring_prod__fill_addr(fq, cq_idx + i) = self.alloc_addr()?;
             }
         }
 
         // Notify kernel of allocation UMEM chunks into fq as much as **reserved
         unsafe {
-            xsk_ring_prod__submit(&mut self.fq, reserved);
+            xsk_ring_prod__submit(fq, reserved);
         }
 
         Ok(reserved.try_into().unwrap())
@@ -142,16 +161,16 @@ impl ChunkPool {
     }
 
     /// Free packet metadata and UMEM chunks as much as the # of filled slots in CQ
-    fn release(&mut self, len: usize) -> Result<u32, String> {
+    fn release(&mut self, cq: &mut xsk_ring_cons, len: usize) -> Result<u32, String> {
         let mut cq_idx = 0;
         let count = unsafe {
             // Fetch the number of filled slots(the # of packets completely sent) in cq
-            xsk_ring_cons__peek(&mut self.cq, len as u32, &mut cq_idx)
+            xsk_ring_cons__peek(cq, len as u32, &mut cq_idx)
         };
         if count > 0 {
             // Notify kernel that cq has empty slots with **filled (Dequeue)
             unsafe {
-                xsk_ring_cons__release(&mut self.cq, count);
+                xsk_ring_cons__release(cq, count);
             }
         }
 
@@ -162,13 +181,14 @@ impl ChunkPool {
         &mut self,
         chunk_pool_rc: &Rc<RefCell<Self>>,
         len: usize,
-        xsk: &*mut xsk_socket,
-        rx: &mut xsk_ring_cons,
+        _xsk: &*mut xsk_socket,
+        rxq: &mut xsk_ring_cons,
+        fq: &mut xsk_ring_prod,
     ) -> Vec<Packet> {
         let mut packets = Vec::<Packet>::with_capacity(len);
 
         let mut rx_idx = 0;
-        let received = unsafe { xsk_ring_cons__peek(rx, len as u32, &mut rx_idx) };
+        let received = unsafe { xsk_ring_cons__peek(rxq, len as u32, &mut rx_idx) };
 
         if received == 0 {
             return packets;
@@ -176,7 +196,7 @@ impl ChunkPool {
 
         for i in 0..received {
             let mut packet = Packet::new(chunk_pool_rc);
-            let rx_desc = unsafe { xsk_ring_cons__rx_desc(&*rx, rx_idx + i).as_ref().unwrap() };
+            let rx_desc = unsafe { xsk_ring_cons__rx_desc(&*rxq, rx_idx + i).as_ref().unwrap() };
             packet.start = DEFAULT_HEADROOM;
             packet.end = DEFAULT_HEADROOM + rx_desc.len as usize;
             packet.buffer_size = self.chunk_size;
@@ -191,10 +211,10 @@ impl ChunkPool {
         }
 
         unsafe {
-            xsk_ring_cons__release(rx, received);
+            xsk_ring_cons__release(rxq, received);
         }
 
-        self.reserve_fq(packets.len()).unwrap();
+        self.reserve_fq(fq, packets.len()).unwrap();
 
         packets
     }
@@ -204,8 +224,9 @@ impl ChunkPool {
         packets: &mut Vec<Packet>,
         xsk: &*mut xsk_socket,
         tx: &mut xsk_ring_prod,
+        cq: &mut xsk_ring_cons,
     ) -> usize {
-        self.release(self.cq_size).unwrap();
+        self.release(cq, self.cq_size).unwrap();
         let reserved = self.reserve_txq(tx, packets.len()).unwrap();
 
         for (i, pkt) in packets.iter().enumerate().take(reserved.count as usize) {
@@ -243,14 +264,14 @@ impl ChunkPool {
 }
 
 impl Packet {
-    fn new(chunk_pool: &Rc<RefCell<ChunkPool>>) -> Packet {
+    fn new(chunk_pool: &Rc<RefCell<BufferPool>>) -> Packet {
         Packet {
             start: 0,
             end: 0,
             buffer_size: 0,
             buffer: std::ptr::null_mut(),
             private: std::ptr::null_mut(),
-            chunk_pool: chunk_pool.clone(),
+            buffer_pool: chunk_pool.clone(),
         }
     }
 
@@ -321,7 +342,7 @@ impl Packet {
 
 impl Drop for Packet {
     fn drop(&mut self) {
-        self.chunk_pool.borrow_mut().free_addr(self.private as u64);
+        self.buffer_pool.borrow_mut().free_addr(self.private as u64);
     }
 }
 
@@ -396,45 +417,25 @@ impl Pool {
 
         let buffer_addr = mmap_address;
 
-        let chunk_pool = ChunkPool::new(chunk_size, chunk_count, buffer_addr, fq, cq, cq_size);
+        let chunk_pool = BufferPool::new(chunk_size, chunk_count, buffer_addr, fq_size, cq_size);
 
-        let mut obj = Self {
+        let refcount = 0;
+
+        let obj = Self {
             chunk_size,
             umem,
-            chunk_pool: Rc::new(RefCell::new(chunk_pool)),
+            buffer_pool: Rc::new(RefCell::new(chunk_pool)),
             is_shared,
+            umem_fq: fq,
+            umem_cq: cq,
+            refcount,
         };
-
-        obj.pre_alloc(fq_size)?;
 
         Ok(obj)
     }
 
-    /// Pre-allocate UMEM chunks into fill queue
-    /// Use when attach a NIC
-    fn pre_alloc(&mut self, fq_size: usize) -> Result<(), &'static str> {
-        /* pre-allocate UMEM chunks into fq */
-        let mut fq = self.chunk_pool.borrow_mut().fq;
-        let mut fq_idx: u32 = 0;
-
-        let reserved: u32 = unsafe { xsk_ring_prod__reserve(&mut fq, fq_size as u32, &mut fq_idx) };
-
-        for i in 0..fq_size as u32 {
-            let idx = self.alloc_addr()?;
-            unsafe {
-                *xsk_ring_prod__fill_addr(&mut fq, fq_idx + i) = idx;
-            } // allocation of UMEM chunks into fq.
-        }
-
-        unsafe {
-            xsk_ring_prod__submit(&mut fq, reserved);
-        } // notify kernel of allocating UMEM chunks into fq as much as **reserved.
-
-        Ok(())
-    }
-
     fn alloc_addr(&mut self) -> Result<u64, &'static str> {
-        self.chunk_pool.borrow_mut().alloc_addr()
+        self.buffer_pool.borrow_mut().alloc_addr()
     }
 
     /// Allocate packet from UMEM
@@ -442,12 +443,12 @@ impl Pool {
         match self.alloc_addr() {
             Err(_) => None,
             Ok(idx) => {
-                let mut packet: Packet = Packet::new(&self.chunk_pool);
+                let mut packet: Packet = Packet::new(&self.buffer_pool);
                 packet.start = DEFAULT_HEADROOM;
                 packet.end = DEFAULT_HEADROOM;
                 packet.buffer_size = self.chunk_size;
                 packet.buffer =
-                    unsafe { xsk_umem__get_data(self.chunk_pool.borrow().buffer, idx) as *mut u8 };
+                    unsafe { xsk_umem__get_data(self.buffer_pool.borrow().buffer, idx) as *mut u8 };
                 packet.private = idx as *mut c_void;
 
                 Some(packet)
@@ -461,7 +462,12 @@ impl Pool {
 }
 
 impl Nic {
-    pub fn new(if_name: &str, pool: &Pool, tx_size: usize, rx_size: usize) -> Result<Nic, String> {
+    pub fn new(
+        if_name: &str,
+        pool: &mut Pool,
+        tx_size: usize,
+        rx_size: usize,
+    ) -> Result<Nic, String> {
         let interface = interfaces()
             .into_iter()
             .find(|elem| elem.name.as_str() == if_name)
@@ -470,18 +476,25 @@ impl Nic {
         let xsk_ptr = alloc_zeroed_layout::<xsk_socket>()?;
         let rx_ptr = alloc_zeroed_layout::<xsk_ring_cons>()?;
         let tx_ptr = alloc_zeroed_layout::<xsk_ring_prod>()?;
+        let fq_ptr = alloc_zeroed_layout::<xsk_ring_prod>()?;
+        let cq_ptr = alloc_zeroed_layout::<xsk_ring_cons>()?;
 
         let mut nic: Nic = unsafe {
             Nic {
                 interface: interface.clone(),
                 xsk: xsk_ptr.cast::<xsk_socket>(),
-                chunk_pool: pool.chunk_pool.clone(),
-                rx: std::ptr::read(rx_ptr.cast::<xsk_ring_cons>()),
-                tx: std::ptr::read(tx_ptr.cast::<xsk_ring_prod>()),
+                buffer_pool: pool.buffer_pool.clone(),
+                rxq: std::ptr::read(rx_ptr.cast::<xsk_ring_cons>()),
+                txq: std::ptr::read(tx_ptr.cast::<xsk_ring_prod>()),
+                umem_fq: std::ptr::read(fq_ptr.cast::<xsk_ring_prod>()),
+                umem_cq: std::ptr::read(cq_ptr.cast::<xsk_ring_cons>()),
             }
         };
         match Nic::open(&mut nic, pool, tx_size, rx_size) {
-            Ok(_) => Ok(nic),
+            Ok(_) => {
+                pool.refcount += 1;
+                Ok(nic)
+            }
             Err(e) => {
                 // FIXME: Print here is fine. But segfault happened when printing in the caller.
                 eprintln!("Failed to open NIC: {}", e);
@@ -492,7 +505,7 @@ impl Nic {
 
     fn open(
         &mut self,
-        pool: &Pool,
+        pool: &mut Pool,
         rx_ring_size: usize,
         tx_ring_size: usize,
     ) -> Result<(), String> {
@@ -509,7 +522,6 @@ impl Nic {
         let if_name = CString::new(self.interface.name.clone()).unwrap();
         let if_ptr = if_name.as_ptr() as *const c_char;
         /* create xsk socket */
-        let mut chunk_pool = pool.chunk_pool.borrow_mut();
         let ret: c_int = unsafe {
             if pool.is_shared() {
                 xsk_socket__create_shared(
@@ -518,10 +530,10 @@ impl Nic {
                     // self.interface.name.as_ptr().clone() as *const c_char,
                     0,
                     pool.umem,
-                    &mut self.rx,
-                    &mut self.tx,
-                    &mut chunk_pool.fq,
-                    &mut chunk_pool.cq,
+                    &mut self.rxq,
+                    &mut self.txq,
+                    &mut self.umem_fq,
+                    &mut self.umem_cq,
                     &xsk_cfg,
                 )
             } else {
@@ -531,12 +543,34 @@ impl Nic {
                     // self.interface.name.as_ptr().clone() as *const c_char,
                     0,
                     pool.umem,
-                    &mut self.rx,
-                    &mut self.tx,
+                    &mut self.rxq,
+                    &mut self.txq,
                     &xsk_cfg,
                 )
             }
         };
+
+        /*
+         * After calling xsk_umem__create(), the fill_q and comp_q of the UMEM are initialized.
+         * These are assigned to the first XSK through xsk_socket__create() or  _shared().
+         * However, this does not work properly in Rust.
+         *
+         * Therefore, we stored the fill_q and comp_q in the Pool object before calling xsk_umem__create().
+         * After xsk_socket__create() or _shared() finishes, the stored fill_q and comp_q are assigned to the Nic object.
+         * This resolves the Segmentation Fault issue.
+         */
+        if pool.refcount == 0 {
+            self.umem_fq = pool.umem_fq;
+            self.umem_cq = pool.umem_cq;
+
+            let fq_ptr = alloc_zeroed_layout::<xsk_ring_prod>()?;
+            let cq_ptr = alloc_zeroed_layout::<xsk_ring_cons>()?;
+            unsafe {
+                pool.umem_fq = std::ptr::read(fq_ptr.cast::<xsk_ring_prod>());
+                pool.umem_cq = std::ptr::read(cq_ptr.cast::<xsk_ring_cons>());
+            }
+        }
+
         if ret != 0 {
             let msg = unsafe {
                 CStr::from_ptr(strerror(-ret))
@@ -546,6 +580,10 @@ impl Nic {
             let message = format!("Error: {}", msg);
             return Err(format!("xsk_socket__create failed: {}", message));
         }
+        let fq_size = self.buffer_pool.borrow().fq_size;
+        self.buffer_pool
+            .borrow_mut()
+            .reserve_fq(&mut self.umem_fq, fq_size)?;
         Ok(())
     }
 
@@ -556,10 +594,12 @@ impl Nic {
     /// # Returns
     /// Number of packets sent
     pub fn send(&mut self, packets: &mut Vec<Packet>) -> usize {
-        let sent_count = self
-            .chunk_pool
-            .borrow_mut()
-            .send(packets, &self.xsk, &mut self.tx);
+        let sent_count = self.buffer_pool.borrow_mut().send(
+            packets,
+            &self.xsk,
+            &mut self.txq,
+            &mut self.umem_cq,
+        );
         packets.drain(0..sent_count);
 
         sent_count
@@ -571,9 +611,13 @@ impl Nic {
     /// # Returns
     /// Received packets
     pub fn receive(&mut self, len: usize) -> Vec<Packet> {
-        self.chunk_pool
-            .borrow_mut()
-            .recv(&self.chunk_pool, len, &self.xsk, &mut self.rx)
+        self.buffer_pool.borrow_mut().recv(
+            &self.buffer_pool,
+            len,
+            &self.xsk,
+            &mut self.rxq,
+            &mut self.umem_fq,
+        )
     }
 }
 

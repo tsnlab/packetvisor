@@ -33,7 +33,7 @@ use std::{
 
 fn main() {
     let matches = Command::new("echo")
-        .arg(arg!(interface: -i --interface <interface> "Interface to use").required(true))
+        .arg(arg!(interface: <interface> "Interface to use").required(true))
         .arg(
             arg!(chunk_size: -s --"chunk-size" <size> "Chunk size")
                 .required(false)
@@ -111,25 +111,36 @@ fn main() {
         panic!("signal is forbidden");
     }
 
-    let mut nic = pv::NIC::new(&if_name, chunk_size, chunk_count).unwrap();
-    nic.open(
-        rx_ring_size,
-        tx_ring_size,
+    let mut pool = match pv::Pool::new(
+        chunk_size,
+        chunk_count,
         filling_ring_size,
         completion_ring_size,
-    )
-    .unwrap();
+        false,
+    ) {
+        Ok(pool) => pool,
+        Err(err) => {
+            panic!("Failed to create buffer pool: {}", err);
+        }
+    };
+
+    let mut nic = match pv::Nic::new(&if_name, &mut pool, tx_ring_size, rx_ring_size) {
+        Ok(nic) => nic,
+        Err(err) => {
+            panic!("Failed to create Nic: {}", err);
+        }
+    };
+
     /* initialize rx_batch_size and packet metadata */
-    let rx_batch_size: u32 = 64;
-    let mut packets: Vec<pv::Packet> = Vec::with_capacity(rx_batch_size as usize);
-
+    let rx_batch_size = 64;
     while !term.load(Ordering::Relaxed) {
-        let mut received = nic.receive(&mut packets);
+        thread::sleep(Duration::from_millis(100));
 
-        while received == 0 && !term.load(Ordering::Relaxed) {
-            // No packets received. Sleep
-            thread::sleep(Duration::from_millis(100));
-            received = nic.receive(&mut packets);
+        let mut packets = nic.receive(rx_batch_size);
+        let received = packets.len();
+
+        if received == 0 && !term.load(Ordering::Relaxed) {
+            continue;
         }
 
         packets.retain_mut(|p| process_packet(p, &nic));
@@ -143,14 +154,10 @@ fn main() {
                 _ => continue, // Retrying
             }
         }
-
-        packets.clear();
     }
-
-    nic.close();
 }
 
-fn process_packet(packet: &mut pv::Packet, nic: &pv::NIC) -> bool {
+fn process_packet(packet: &mut pv::Packet, nic: &pv::Nic) -> bool {
     let buffer = packet.get_buffer_mut();
     let mut eth = match MutableEthernetPacket::new(buffer) {
         Some(eth) => eth,
@@ -191,7 +198,7 @@ fn process_arp(packet: &mut pv::Packet, my_mac: &MacAddr) -> bool {
     true
 }
 
-fn process_ipv4(packet: &mut pv::Packet, nic: &pv::NIC) -> bool {
+fn process_ipv4(packet: &mut pv::Packet, nic: &pv::Nic) -> bool {
     let buffer = packet.get_buffer_mut();
     let mut eth = MutableEthernetPacket::new(buffer).unwrap();
     let mut ipv4 = MutableIpv4Packet::new(eth.payload_mut()).unwrap();
@@ -261,7 +268,7 @@ fn process_udp(packet: &mut pv::Packet) -> bool {
     true
 }
 
-fn process_ipv6(packet: &mut pv::Packet, nic: &pv::NIC) -> bool {
+fn process_ipv6(packet: &mut pv::Packet, nic: &pv::Nic) -> bool {
     let buffer = packet.get_buffer_mut();
     let mut eth = MutableEthernetPacket::new(buffer).unwrap();
     let mut ipv6 = MutableIpv6Packet::new(eth.payload_mut()).unwrap();
