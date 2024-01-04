@@ -116,7 +116,7 @@ impl BufferPool {
         let chunk_addr = chunk_addr - (chunk_addr % self.chunk_size as u64);
 
         #[cfg(debug_assertions)]
-        if !self.pool.contains(&chunk_addr) {
+        if self.pool.contains(&chunk_addr) {
             eprintln!("Chunk Pool already contains chunk_addr: {}", chunk_addr);
         }
 
