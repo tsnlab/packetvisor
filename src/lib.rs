@@ -550,6 +550,16 @@ impl Nic {
             }
         };
 
+        if ret != 0 {
+            let msg = unsafe {
+                CStr::from_ptr(strerror(-ret))
+                    .to_string_lossy()
+                    .into_owned()
+            };
+            let message = format!("Error: {}", msg);
+            return Err(format!("xsk_socket__create failed: {}", message));
+        }
+
         /*
          * After calling xsk_umem__create(), the fill_q and comp_q of the UMEM are initialized.
          * These are assigned to the first XSK through xsk_socket__create() or  _shared().
@@ -571,15 +581,6 @@ impl Nic {
             }
         }
 
-        if ret != 0 {
-            let msg = unsafe {
-                CStr::from_ptr(strerror(-ret))
-                    .to_string_lossy()
-                    .into_owned()
-            };
-            let message = format!("Error: {}", msg);
-            return Err(format!("xsk_socket__create failed: {}", message));
-        }
         let fq_size = self.buffer_pool.borrow().fq_size;
         self.buffer_pool
             .borrow_mut()
