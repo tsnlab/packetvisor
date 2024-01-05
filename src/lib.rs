@@ -16,6 +16,8 @@ use std::collections::hash_set::HashSet;
 use std::ffi::{CStr, CString};
 use std::ptr::copy;
 use std::rc::Rc;
+use std::thread;
+use std::time::Duration;
 
 use libc::strerror;
 
@@ -48,6 +50,10 @@ pub struct Packet {
 #[derive(Debug)]
 pub struct Pool {
     chunk_size: usize,
+    chunk_count: usize,
+
+    fq_size: usize,
+    cq_size: usize,
 
     umem: *mut xsk_umem,
     buffer_pool: Rc<RefCell<BufferPool>>,
@@ -423,15 +429,98 @@ impl Pool {
 
         let obj = Self {
             chunk_size,
+            chunk_count,
             umem,
             buffer_pool: Rc::new(RefCell::new(chunk_pool)),
             is_shared,
             umem_fq: fq,
             umem_cq: cq,
+            fq_size,
+            cq_size,
             refcount,
         };
 
         Ok(obj)
+    }
+
+    /// Reset UMEM
+    /// return true if UMEM is recreated
+    /// return false if UMEM is not recreated because someone is using UMEM
+    fn reset_umem(&mut self) -> Result<bool, String> {
+        if self.refcount > 0 {
+            return Ok(false);
+        }
+
+        eprintln!("Resetting UMEM!!!");
+
+        unsafe { xsk_umem__delete(self.umem) };
+        thread::sleep(Duration::from_millis(100));
+
+        let umem_ptr = alloc_zeroed_layout::<xsk_umem>()?;
+        let fq_ptr = alloc_zeroed_layout::<xsk_ring_prod>()?;
+        let cq_ptr = alloc_zeroed_layout::<xsk_ring_cons>()?;
+
+        let mut umem = umem_ptr.cast::<xsk_umem>(); // umem is needed to be dealloc after using packetvisor library.
+        let mut fq = unsafe { std::ptr::read(fq_ptr.cast::<xsk_ring_prod>()) };
+        let mut cq = unsafe { std::ptr::read(cq_ptr.cast::<xsk_ring_cons>()) };
+
+        let umem_buffer_size = self.chunk_size * self.chunk_count;
+        let mmap_address = unsafe {
+            libc::mmap(
+                std::ptr::null_mut::<libc::c_void>(),
+                umem_buffer_size,
+                libc::PROT_READ | libc::PROT_WRITE,
+                libc::MAP_PRIVATE | libc::MAP_ANONYMOUS,
+                -1, // fd
+                0,  // offset
+            )
+        };
+        if mmap_address == libc::MAP_FAILED {
+            return Err("Failed to allocate memory for UMEM.".to_string());
+        }
+
+        let umem_cfg = xsk_umem_config {
+            fill_size: self.fq_size as u32,
+            comp_size: self.cq_size as u32,
+            frame_size: self.chunk_size as u32,
+            frame_headroom: XSK_UMEM__DEFAULT_FRAME_HEADROOM,
+            flags: XSK_UMEM__DEFAULT_FLAGS,
+        };
+
+        let ret = unsafe {
+            xsk_umem__create(
+                &mut umem,
+                mmap_address,
+                umem_buffer_size as u64,
+                &mut fq,
+                &mut cq,
+                &umem_cfg,
+            )
+        };
+
+        if ret != 0 {
+            unsafe {
+                // Unmap first
+                libc::munmap(mmap_address, umem_buffer_size);
+            }
+            let msg = unsafe {
+                CStr::from_ptr(strerror(-ret))
+                    .to_string_lossy()
+                    .into_owned()
+            };
+            let message = format!("Error: {}", msg);
+            return Err(format!("Failed to recreate UMEM: {}", message));
+        }
+
+        let buffer_addr = mmap_address;
+        self.umem = umem;
+        let chunk_pool = BufferPool::new(self.chunk_size, self.chunk_count, buffer_addr, self.fq_size, self.cq_size);
+        self.buffer_pool = Rc::new(RefCell::new(chunk_pool));
+        self.umem_fq = fq;
+        self.umem_cq = cq;
+
+        println!("Done");
+        Ok(true)
     }
 
     fn alloc_addr(&mut self) -> Result<u64, &'static str> {
@@ -510,7 +599,7 @@ impl Nic {
         tx_ring_size: usize,
     ) -> Result<(), String> {
         /* setting xsk, RX ring, TX ring configuration */
-        let xsk_cfg: xsk_socket_config = xsk_socket_config {
+        let mut xsk_cfg: xsk_socket_config = xsk_socket_config {
             rx_size: rx_ring_size.try_into().unwrap(),
             tx_size: tx_ring_size.try_into().unwrap(),
             /* zero means loading default XDP program.
@@ -522,6 +611,58 @@ impl Nic {
         let if_name = CString::new(self.interface.name.clone()).unwrap();
         let if_ptr = if_name.as_ptr() as *const c_char;
         /* create xsk socket */
+        let result = self.create_xsk_socket(xsk_cfg, pool, if_ptr);
+        if result.is_err() {
+            eprintln!(
+                "Failed to create XSK socket in native mode on {}\n",
+                self.interface.name
+            );
+            eprintln!(
+                "Trying to create XSK socket in generic mode on {}...\n",
+                self.interface.name
+            );
+
+            // XXX: Resetting UMEM seems fine. But device or resource busy error happens when
+            // resetting the UMEM.
+            // This will reset the UMEM if needed
+            pool.reset_umem()?;
+
+            thread::sleep(Duration::from_millis(1000));
+
+            // Retry XSK init
+            xsk_cfg.xdp_flags = XDP_FLAGS_SKB_MODE;
+            self.create_xsk_socket(xsk_cfg, pool, if_ptr)?;
+        }
+
+        /*
+         * After calling xsk_umem__create(), the fill_q and comp_q of the UMEM are initialized.
+         * These are assigned to the first XSK through xsk_socket__create() or  _shared().
+         * However, this does not work properly in Rust.
+         *
+         * Therefore, we stored the fill_q and comp_q in the Pool object before calling xsk_umem__create().
+         * After xsk_socket__create() or _shared() finishes, the stored fill_q and comp_q are assigned to the Nic object.
+         * This resolves the Segmentation Fault issue.
+         */
+        if pool.refcount == 0 {
+            self.umem_fq = pool.umem_fq;
+            self.umem_cq = pool.umem_cq;
+
+            let fq_ptr = alloc_zeroed_layout::<xsk_ring_prod>()?;
+            let cq_ptr = alloc_zeroed_layout::<xsk_ring_cons>()?;
+            unsafe {
+                pool.umem_fq = std::ptr::read(fq_ptr.cast::<xsk_ring_prod>());
+                pool.umem_cq = std::ptr::read(cq_ptr.cast::<xsk_ring_cons>());
+            }
+        }
+
+        let fq_size = self.buffer_pool.borrow().fq_size;
+        self.buffer_pool
+            .borrow_mut()
+            .reserve_fq(&mut self.umem_fq, fq_size)?;
+        Ok(())
+    }
+
+    fn create_xsk_socket(&mut self, xsk_cfg: xsk_socket_config, pool: &Pool, if_ptr: *const c_char) -> Result<(), String> {
         let ret: c_int = unsafe {
             if pool.is_shared() {
                 xsk_socket__create_shared(
@@ -560,31 +701,6 @@ impl Nic {
             return Err(format!("xsk_socket__create failed: {}", message));
         }
 
-        /*
-         * After calling xsk_umem__create(), the fill_q and comp_q of the UMEM are initialized.
-         * These are assigned to the first XSK through xsk_socket__create() or  _shared().
-         * However, this does not work properly in Rust.
-         *
-         * Therefore, we stored the fill_q and comp_q in the Pool object before calling xsk_umem__create().
-         * After xsk_socket__create() or _shared() finishes, the stored fill_q and comp_q are assigned to the Nic object.
-         * This resolves the Segmentation Fault issue.
-         */
-        if pool.refcount == 0 {
-            self.umem_fq = pool.umem_fq;
-            self.umem_cq = pool.umem_cq;
-
-            let fq_ptr = alloc_zeroed_layout::<xsk_ring_prod>()?;
-            let cq_ptr = alloc_zeroed_layout::<xsk_ring_cons>()?;
-            unsafe {
-                pool.umem_fq = std::ptr::read(fq_ptr.cast::<xsk_ring_prod>());
-                pool.umem_cq = std::ptr::read(cq_ptr.cast::<xsk_ring_cons>());
-            }
-        }
-
-        let fq_size = self.buffer_pool.borrow().fq_size;
-        self.buffer_pool
-            .borrow_mut()
-            .reserve_fq(&mut self.umem_fq, fq_size)?;
         Ok(())
     }
 
@@ -629,6 +745,8 @@ impl Drop for Nic {
         unsafe {
             xsk_socket__delete(self.xsk);
         }
+
+        // TODO: decrease refcount of pool
     }
 }
 
