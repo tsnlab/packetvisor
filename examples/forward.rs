@@ -91,6 +91,21 @@ fn main() {
     };
     println!("Pool created");
 
+    pool = match pv::Pool::new(
+        chunk_size,
+        chunk_count,
+        filling_ring_size,
+        completion_ring_size,
+        true,
+    ) {
+        Ok(pool) => pool,
+        Err(err) => {
+            panic!("Failed to create buffer pool: {}", err);
+        }
+    };
+
+    println!("Pool recreated");
+
     let mut nic1 = match pv::Nic::new(&name1, &mut pool, tx_ring_size, rx_ring_size) {
         Ok(nic) => nic,
         Err(err) => {

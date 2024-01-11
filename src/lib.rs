@@ -365,6 +365,17 @@ impl Pool {
         cq_size: usize,
         is_shared: bool,
     ) -> Result<Self, String> {
+        let obj = Self::init(chunk_size, chunk_count, fq_size, cq_size, is_shared)?;
+        Ok(obj)
+    }
+
+    fn init(
+        chunk_size: usize,
+        chunk_count: usize,
+        fq_size: usize,
+        cq_size: usize,
+        is_shared: bool,
+    ) -> Result<Self, String> {
         let umem_ptr = alloc_zeroed_layout::<xsk_umem>()?;
         let fq_ptr = alloc_zeroed_layout::<xsk_ring_prod>()?;
         let cq_ptr = alloc_zeroed_layout::<xsk_ring_cons>()?;
@@ -441,86 +452,6 @@ impl Pool {
         };
 
         Ok(obj)
-    }
-
-    /// Reset UMEM
-    /// return true if UMEM is recreated
-    /// return false if UMEM is not recreated because someone is using UMEM
-    fn reset_umem(&mut self) -> Result<bool, String> {
-        if self.refcount > 0 {
-            return Ok(false);
-        }
-
-        eprintln!("Resetting UMEM!!!");
-
-        unsafe { xsk_umem__delete(self.umem) };
-        thread::sleep(Duration::from_millis(100));
-
-        let umem_ptr = alloc_zeroed_layout::<xsk_umem>()?;
-        let fq_ptr = alloc_zeroed_layout::<xsk_ring_prod>()?;
-        let cq_ptr = alloc_zeroed_layout::<xsk_ring_cons>()?;
-
-        let mut umem = umem_ptr.cast::<xsk_umem>(); // umem is needed to be dealloc after using packetvisor library.
-        let mut fq = unsafe { std::ptr::read(fq_ptr.cast::<xsk_ring_prod>()) };
-        let mut cq = unsafe { std::ptr::read(cq_ptr.cast::<xsk_ring_cons>()) };
-
-        let umem_buffer_size = self.chunk_size * self.chunk_count;
-        let mmap_address = unsafe {
-            libc::mmap(
-                std::ptr::null_mut::<libc::c_void>(),
-                umem_buffer_size,
-                libc::PROT_READ | libc::PROT_WRITE,
-                libc::MAP_PRIVATE | libc::MAP_ANONYMOUS,
-                -1, // fd
-                0,  // offset
-            )
-        };
-        if mmap_address == libc::MAP_FAILED {
-            return Err("Failed to allocate memory for UMEM.".to_string());
-        }
-
-        let umem_cfg = xsk_umem_config {
-            fill_size: self.fq_size as u32,
-            comp_size: self.cq_size as u32,
-            frame_size: self.chunk_size as u32,
-            frame_headroom: XSK_UMEM__DEFAULT_FRAME_HEADROOM,
-            flags: XSK_UMEM__DEFAULT_FLAGS,
-        };
-
-        let ret = unsafe {
-            xsk_umem__create(
-                &mut umem,
-                mmap_address,
-                umem_buffer_size as u64,
-                &mut fq,
-                &mut cq,
-                &umem_cfg,
-            )
-        };
-
-        if ret != 0 {
-            unsafe {
-                // Unmap first
-                libc::munmap(mmap_address, umem_buffer_size);
-            }
-            let msg = unsafe {
-                CStr::from_ptr(strerror(-ret))
-                    .to_string_lossy()
-                    .into_owned()
-            };
-            let message = format!("Error: {}", msg);
-            return Err(format!("Failed to recreate UMEM: {}", message));
-        }
-
-        let buffer_addr = mmap_address;
-        self.umem = umem;
-        let chunk_pool = BufferPool::new(self.chunk_size, self.chunk_count, buffer_addr, self.fq_size, self.cq_size);
-        self.buffer_pool = Rc::new(RefCell::new(chunk_pool));
-        self.umem_fq = fq;
-        self.umem_cq = cq;
-
-        println!("Done");
-        Ok(true)
     }
 
     fn alloc_addr(&mut self) -> Result<u64, &'static str> {
@@ -625,9 +556,12 @@ impl Nic {
             // XXX: Resetting UMEM seems fine. But device or resource busy error happens when
             // resetting the UMEM.
             // This will reset the UMEM if needed
-            pool.reset_umem()?;
+            if pool.refcount == 0 {
+                eprintln!("Recreating umem");
+                *pool = Pool::new(pool.chunk_size, pool.chunk_count, pool.fq_size, pool.cq_size, pool.is_shared)?;
+            }
 
-            thread::sleep(Duration::from_millis(1000));
+            thread::sleep(Duration::from_millis(100));
 
             // Retry XSK init
             xsk_cfg.xdp_flags = XDP_FLAGS_SKB_MODE;
