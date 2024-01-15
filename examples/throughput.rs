@@ -54,9 +54,14 @@ fn main() {
     let sender_command = Command::new("sender")
         .about("Sender mode")
         .arg(arg!(iface: -i <iface> "Interface to use").required(true))
-        .arg(arg!(dest_mac: <mac> "Destination MAC Address").required(true))
-        .arg(arg!(dest_ip: <ip> "Destination IP Address").required(true))
-        .arg(arg!(dest_port: <port> "Destination Port Number").required(true));
+        .arg(arg!(dest_mac: <destination_mac> "Destination MAC Address").required(true))
+        .arg(arg!(dest_ip: <destination_ip> "Destination IP Address").required(true))
+        .arg(arg!(dest_port: <destination_port> "Destination Port Number").required(true))
+        .arg(
+            arg!(payload: -b <udp_payload_size> "UDP Payload Size(Byte) - default 1440Bytes")
+                .required(false)
+                .default_value("1440"),
+        );
 
     let matched_command = Command::new("throughput")
         .subcommand_required(true)
@@ -74,13 +79,26 @@ fn main() {
         }
         Some(("sender", sub_matches)) => {
             let iface = sub_matches.get_one::<String>("iface").unwrap().to_string();
-            let dest_mac = sub_matches.get_one::<String>("dest_mac").unwrap().to_string();
-            let dest_ip = sub_matches.get_one::<String>("dest_ip").unwrap().to_string();
-            let dest_port = sub_matches.get_one::<String>("dest_port").unwrap().to_string();
+            let dest_mac = sub_matches
+                .get_one::<String>("dest_mac")
+                .unwrap()
+                .to_string();
+            let dest_ip = sub_matches
+                .get_one::<String>("dest_ip")
+                .unwrap()
+                .to_string();
+            let dest_port = sub_matches
+                .get_one::<String>("dest_port")
+                .unwrap()
+                .to_string();
+            let payload = sub_matches
+                .get_one::<String>("payload")
+                .unwrap()
+                .to_string();
 
-            do_udp_sender(iface, dest_mac, dest_ip, dest_port);
-        },
-        _ => todo!()
+            do_udp_sender(iface, dest_mac, dest_ip, dest_port, payload);
+        }
+        _ => todo!(),
     }
 }
 
@@ -241,6 +259,12 @@ fn do_udp_sender(iface_name: String, dest_mac: String, dest_ip: String, dest_por
     let dest_ip_addr: Ipv4Addr = dest_ip.parse().unwrap();
     let dest_port: u16 = dest_port.parse().unwrap();
 
+    let payload_size: usize = payload.parse().unwrap();
+    let udp_size: usize = 8;
+    let ip_size: usize = 20;
+    let eth_size: usize = 14;
+    let packet_size: usize = eth_size + ip_size + udp_size + payload_size;
+
     let mut pool = match pv::Pool::new(
         CHUNK_SIZE,
         CHUNK_COUNT,
@@ -251,22 +275,17 @@ fn do_udp_sender(iface_name: String, dest_mac: String, dest_ip: String, dest_por
         Ok(pool) => {
             println!("Pool created");
             pool
-        },
+        }
         Err(err) => {
             panic!("Failed to create buffer pool: {}", err);
         }
     };
 
-    let mut nic = match pv::Nic::new(
-        &iface_name,
-        &mut pool,
-        TX_RING_SIZE,
-        RX_RING_SIZE,
-    ) {
+    let mut nic = match pv::Nic::new(&iface_name, &mut pool, TX_RING_SIZE, RX_RING_SIZE) {
         Ok(nic) => {
             println!("Nic created");
             nic
-        },
+        }
         Err(err) => {
             panic!("Failed to create NIC : {}", err);
         }
@@ -297,30 +316,35 @@ fn do_udp_sender(iface_name: String, dest_mac: String, dest_ip: String, dest_por
                 None => panic!("Packet allocation failed.."),
             };
 
-            let mut buffer = vec![0u8; 1440];
+            let mut buffer = vec![0u8; packet_size];
 
-            let mut eth_pkt = MutableEthernetPacket::new(&mut buffer).expect("MutableEthernetPacket Error");
+            let mut eth_pkt =
+                MutableEthernetPacket::new(&mut buffer).expect("MutableEthernetPacket Error");
             eth_pkt.set_destination(src_mac_addr);
             eth_pkt.set_source(dest_mac_addr);
             eth_pkt.set_ethertype(EtherTypes::Ipv4);
 
-            let mut ip_pkt = MutableIpv4Packet::new(eth_pkt.payload_mut()).expect("MutableIpv4Packet Error");
+            let mut ip_pkt =
+                MutableIpv4Packet::new(eth_pkt.payload_mut()).expect("MutableIpv4Packet Error");
             ip_pkt.set_version(0x04);
             ip_pkt.set_header_length(0x05);
             ip_pkt.set_identification(0.try_into().unwrap());
-            ip_pkt.set_total_length((1440-14).try_into().unwrap());
+            ip_pkt.set_total_length((packet_size - eth_size).try_into().unwrap());
             ip_pkt.set_ttl(0x40);
             ip_pkt.set_next_level_protocol(IpNextHeaderProtocols::Udp);
             ip_pkt.set_source(src_ip_addr);
             ip_pkt.set_destination(dest_ip_addr);
             ip_pkt.set_checksum(ipv4::checksum(&ip_pkt.to_immutable()));
 
-            let mut udp_pkt = MutableUdpPacket::new(ip_pkt.payload_mut()).expect("MutableUdpPacket Error");
+            let mut udp_pkt =
+                MutableUdpPacket::new(ip_pkt.payload_mut()).expect("MutableUdpPacket Error");
             udp_pkt.set_source(src_port);
             udp_pkt.set_destination(dest_port);
-            udp_pkt.set_length((1440-14-20).try_into().unwrap());
+            udp_pkt.set_length((packet_size - eth_size - ip_size).try_into().unwrap());
 
-            packet.replace_data(&buffer).expect("Failed replace to payload of packet.");
+            packet
+                .replace_data(&buffer)
+                .expect("Failed replace to payload of packet.");
             packets.push(packet);
         }
 
