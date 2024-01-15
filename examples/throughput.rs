@@ -3,23 +3,23 @@ use clap::{arg, Command};
 use signal_hook::SigId;
 use std::{
     io::Error,
+    net::{IpAddr, Ipv4Addr},
     sync::atomic::{AtomicBool, Ordering},
     sync::Arc,
     thread,
     time::{Duration, Instant},
-    net::{IpAddr, Ipv4Addr},
 };
 
 use pnet::{
     datalink,
     datalink::{MacAddr, NetworkInterface},
     packet::{
-        ethernet::{EtherTypes, MutableEthernetPacket},
+        ethernet::{EtherTypes, EthernetPacket, MutableEthernetPacket},
         ip::IpNextHeaderProtocols,
         ipv4,
-        ipv4::MutableIpv4Packet,
-        udp::MutableUdpPacket,
-        MutablePacket,
+        ipv4::{Ipv4Packet, MutableIpv4Packet},
+        udp::{MutableUdpPacket, UdpPacket},
+        {MutablePacket, Packet},
     },
 };
 
@@ -49,7 +49,7 @@ fn main() {
     let receiver_command = Command::new("receiver")
         .about("Receiver mode")
         .arg(arg!(iface: -i <iface> "Interface to use").required(true))
-        .arg(arg!(src_port: <port> "Source Port Number").required(true));
+        .arg(arg!(src_port: <source_port> "Source Port Number").required(true));
 
     let sender_command = Command::new("sender")
         .about("Sender mode")
@@ -73,7 +73,10 @@ fn main() {
     match matched_command.subcommand() {
         Some(("receiver", sub_matches)) => {
             let iface = sub_matches.get_one::<String>("iface").unwrap().to_string();
-            let src_port = sub_matches.get_one::<String>("src_port").unwrap().to_string();
+            let src_port = sub_matches
+                .get_one::<String>("src_port")
+                .unwrap()
+                .to_string();
 
             do_udp_receiver(iface, src_port);
         }
@@ -110,9 +113,9 @@ fn do_udp_receiver(iface_name: String, src_port: String) {
     let interfaces = datalink::interfaces();
     let interface = interfaces.into_iter().find(interface_name_match).unwrap();
 
-    let my_mac_addr = interface.mac.unwrap();
-    let my_ip_addr = interface.ips[0].ip();
-    let my_src_port: u16 = src_port.parse().unwrap();
+    let _src_mac_addr = interface.mac.unwrap();
+    let _src_ip_addr = interface.ips[0].ip();
+    let src_port: u16 = src_port.parse().unwrap();
 
     let mut pool = match pv::Pool::new(
         CHUNK_SIZE,
@@ -124,22 +127,17 @@ fn do_udp_receiver(iface_name: String, src_port: String) {
         Ok(pool) => {
             println!("Pool created");
             pool
-        },
+        }
         Err(err) => {
             panic!("Failed to create buffer pool: {}", err);
         }
     };
 
-    let mut nic = match pv::Nic::new(
-        &iface_name,
-        &mut pool,
-        TX_RING_SIZE,
-        RX_RING_SIZE,
-    ) {
+    let mut nic = match pv::Nic::new(&iface_name, &mut pool, TX_RING_SIZE, RX_RING_SIZE) {
         Ok(nic) => {
             println!("Nic created");
             nic
-        },
+        }
         Err(err) => {
             panic!("Failed to create NIC : {}", err);
         }
@@ -174,20 +172,23 @@ fn do_udp_receiver(iface_name: String, src_port: String) {
         let received = packets.len();
 
         if received > 0 {
-            unsafe { STATS.pkt_count += received; }
-
             for packet in packets.iter_mut() {
-                let packet_len = packet.end-packet.start;
-                unsafe { STATS.total_bytes += packet_len; }
-            }
+                let packet_buffer = packet.get_buffer_mut();
 
-            /* for Debug
-            for packet in packets.iter_mut() {
+                let eth_pkt = EthernetPacket::new(packet_buffer).expect("EthernetPacket Error");
+                let ip_pkt = Ipv4Packet::new(eth_pkt.payload()).expect("Ipv4Packet Error");
+                let udp_pkt = UdpPacket::new(ip_pkt.payload()).expect("UdpPacket Error");
 
-                println!("Packet Length : {}", packet.end - packet.start);
-                packet.dump();
+                if src_port != udp_pkt.get_destination() {
+                    continue;
+                }
+
+                let packet_len = packet.end - packet.start;
+                unsafe {
+                    STATS.pkt_count += 1;
+                    STATS.total_bytes += packet_len;
+                }
             }
-            */
         }
     }
 }
@@ -242,7 +243,13 @@ fn stats_thread() {
 /****************************************************
  * UDP Sender
  ****************************************************/
-fn do_udp_sender(iface_name: String, dest_mac: String, dest_ip: String, dest_port: String) {
+fn do_udp_sender(
+    iface_name: String,
+    dest_mac: String,
+    dest_ip: String,
+    dest_port: String,
+    payload: String,
+) {
     let interface_name_match = |iface: &NetworkInterface| iface.name == iface_name;
     let interfaces = datalink::interfaces();
     let interface = interfaces.into_iter().find(interface_name_match).unwrap();
