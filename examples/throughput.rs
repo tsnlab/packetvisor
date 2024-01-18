@@ -14,7 +14,7 @@ use pnet::{
     datalink,
     datalink::{MacAddr, NetworkInterface},
     packet::{
-        ethernet::{EtherTypes, EthernetPacket, MutableEthernetPacket},
+        ethernet::{EtherType, EtherTypes, EthernetPacket, MutableEthernetPacket},
         ip::IpNextHeaderProtocols,
         ipv4,
         ipv4::{Ipv4Packet, MutableIpv4Packet},
@@ -176,9 +176,16 @@ fn do_udp_receiver(iface_name: String, src_port: String) {
                 let packet_buffer = packet.get_buffer_mut();
 
                 let eth_pkt = EthernetPacket::new(packet_buffer).expect("EthernetPacket Error");
-                let ip_pkt = Ipv4Packet::new(eth_pkt.payload()).expect("Ipv4Packet Error");
-                let udp_pkt = UdpPacket::new(ip_pkt.payload()).expect("UdpPacket Error");
+                if eth_pkt.get_ethertype() != EtherType(0x0800) {
+                    continue;
+                }
 
+                let ip_pkt = Ipv4Packet::new(eth_pkt.payload()).expect("Ipv4Packet Error");
+                if ip_pkt.get_next_level_protocol() != IpNextHeaderProtocols::Udp {
+                    continue;
+                }
+
+                let udp_pkt = UdpPacket::new(ip_pkt.payload()).expect("UdpPacket Error");
                 if src_port != udp_pkt.get_destination() {
                     continue;
                 }
