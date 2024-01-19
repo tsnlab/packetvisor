@@ -216,6 +216,13 @@ impl BufferPool {
 
         self.reserve_fq(fq, packets.len()).unwrap();
 
+        /*
+         * XSK manages interrupts through xsk_ring_prod__needs_wakup().
+         *
+         * If Packetvisor is assigned to core indexes [0] or [1], the Rx interrupt does not work properly.
+         * This significantly degrades Packetvisor performance.
+         * To resolve this issue, the interrupt is woken up whenever Recv() is called.
+         */
         unsafe {
             if xsk_ring_prod__needs_wakeup(&*fq) != 0 {
                 libc::recvfrom(
