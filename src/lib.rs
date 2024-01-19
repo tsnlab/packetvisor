@@ -216,6 +216,19 @@ impl BufferPool {
 
         self.reserve_fq(fq, packets.len()).unwrap();
 
+        unsafe {
+            if xsk_ring_prod__needs_wakeup(&*fq) != 0 {
+                libc::recvfrom(
+                    xsk_socket__fd(*_xsk),
+                    std::ptr::null_mut::<libc::c_void>(),
+                    0 as libc::size_t,
+                    libc::MSG_DONTWAIT,
+                    std::ptr::null_mut::<libc::sockaddr>(),
+                    std::ptr::null_mut::<u32>(),
+                );
+            }
+        }
+
         packets
     }
 
