@@ -152,7 +152,10 @@ fn do_udp_receiver(iface_name: String, src_port: String) {
     let interface = interfaces.into_iter().find(interface_name_match).unwrap();
 
     let src_mac_addr = interface.mac.unwrap();
-    let src_ip_addr = interface.ips[0].ip();
+    let src_ip_addr = match interface.ips[0].ip() {
+        IpAddr::V4(ip4) => ip4,
+        IpAddr::V6(_) => todo!(),
+    };
     let src_port: u16 = src_port.parse().unwrap();
 
     let mut pool = match pv::Pool::new(
@@ -210,6 +213,7 @@ fn do_udp_receiver(iface_name: String, src_port: String) {
                     MutableEthernetPacket::new(packet_buffer).expect("MutableEthernetPacket Error");
 
                 if src_mac_addr != eth_pkt.get_destination() {
+                    drop = true;
                     continue;
                 }
 
@@ -218,6 +222,7 @@ fn do_udp_receiver(iface_name: String, src_port: String) {
                     MutableIpv4Packet::new(eth_pkt.payload_mut()).expect("MutableIpv4Packet Error");
 
                 if src_ip_addr != ip_pkt.get_destination() {
+                    drop = true;
                     continue;
                 }
 
@@ -226,8 +231,11 @@ fn do_udp_receiver(iface_name: String, src_port: String) {
                     MutableUdpPacket::new(ip_pkt.payload_mut()).expect("MutableUdpPacket Error");
 
                 if src_port != udp_pkt.get_destination() {
+                    drop = true;
                     continue;
                 }
+                udp_pkt.set_destination(udp_pkt.get_source());
+                udp_pkt.set_source(src_port);
 
                 let mut perf_pkt =
                     MutablePerfPacket::new(udp_pkt.payload_mut()).expect("MutablePerfPacket Error");
