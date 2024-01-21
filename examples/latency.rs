@@ -21,7 +21,7 @@ use pnet::{
     datalink,
     datalink::{MacAddr, NetworkInterface},
     packet::{
-        ethernet::{EtherTypes, EthernetPacket, MutableEthernetPacket},
+        ethernet::{EtherType, EtherTypes, EthernetPacket, MutableEthernetPacket},
         ip::IpNextHeaderProtocols,
         ipv4,
         ipv4::{Ipv4Packet, MutableIpv4Packet},
@@ -403,7 +403,7 @@ fn do_udp_sender(
         loop {
             match state {
                 SenderState::Ready => {
-                    thread::sleep(Duration::from_millis(100));
+                    //thread::sleep(Duration::from_millis(100));
                 }
                 SenderState::Running => {
                     if (pre_state != state) || (ping_pong_ok) {
@@ -423,8 +423,20 @@ fn do_udp_sender(
                     let packet_buffer = packet.get_buffer_mut();
 
                     let eth_pkt = EthernetPacket::new(packet_buffer).expect("EthernetPacket Error");
+                    if eth_pkt.get_ethertype() != EtherType(0x0800) {
+                        continue;
+                    }
+
                     let ip_pkt = Ipv4Packet::new(eth_pkt.payload()).expect("Ipv4Packet Error");
+                    if ip_pkt.get_next_level_protocol() != IpNextHeaderProtocols::Udp {
+                        continue;
+                    }
+
                     let udp_pkt = UdpPacket::new(ip_pkt.payload()).expect("UdpPacket Error");
+                    if src_port != udp_pkt.get_destination() {
+                        continue;
+                    }
+
                     let perf_pkt = PerfPacket::new(udp_pkt.payload()).expect("PerfPacket Error");
 
                     match PerfOp::from_u8(perf_pkt.get_op()) {
