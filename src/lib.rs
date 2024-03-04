@@ -48,7 +48,7 @@ struct BufferPool {
     cq_size: usize,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 struct Pool {
     chunk_size: usize,
 
