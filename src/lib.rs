@@ -212,7 +212,7 @@ impl BufferPool {
         for i in 0..received {
             let mut packet = Packet::new(chunk_pool_rc);
             let rx_desc = unsafe { xsk_ring_cons__rx_desc(&*rxq, rx_idx + i).as_ref().unwrap() };
-            packet.end = packet.end + rx_desc.len as usize;
+            packet.end += rx_desc.len as usize;
             packet.buffer_size = self.chunk_size;
             packet.buffer = unsafe {
                 xsk_umem__get_data(self.buffer, rx_desc.addr)
