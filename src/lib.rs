@@ -212,8 +212,7 @@ impl BufferPool {
         for i in 0..received {
             let mut packet = Packet::new(chunk_pool_rc);
             let rx_desc = unsafe { xsk_ring_cons__rx_desc(&*rxq, rx_idx + i).as_ref().unwrap() };
-            packet.start = DEFAULT_HEADROOM;
-            packet.end = DEFAULT_HEADROOM + rx_desc.len as usize;
+            packet.end = packet.end + rx_desc.len as usize;
             packet.buffer_size = self.chunk_size;
             packet.buffer = unsafe {
                 xsk_umem__get_data(self.buffer, rx_desc.addr)
@@ -400,8 +399,6 @@ impl Pool {
             Err(_) => None,
             Ok(idx) => {
                 let mut packet: Packet = Packet::new(&self.buffer_pool);
-                packet.start = DEFAULT_HEADROOM;
-                packet.end = DEFAULT_HEADROOM;
                 packet.buffer_size = self.chunk_size;
                 packet.buffer =
                     unsafe { xsk_umem__get_data(self.buffer_pool.borrow().buffer, idx) as *mut u8 };
@@ -656,8 +653,8 @@ impl Nic {
 impl Packet {
     fn new(chunk_pool: &Rc<RefCell<BufferPool>>) -> Packet {
         Packet {
-            start: 0,
-            end: 0,
+            start: DEFAULT_HEADROOM,
+            end: DEFAULT_HEADROOM,
             buffer_size: 0,
             buffer: std::ptr::null_mut(),
             private: std::ptr::null_mut(),
