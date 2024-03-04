@@ -85,7 +85,6 @@ fn main() {
         completion_ring_size,
         tx_ring_size,
         rx_ring_size,
-        None,
     ) {
         Ok(nic) => nic,
         Err(err) => {
@@ -102,7 +101,6 @@ fn main() {
         completion_ring_size,
         tx_ring_size,
         rx_ring_size,
-        Some(&nic1),
     ) {
         Ok(nic) => nic,
         Err(err) => {
@@ -116,7 +114,7 @@ fn main() {
         let processed2 = forward(&mut nic2, &mut nic1, dump);
 
         if processed1 + processed2 == 0 {
-            // thread::sleep(Duration::from_millis(100));
+            thread::sleep(Duration::from_millis(100));
         } else if stat {
             println!("Processed {}, {} packets", processed1, processed2);
         }
