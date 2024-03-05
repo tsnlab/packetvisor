@@ -28,7 +28,7 @@ const DEFAULT_HEADROOM: usize = 256;
  * Global Variable (for Singleton-Pattern)
  *
  *******************************************************************/
-static mut SINGLETON_POOL: Option<Pool> = None;
+static mut POOL: Option<Pool> = None;
 
 /********************************************************************
  *
@@ -325,6 +325,27 @@ impl Pool {
     }
 
     fn init(
+        chunk_size: usize,
+        chunk_count: usize,
+        fq_size: usize,
+        cq_size: usize,
+    ) -> Result<(), String> {
+        match unsafe { POOL.as_ref() } {
+            None => {
+                let mut pool_obj = Pool::new()?;
+                pool_obj.re_init(chunk_size, chunk_count, fq_size, cq_size)?;
+                unsafe { POOL = Some(pool_obj) };
+            }
+            _ => {
+                #[cfg(debug_assertions)]
+                eprintln!("Pool has already been initialized.");
+            }
+        }
+
+        Ok(())
+    }
+
+    fn re_init(
         &mut self,
         chunk_size: usize,
         chunk_count: usize,
@@ -431,16 +452,13 @@ impl Nic {
         let fq_ptr = alloc_zeroed_layout::<xsk_ring_prod>()?;
         let cq_ptr = alloc_zeroed_layout::<xsk_ring_cons>()?;
 
-        match unsafe { SINGLETON_POOL.as_ref() } {
-            None => {
-                let mut pool_obj = Pool::new()?;
-                pool_obj.init(chunk_size, chunk_count, fq_size, cq_size)?;
-                unsafe { SINGLETON_POOL = Some(pool_obj) };
-            }
-            _ => {
-                println!("Pool has already been initialized.");
-            }
-        }
+        /* The result of Pool::init() must be unwrapped using the unwrap() function. \
+         * If you do not use unwrap(), the internal fields of the Pool object will not \
+         * be properly initialized, which can lead to potential problems.
+         *
+         * Ex) Fallback between XSK's SKB and DRV modes may not be possible. \
+         *     Other unexpected problems may occur. */
+        Pool::init(chunk_size, chunk_count, fq_size, cq_size).unwrap();
 
         let mut nic = unsafe {
             Nic {
@@ -464,7 +482,7 @@ impl Nic {
         ) {
             Ok(_) => {
                 unsafe {
-                    SINGLETON_POOL.as_mut().unwrap().refcount += 1;
+                    POOL.as_mut().unwrap().refcount += 1;
                 };
                 Ok(nic)
             }
@@ -500,7 +518,7 @@ impl Nic {
                 &mut self.xsk,
                 if_ptr,
                 0,
-                SINGLETON_POOL.as_mut().unwrap().umem,
+                POOL.as_mut().unwrap().umem,
                 &mut self.rxq,
                 &mut self.txq,
                 &mut self.umem_fq,
@@ -510,18 +528,15 @@ impl Nic {
         };
 
         if ret != 0 {
-            match unsafe { SINGLETON_POOL.as_ref().unwrap().refcount } {
+            match unsafe { POOL.as_ref().unwrap().refcount } {
                 0 => {
                     // Pool Full-Fallback
-                    unsafe { xsk_umem__delete(SINGLETON_POOL.as_mut().unwrap().umem) };
+                    unsafe { xsk_umem__delete(POOL.as_mut().unwrap().umem) };
                     thread::sleep(Duration::from_millis(100));
                     unsafe {
-                        SINGLETON_POOL.as_mut().unwrap().init(
-                            chunk_size,
-                            chunk_count,
-                            fq_size,
-                            cq_size,
-                        )?
+                        POOL.as_mut()
+                            .unwrap()
+                            .re_init(chunk_size, chunk_count, fq_size, cq_size)?
                     };
                 }
                 refcount if refcount > 0 => {
@@ -539,11 +554,11 @@ impl Nic {
                     &mut self.xsk,
                     if_ptr,
                     0,
-                    SINGLETON_POOL.as_mut().unwrap().umem,
+                    POOL.as_mut().unwrap().umem,
                     &mut self.rxq,
                     &mut self.txq,
-                    &mut SINGLETON_POOL.as_mut().unwrap().umem_fq,
-                    &mut SINGLETON_POOL.as_mut().unwrap().umem_cq,
+                    &mut POOL.as_mut().unwrap().umem_fq,
+                    &mut POOL.as_mut().unwrap().umem_cq,
                     &xsk_cfg,
                 )
             };
@@ -568,31 +583,21 @@ impl Nic {
          * After xsk_socket__create() or _shared() finishes, the stored fill_q and comp_q are assigned to the Nic object.
          * This resolves the Segmentation Fault issue.
          */
-        if unsafe { SINGLETON_POOL.as_ref().unwrap().refcount == 0 } {
-            self.umem_fq = unsafe { SINGLETON_POOL.as_ref().unwrap().umem_fq };
-            self.umem_cq = unsafe { SINGLETON_POOL.as_ref().unwrap().umem_cq };
+        if unsafe { POOL.as_ref().unwrap().refcount == 0 } {
+            self.umem_fq = unsafe { POOL.as_ref().unwrap().umem_fq };
+            self.umem_cq = unsafe { POOL.as_ref().unwrap().umem_cq };
 
             let fq_ptr = alloc_zeroed_layout::<xsk_ring_prod>()?;
             let cq_ptr = alloc_zeroed_layout::<xsk_ring_cons>()?;
             unsafe {
-                SINGLETON_POOL.as_mut().unwrap().umem_fq =
-                    std::ptr::read(fq_ptr.cast::<xsk_ring_prod>());
-                SINGLETON_POOL.as_mut().unwrap().umem_cq =
-                    std::ptr::read(cq_ptr.cast::<xsk_ring_cons>());
+                POOL.as_mut().unwrap().umem_fq = std::ptr::read(fq_ptr.cast::<xsk_ring_prod>());
+                POOL.as_mut().unwrap().umem_cq = std::ptr::read(cq_ptr.cast::<xsk_ring_cons>());
             };
         }
 
-        let fq_size = unsafe {
-            SINGLETON_POOL
-                .as_mut()
-                .unwrap()
-                .buffer_pool
-                .borrow()
-                .fq_size
-        };
+        let fq_size = unsafe { POOL.as_mut().unwrap().buffer_pool.borrow().fq_size };
         unsafe {
-            SINGLETON_POOL
-                .as_mut()
+            POOL.as_mut()
                 .unwrap()
                 .buffer_pool
                 .borrow_mut()
@@ -604,7 +609,7 @@ impl Nic {
 
     /// Allocate packet using Pool
     pub fn alloc_packet(&self) -> Option<Packet> {
-        unsafe { SINGLETON_POOL.as_mut().unwrap().try_alloc_packet() }
+        unsafe { POOL.as_mut().unwrap().try_alloc_packet() }
     }
 
     /// Send packets using NIC
@@ -615,12 +620,12 @@ impl Nic {
     /// Number of packets sent
     pub fn send(&mut self, packets: &mut Vec<Packet>) -> usize {
         let sent_count = unsafe {
-            SINGLETON_POOL
-                .as_mut()
-                .unwrap()
-                .buffer_pool
-                .borrow_mut()
-                .send(packets, &self.xsk, &mut self.txq, &mut self.umem_cq)
+            POOL.as_mut().unwrap().buffer_pool.borrow_mut().send(
+                packets,
+                &self.xsk,
+                &mut self.txq,
+                &mut self.umem_cq,
+            )
         };
         packets.drain(0..sent_count);
 
@@ -634,18 +639,13 @@ impl Nic {
     /// Received packets
     pub fn receive(&mut self, len: usize) -> Vec<Packet> {
         unsafe {
-            SINGLETON_POOL
-                .as_mut()
-                .unwrap()
-                .buffer_pool
-                .borrow_mut()
-                .recv(
-                    &SINGLETON_POOL.as_mut().unwrap().buffer_pool,
-                    len,
-                    &self.xsk,
-                    &mut self.rxq,
-                    &mut self.umem_fq,
-                )
+            POOL.as_mut().unwrap().buffer_pool.borrow_mut().recv(
+                &POOL.as_mut().unwrap().buffer_pool,
+                len,
+                &self.xsk,
+                &mut self.rxq,
+                &mut self.umem_fq,
+            )
         }
     }
 }
@@ -751,7 +751,7 @@ impl Drop for Nic {
         }
 
         unsafe {
-            SINGLETON_POOL.as_mut().unwrap().refcount -= 1;
+            POOL.as_mut().unwrap().refcount -= 1;
         };
     }
 }
