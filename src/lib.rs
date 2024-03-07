@@ -692,7 +692,7 @@ impl Packet {
 
     /// Resize payload size
     pub fn resize(&mut self, size: usize) -> Result<(), String> {
-        if self.buffer_size < size {
+        if size > self.buffer_size {
             return Err(format!(
                 "The requested size is to large. (Max = {})",
                 self.buffer_size
@@ -701,22 +701,21 @@ impl Packet {
 
         let temp_end = self.end;
 
-        self.end = self.start + size;
-        if self.end < self.buffer_size {
+        if size > self.buffer_size - self.start {
+            // Need to move data
+            unsafe {
+                copy(
+                    self.buffer.offset(self.start.try_into().unwrap()),
+                    self.buffer,
+                    temp_end,
+                );
+            }
+            self.start = 0;
+            self.end = size;
             return Ok(());
         }
 
-        let gap = self.end - self.buffer_size;
-        self.start -= gap;
         self.end = self.start + size;
-        unsafe {
-            copy(
-                self.buffer.offset((self.start + gap).try_into().unwrap()),
-                self.buffer.offset(self.start.try_into().unwrap()),
-                temp_end,
-            );
-        }
-
         Ok(())
     }
 
