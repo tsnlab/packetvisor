@@ -691,8 +691,16 @@ impl Packet {
     }
 
     /// Resize payload size
-    pub fn resize(&mut self, size: usize) {
+    pub fn resize(&mut self, size: usize) -> Result<(), String> {
+        if self.buffer_size < self.start + size {
+            self.start -= size;
+        }
+        if (self.start as isize) < (0_isize) {
+            return Err("The requested size is to large.".to_string());
+        }
         self.end = self.start + size;
+
+        Ok(())
     }
 
     /// Dump packet payload as hex
