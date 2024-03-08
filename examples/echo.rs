@@ -111,20 +111,15 @@ fn main() {
         panic!("signal is forbidden");
     }
 
-    let mut pool = match pv::Pool::new(
+    let mut nic = match pv::Nic::new(
+        &if_name,
         chunk_size,
         chunk_count,
         filling_ring_size,
         completion_ring_size,
-        false,
+        tx_ring_size,
+        rx_ring_size,
     ) {
-        Ok(pool) => pool,
-        Err(err) => {
-            panic!("Failed to create buffer pool: {}", err);
-        }
-    };
-
-    let mut nic = match pv::Nic::new(&if_name, &mut pool, tx_ring_size, rx_ring_size) {
         Ok(nic) => nic,
         Err(err) => {
             panic!("Failed to create Nic: {}", err);
@@ -172,8 +167,8 @@ fn process_packet(packet: &mut pv::Packet, nic: &pv::Nic) -> bool {
 
     match eth.get_ethertype() {
         EtherTypes::Arp => process_arp(packet, &nic.interface.mac.unwrap()),
-        EtherTypes::Ipv4 => process_ipv4(packet, &nic),
-        EtherTypes::Ipv6 => process_ipv6(packet, &nic),
+        EtherTypes::Ipv4 => process_ipv4(packet, nic),
+        EtherTypes::Ipv6 => process_ipv6(packet, nic),
         _ => false,
     }
 }
@@ -289,7 +284,7 @@ fn process_ipv6(packet: &mut pv::Packet, nic: &pv::Nic) -> bool {
     ipv6.set_source(*ipv6_addr);
     match ipv6.get_next_header() {
         IpNextHeaderProtocols::Udp => process_udpv6(packet),
-        IpNextHeaderProtocols::Icmpv6 => process_icmpv6(packet, &ipv6_addr),
+        IpNextHeaderProtocols::Icmpv6 => process_icmpv6(packet, ipv6_addr),
         _ => false,
     }
 }
@@ -306,7 +301,7 @@ fn process_icmpv6(packet: &mut pv::Packet, ipv6_addr: &Ipv6Addr) -> bool {
         return true;
     } else if icmpv6.get_icmpv6_type() == Icmpv6Types::EchoRequest {
         icmpv6.set_icmpv6_type(Icmpv6Types::EchoReply);
-        let checksum = icmpv6::checksum(&icmpv6.to_immutable(), &ipv6_addr, &other_ipv6);
+        let checksum = icmpv6::checksum(&icmpv6.to_immutable(), ipv6_addr, &other_ipv6);
         icmpv6.set_checksum(checksum);
         return true;
     }
@@ -334,7 +329,7 @@ fn process_ndp(packet: &mut pv::Packet, ipv6_addr: &Ipv6Addr) -> bool {
 
     let mut icmpv6 = MutableIcmpv6Packet::new(ipv6.payload_mut()).unwrap();
     icmpv6.set_icmpv6_type(Icmpv6Types::NeighborAdvert);
-    let checksum = icmpv6::checksum(&icmpv6.to_immutable(), &ipv6_addr, &other_ipv6);
+    let checksum = icmpv6::checksum(&icmpv6.to_immutable(), ipv6_addr, &other_ipv6);
     icmpv6.set_checksum(checksum);
     true
 }

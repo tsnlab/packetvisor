@@ -77,21 +77,15 @@ fn main() {
         panic!("signal is forbidden");
     }
 
-    let mut pool = match pv::Pool::new(
+    let mut nic1 = match pv::Nic::new(
+        &name1,
         chunk_size,
         chunk_count,
         filling_ring_size,
         completion_ring_size,
-        true,
+        tx_ring_size,
+        rx_ring_size,
     ) {
-        Ok(pool) => pool,
-        Err(err) => {
-            panic!("Failed to create buffer pool: {}", err);
-        }
-    };
-    println!("Pool created");
-
-    let mut nic1 = match pv::Nic::new(&name1, &mut pool, tx_ring_size, rx_ring_size) {
         Ok(nic) => nic,
         Err(err) => {
             panic!("Failed to create NIC1: {}", err);
@@ -99,7 +93,15 @@ fn main() {
     };
     println!("Nic1 created");
 
-    let mut nic2 = match pv::Nic::new(&name2, &mut pool, tx_ring_size, rx_ring_size) {
+    let mut nic2 = match pv::Nic::new(
+        &name2,
+        chunk_size,
+        chunk_count,
+        filling_ring_size,
+        completion_ring_size,
+        tx_ring_size,
+        rx_ring_size,
+    ) {
         Ok(nic) => nic,
         Err(err) => {
             panic!("Failed to create NIC2: {}", err);
@@ -112,7 +114,7 @@ fn main() {
         let processed2 = forward(&mut nic2, &mut nic1, dump);
 
         if processed1 + processed2 == 0 {
-            // thread::sleep(Duration::from_millis(100));
+            thread::sleep(Duration::from_millis(100));
         } else if stat {
             println!("Processed {}, {} packets", processed1, processed2);
         }
