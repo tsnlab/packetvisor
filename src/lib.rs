@@ -37,7 +37,8 @@ static mut POOL: Option<Pool> = None;
  *******************************************************************/
 #[derive(Debug)]
 struct BufferPool {
-    chunk_size: usize, // TODO: getter
+    chunk_size: usize,
+    #[allow(dead_code)]
     chunk_count: usize,
 
     pool: HashSet<u64>,
