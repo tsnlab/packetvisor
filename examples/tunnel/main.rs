@@ -24,34 +24,40 @@ fn main() {
 
     const CHUNK_SIZE: usize = 2048;
     const CHUNK_COUNT: usize = 1024;
-    const RX_RING_SIZE: u32 = 64;
-    const TX_RING_SIZE: u32 = 64;
-    const FILLING_RING_SIZE: u32 = 64;
-    const COMPLETION_RING_SIZE: u32 = 64;
+    const RX_RING_SIZE: usize = 64;
+    const TX_RING_SIZE: usize = 64;
+    const FILLING_RING_SIZE: usize = 64;
+    const COMPLETION_RING_SIZE: usize = 64;
 
-    let mut interface = pv::NIC::new(&interface, CHUNK_SIZE, CHUNK_COUNT).unwrap();
-    match interface.open(
-        RX_RING_SIZE,
-        TX_RING_SIZE,
+    let mut interface = match pv::Nic::new(
+        &interface,
+        CHUNK_SIZE,
+        CHUNK_COUNT,
         FILLING_RING_SIZE,
         COMPLETION_RING_SIZE,
+        TX_RING_SIZE,
+        RX_RING_SIZE,
     ) {
-        Ok(_) => {}
-        Err(error) => println!("Failed to open ethernet interface.\nError: {error}"),
-    }
+        Ok(nic) => nic,
+        Err(err) => {
+            panic!("Failed to create NIC1: {}", err);
+        }
+    };
+
     let socket = UdpSocket::bind(source).unwrap();
     socket
         .set_nonblocking(true)
         .expect("Socket Nonblocking Error");
 
-    const RX_BATCH_SIZE: u32 = 64;
+    const RX_BATCH_SIZE: usize = 64;
     const ETH_HEADER: usize = 14;
     const ETH_MTU: usize = 1500;
-    let mut packets: Vec<pv::Packet> = Vec::with_capacity(RX_BATCH_SIZE as usize);
     let mut buf = [0; ETH_HEADER + ETH_MTU];
     loop {
         // Listening for interface
-        let received = interface.receive(&mut packets);
+        let mut packets = interface.receive(RX_BATCH_SIZE);
+        let received = packets.len();
+
         if received > 0 {
             for packet in &mut packets {
                 // check TCP handshake & update MMS field
@@ -71,10 +77,9 @@ fn main() {
         match socket.recv_from(&mut buf) {
             Ok((n, _addr)) => {
                 // received data from socket and send to interface
-                let mut packet = interface.alloc().unwrap();
+                let mut packet = interface.alloc_packet().unwrap();
                 let fit_buffer = &buf[0..n];
                 packet.replace_data(&fit_buffer.to_vec()).unwrap();
-                interface.copy_from(&mut packet).unwrap();
                 interface.send(&mut vec![packet]);
                 buf.fill(0);
             }

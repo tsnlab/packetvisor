@@ -35,25 +35,25 @@ fn main() {
         )
         .arg(
             arg!(rx_ring_size: -r --"rx-ring" <count> "Rx ring size")
-                .value_parser(value_parser!(u32))
+                .value_parser(value_parser!(usize))
                 .required(false)
                 .default_value("64"),
         )
         .arg(
             arg!(tx_ring_size: -t --"tx-ring" <count> "Tx ring size")
-                .value_parser(value_parser!(u32))
+                .value_parser(value_parser!(usize))
                 .required(false)
                 .default_value("64"),
         )
         .arg(
             arg!(fill_ring_size: -f --"fill-ring" <count> "Fill ring size")
-                .value_parser(value_parser!(u32))
+                .value_parser(value_parser!(usize))
                 .required(false)
                 .default_value("64"),
         )
         .arg(
             arg!(completion_ring_size: -o --"completion-ring" <count> "Completion ring size")
-                .value_parser(value_parser!(u32))
+                .value_parser(value_parser!(usize))
                 .required(false)
                 .default_value("64"),
         )
@@ -63,10 +63,10 @@ fn main() {
     let name2 = matches.get_one::<String>("nic2").unwrap().clone();
     let chunk_size = *matches.get_one::<usize>("chunk_size").unwrap();
     let chunk_count = *matches.get_one::<usize>("chunk_count").unwrap();
-    let rx_ring_size = *matches.get_one::<u32>("rx_ring_size").unwrap();
-    let tx_ring_size = *matches.get_one::<u32>("tx_ring_size").unwrap();
-    let filling_ring_size = *matches.get_one::<u32>("fill_ring_size").unwrap();
-    let completion_ring_size = *matches.get_one::<u32>("completion_ring_size").unwrap();
+    let rx_ring_size = *matches.get_one::<usize>("rx_ring_size").unwrap();
+    let tx_ring_size = *matches.get_one::<usize>("tx_ring_size").unwrap();
+    let filling_ring_size = *matches.get_one::<usize>("fill_ring_size").unwrap();
+    let completion_ring_size = *matches.get_one::<usize>("completion_ring_size").unwrap();
 
     // Signal handlers
     let term: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
@@ -81,22 +81,35 @@ fn main() {
         panic!("signal is forbidden");
     }
 
-    let mut nic1 = pv::NIC::new(&name1, chunk_size, chunk_count).unwrap();
-    nic1.open(
-        rx_ring_size,
-        tx_ring_size,
+    let mut nic1 = match pv::Nic::new(
+        &name1,
+        chunk_size,
+        chunk_count,
         filling_ring_size,
         completion_ring_size,
-    )
-    .unwrap();
-    let mut nic2 = pv::NIC::new(&name2, chunk_size, chunk_count).unwrap();
-    nic2.open(
-        rx_ring_size,
         tx_ring_size,
+        rx_ring_size,
+    ) {
+        Ok(nic) => nic,
+        Err(err) => {
+            panic!("Failed to create NIC1: {}", err);
+        }
+    };
+
+    let mut nic2 = match pv::Nic::new(
+        &name2,
+        chunk_size,
+        chunk_count,
         filling_ring_size,
         completion_ring_size,
-    )
-    .unwrap();
+        tx_ring_size,
+        rx_ring_size,
+    ) {
+        Ok(nic) => nic,
+        Err(err) => {
+            panic!("Failed to create NIC2: {}", err);
+        }
+    };
 
     while !term.load(Ordering::Relaxed) {
         forward(&mut nic1, &mut nic2);
@@ -133,18 +146,22 @@ fn process_packet(packet: &mut pv::Packet) -> bool {
     true
 }
 
-fn forward(from: &mut pv::NIC, to: &mut pv::NIC) {
+fn forward(from: &mut pv::Nic, to: &mut pv::Nic) {
     /* initialize rx_batch_size and packet metadata */
-    let rx_batch_size: u32 = 64;
-    let mut packets1: Vec<pv::Packet> = Vec::with_capacity(rx_batch_size as usize);
-    let mut packets2: Vec<pv::Packet> = Vec::with_capacity(rx_batch_size as usize);
-    let received = from.receive(&mut packets1);
+    let rx_batch_size: usize = 64;
+    let mut packets = from.receive(rx_batch_size);
+    let received = packets.len();
 
     if received > 0 {
-        for packet in &mut packets1 {
+        let mut filter_packets: Vec<pv::Packet> = Vec::with_capacity(received);
+        for packet in &mut packets {
             match process_packet(packet) {
                 true => {
-                    packets2.push(to.copy_from(packet).unwrap());
+                    let packet_data = packet.get_buffer_mut().to_vec();
+                    let mut filter_packet = to.alloc_packet().unwrap();
+                    filter_packet.replace_data(&packet_data).unwrap();
+
+                    filter_packets.push(filter_packet);
                 }
                 false => {
                     send_rst(from, to, packet);
@@ -153,7 +170,7 @@ fn forward(from: &mut pv::NIC, to: &mut pv::NIC) {
         }
 
         for retry in (0..3).rev() {
-            match (to.send(&mut packets2), retry) {
+            match (to.send(&mut filter_packets), retry) {
                 (cnt, _) if cnt > 0 => break, // Success
                 (0, 0) => {
                     // Failed 3 times
@@ -168,8 +185,8 @@ fn forward(from: &mut pv::NIC, to: &mut pv::NIC) {
     }
 }
 
-fn send_rst(from: &mut pv::NIC, to: &mut pv::NIC, received: &mut pv::Packet) {
-    let mut packet = from.alloc().unwrap();
+fn send_rst(from: &mut pv::Nic, to: &mut pv::Nic, received: &mut pv::Packet) {
+    let mut packet = from.alloc_packet().unwrap();
 
     if packet
         .replace_data(&received.get_buffer_mut().to_vec())
@@ -213,7 +230,7 @@ fn send_rst(from: &mut pv::NIC, to: &mut pv::NIC, received: &mut pv::Packet) {
     ipv4.set_checksum(pnet::packet::ipv4::checksum(&ipv4.to_immutable()));
     from.send(&mut vec![packet]);
 
-    let mut packet = to.alloc().unwrap();
+    let mut packet = to.alloc_packet().unwrap();
 
     if packet
         .replace_data(&received.get_buffer_mut().to_vec())

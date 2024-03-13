@@ -39,25 +39,25 @@ fn main() {
         )
         .arg(
             arg!(rx_ring_size: -r --"rx-ring" <count> "Rx ring size")
-                .value_parser(value_parser!(u32))
+                .value_parser(value_parser!(usize))
                 .required(false)
                 .default_value("64"),
         )
         .arg(
             arg!(tx_ring_size: -t --"tx-ring" <count> "Tx ring size")
-                .value_parser(value_parser!(u32))
+                .value_parser(value_parser!(usize))
                 .required(false)
                 .default_value("64"),
         )
         .arg(
             arg!(fill_ring_size: -f --"fill-ring" <count> "Fill ring size")
-                .value_parser(value_parser!(u32))
+                .value_parser(value_parser!(usize))
                 .required(false)
                 .default_value("64"),
         )
         .arg(
             arg!(completion_ring_size: -o --"completion-ring" <count> "Completion ring size")
-                .value_parser(value_parser!(u32))
+                .value_parser(value_parser!(usize))
                 .required(false)
                 .default_value("64"),
         )
@@ -67,10 +67,10 @@ fn main() {
     let name2 = matches.get_one::<String>("nic2").unwrap().clone();
     let chunk_size = *matches.get_one::<usize>("chunk_size").unwrap();
     let chunk_count = *matches.get_one::<usize>("chunk_count").unwrap();
-    let rx_ring_size = *matches.get_one::<u32>("rx_ring_size").unwrap();
-    let tx_ring_size = *matches.get_one::<u32>("tx_ring_size").unwrap();
-    let filling_ring_size = *matches.get_one::<u32>("fill_ring_size").unwrap();
-    let completion_ring_size = *matches.get_one::<u32>("completion_ring_size").unwrap();
+    let rx_ring_size = *matches.get_one::<usize>("rx_ring_size").unwrap();
+    let tx_ring_size = *matches.get_one::<usize>("tx_ring_size").unwrap();
+    let filling_ring_size = *matches.get_one::<usize>("fill_ring_size").unwrap();
+    let completion_ring_size = *matches.get_one::<usize>("completion_ring_size").unwrap();
     let source_word: String = matches.get_one::<String>("source").unwrap().clone();
     let target_word: String = matches.get_one::<String>("target").unwrap().clone();
 
@@ -87,22 +87,35 @@ fn main() {
         panic!("signal is forbidden");
     }
 
-    let mut nic1 = pv::NIC::new(&name1, chunk_size, chunk_count).unwrap();
-    nic1.open(
-        rx_ring_size,
-        tx_ring_size,
+    let mut nic1 = match pv::Nic::new(
+        &name1,
+        chunk_size,
+        chunk_count,
         filling_ring_size,
         completion_ring_size,
-    )
-    .unwrap();
-    let mut nic2 = pv::NIC::new(&name2, chunk_size, chunk_count).unwrap();
-    nic2.open(
-        rx_ring_size,
         tx_ring_size,
+        rx_ring_size,
+    ) {
+        Ok(nic) => nic,
+        Err(err) => {
+            panic!("Failed to create NIC1: {}", err);
+        }
+    };
+
+    let mut nic2 = match pv::Nic::new(
+        &name2,
+        chunk_size,
+        chunk_count,
         filling_ring_size,
         completion_ring_size,
-    )
-    .unwrap();
+        tx_ring_size,
+        rx_ring_size,
+    ) {
+        Ok(nic) => nic,
+        Err(err) => {
+            panic!("Failed to create NIC2: {}", err);
+        }
+    };
 
     while !term.load(Ordering::Relaxed) {
         forward(&mut nic1, &mut nic2, &source_word, &target_word);
@@ -110,25 +123,29 @@ fn main() {
     }
 }
 
-fn forward(from: &mut pv::NIC, to: &mut pv::NIC, source_word: &String, target_word: &String) {
+fn forward(from: &mut pv::Nic, to: &mut pv::Nic, source_word: &String, target_word: &String) {
     /* initialize rx_batch_size and packet metadata */
-    let rx_batch_size: u32 = 64;
-    let mut packets1: Vec<pv::Packet> = Vec::with_capacity(rx_batch_size as usize);
-    let mut packets2: Vec<pv::Packet> = Vec::with_capacity(rx_batch_size as usize);
-
-    let received = from.receive(&mut packets1);
+    let rx_batch_size: usize = 64;
+    let mut packets = from.receive(rx_batch_size);
+    let received = packets.len();
 
     if received > 0 {
-        for packet in &mut packets1 {
+        let mut change_word_packets: Vec<pv::Packet> = Vec::with_capacity(received);
+        for packet in &mut packets {
             match is_udp(packet) {
                 true => change_word(packet, source_word, target_word),
                 false => {}
             }
-            packets2.push(to.copy_from(packet).unwrap());
+
+            let packet_data = packet.get_buffer_mut().to_vec();
+            let mut change_word_packet = to.alloc_packet().unwrap();
+            change_word_packet.replace_data(&packet_data).unwrap();
+
+            change_word_packets.push(change_word_packet);
         }
 
         for retry in (0..3).rev() {
-            match (to.send(&mut packets2), retry) {
+            match (to.send(&mut change_word_packets), retry) {
                 (cnt, _) if cnt > 0 => break, // Success
                 (0, 0) => {
                     // Failed 3 times
@@ -175,9 +192,13 @@ fn change_word(packet: &mut pv::Packet, source_word: &String, target_word: &Stri
     let original_payload_data = get_original_payload_data(packet);
 
     if diff.is_negative() {
-        packet.resize(packet.end - packet.start - diff.wrapping_abs() as usize);
+        packet
+            .resize(packet.end - packet.start - diff.wrapping_abs() as usize)
+            .unwrap();
     } else {
-        packet.resize(packet.end - packet.start + diff as usize);
+        packet
+            .resize(packet.end - packet.start + diff as usize)
+            .unwrap();
     }
 
     let mut eth = MutableEthernetPacket::new(packet.get_buffer_mut()).unwrap();
