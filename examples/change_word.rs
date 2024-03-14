@@ -89,46 +89,68 @@ fn main() {
     };
 
     while !term.load(Ordering::Relaxed) {
-        forward(&mut nic1, &mut nic2, &source_word, &target_word);
-        forward(&mut nic2, &mut nic1, &source_word, &target_word);
+        match do_change_word(&mut nic1, &mut nic2, &source_word, &change_word) {
+            Some(sent_cnt) => {
+                println!(
+                    "[{} -> {}] Sent Packet Count : {}",
+                    nic1.interface.name, nic2.interface.name, sent_cnt
+                );
+            }
+            None => {}
+        }
+
+        match do_change_word(&mut nic2, &mut nic1, &source_word, &change_word) {
+            Some(sent_cnt) => {
+                println!(
+                    "[{} -> {}] Sent Packet Count : {}",
+                    nic2.interface.name, nic1.interface.name, sent_cnt
+                );
+            }
+            None => {}
+        }
+
+        thread::sleep(Duration::from_millis(100));
     }
 }
 
-fn forward(from: &mut pv::Nic, to: &mut pv::Nic, source_word: &String, target_word: &String) {
+fn do_change_word(
+    from: &mut pv::Nic,
+    to: &mut pv::Nic,
+    source_word: &String,
+    target_word: &String,
+) -> Option<usize> {
     /* initialize rx_batch_size and packet metadata */
     let rx_batch_size: usize = 64;
     let mut packets = from.receive(rx_batch_size);
     let received = packets.len();
 
-    if received > 0 {
-        let mut change_word_packets: Vec<pv::Packet> = Vec::with_capacity(received);
-        for packet in &mut packets {
-            match is_udp(packet) {
-                true => change_word(packet, source_word, target_word),
-                false => {}
-            }
-
-            let packet_data = packet.get_buffer_mut().to_vec();
-            let mut change_word_packet = to.alloc_packet().unwrap();
-            change_word_packet.replace_data(&packet_data).unwrap();
-
-            change_word_packets.push(change_word_packet);
-        }
-
-        for retry in (0..3).rev() {
-            match (to.send(&mut change_word_packets), retry) {
-                (cnt, _) if cnt > 0 => break, // Success
-                (0, 0) => {
-                    // Failed 3 times
-                    break;
-                }
-                _ => continue, // Retrying
-            }
-        }
-    } else {
-        // No packets received. Sleep
-        thread::sleep(Duration::from_millis(100));
+    if 0 >= received {
+        return None;
     }
+
+    let mut change_word_packets: Vec<pv::Packet> = Vec::with_capacity(received);
+    for packet in &mut packets {
+        match is_udp(packet) {
+            true => change_word(packet, source_word, target_word),
+            false => {}
+        }
+
+        let packet_data = packet.get_buffer_mut().to_vec();
+        let mut change_word_packet = to.alloc_packet().unwrap();
+        change_word_packet.replace_data(&packet_data).unwrap();
+
+        change_word_packets.push(change_word_packet);
+    }
+
+    for _ in 0..4 {
+        let sent_cnt = to.send(&mut change_word_packets);
+
+        if sent_cnt > 0 {
+            return Some(sent_cnt);
+        }
+    }
+
+    None
 }
 
 // check if packet is udp or not

@@ -82,9 +82,65 @@ fn main() {
     };
 
     while !term.load(Ordering::Relaxed) {
-        forward(&mut nic1, &mut nic2);
-        forward(&mut nic2, &mut nic1);
+        match do_filtering(&mut nic1, &mut nic2) {
+            Some(sent_cnt) => {
+                println!(
+                    "[{} -> {}] Sent Packet Count : {}",
+                    nic1.interface.name, nic2.interface.name, sent_cnt
+                );
+            }
+            None => {}
+        }
+
+        match do_filtering(&mut nic2, &mut nic1) {
+            Some(sent_cnt) => {
+                println!(
+                    "[{} -> {}] Sent Packet Count : {}",
+                    nic2.interface.name, nic1.interface.name, sent_cnt
+                );
+            }
+            None => {}
+        }
+
+        thread::sleep(Duration::from_millis(100));
     }
+}
+
+fn do_filtering(from: &mut pv::Nic, to: &mut pv::Nic) -> Option<usize> {
+    /* initialize rx_batch_size and packet metadata */
+    let rx_batch_size: usize = 64;
+    let mut packets = from.receive(rx_batch_size);
+    let received = packets.len();
+
+    if 0 >= received {
+        return None;
+    }
+
+    let mut filter_packets: Vec<pv::Packet> = Vec::with_capacity(received);
+    for packet in &mut packets {
+        match process_packet(packet) {
+            true => {
+                let packet_data = packet.get_buffer_mut().to_vec();
+                let mut filter_packet = to.alloc_packet().unwrap();
+                filter_packet.replace_data(&packet_data).unwrap();
+
+                filter_packets.push(filter_packet);
+            }
+            false => {
+                send_tcp_rst(from, to, packet);
+            }
+        }
+    }
+
+    for _ in 0..4 {
+        let sent_cnt = to.send(&mut filter_packets);
+
+        if sent_cnt > 0 {
+            return Some(sent_cnt);
+        }
+    }
+
+    None
 }
 
 fn process_packet(packet: &mut pv::Packet) -> bool {
@@ -116,46 +172,7 @@ fn process_packet(packet: &mut pv::Packet) -> bool {
     true
 }
 
-fn forward(from: &mut pv::Nic, to: &mut pv::Nic) {
-    /* initialize rx_batch_size and packet metadata */
-    let rx_batch_size: usize = 64;
-    let mut packets = from.receive(rx_batch_size);
-    let received = packets.len();
-
-    if received > 0 {
-        let mut filter_packets: Vec<pv::Packet> = Vec::with_capacity(received);
-        for packet in &mut packets {
-            match process_packet(packet) {
-                true => {
-                    let packet_data = packet.get_buffer_mut().to_vec();
-                    let mut filter_packet = to.alloc_packet().unwrap();
-                    filter_packet.replace_data(&packet_data).unwrap();
-
-                    filter_packets.push(filter_packet);
-                }
-                false => {
-                    send_rst(from, to, packet);
-                }
-            }
-        }
-
-        for retry in (0..3).rev() {
-            match (to.send(&mut filter_packets), retry) {
-                (cnt, _) if cnt > 0 => break, // Success
-                (0, 0) => {
-                    // Failed 3 times
-                    break;
-                }
-                _ => continue, // Retrying
-            }
-        }
-    } else {
-        // No packets received. Sleep
-        thread::sleep(Duration::from_millis(100));
-    }
-}
-
-fn send_rst(from: &mut pv::Nic, to: &mut pv::Nic, received: &mut pv::Packet) {
+fn send_tcp_rst(from: &mut pv::Nic, to: &mut pv::Nic, received: &mut pv::Packet) {
     let mut packet = from.alloc_packet().unwrap();
 
     if packet

@@ -78,30 +78,39 @@ fn main() {
         }
     };
 
+    while !term.load(Ordering::Relaxed) {
+        match do_echo(&mut nic) {
+            Some(sent_cnt) => {
+                println!("Echo Packet Count : {}", sent_cnt);
+            }
+            None => {}
+        }
+
+        thread::sleep(Duration::from_millis(100));
+    }
+}
+
+fn do_echo(echo_nic: &mut pv::Nic) -> Option<usize> {
     /* initialize rx_batch_size and packet metadata */
     let rx_batch_size = 64;
-    while !term.load(Ordering::Relaxed) {
-        thread::sleep(Duration::from_millis(100));
+    let mut packets = echo_nic.receive(rx_batch_size);
+    let received = packets.len();
 
-        let mut packets = nic.receive(rx_batch_size);
-        let received = packets.len();
+    if received <= 0 {
+        return None;
+    }
 
-        if received == 0 && !term.load(Ordering::Relaxed) {
-            continue;
-        }
+    packets.retain_mut(|p| process_packet(p, &echo_nic));
 
-        packets.retain_mut(|p| process_packet(p, &nic));
+    for _ in 0..4 {
+        let sent_cnt = echo_nic.send(&mut packets);
 
-        for retry in (0..3).rev() {
-            match (nic.send(&mut packets), retry) {
-                (cnt, _) if cnt > 0 => break, // Success
-                (0, 0) => {
-                    break; // Failed 3 times
-                }
-                _ => continue, // Retrying
-            }
+        if sent_cnt > 0 {
+            return Some(sent_cnt);
         }
     }
+
+    None
 }
 
 fn process_packet(packet: &mut pv::Packet, nic: &pv::Nic) -> bool {

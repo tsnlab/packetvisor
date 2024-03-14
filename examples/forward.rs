@@ -89,13 +89,13 @@ fn main() {
     }
 }
 
-fn forward(nic1: &mut pv::Nic, nic2: &mut pv::Nic, dump: bool) -> usize {
+fn forward(from: &mut pv::Nic, to: &mut pv::Nic, dump: bool) -> usize {
     /* initialize rx_batch_size and packet metadata */
     let rx_batch_size = 64;
-    let mut packets = nic1.receive(rx_batch_size);
-    let count = packets.len();
+    let mut packets = from.receive(rx_batch_size);
+    let received = packets.len();
 
-    if count == 0 {
+    if 0 >= received {
         return 0;
     }
 
