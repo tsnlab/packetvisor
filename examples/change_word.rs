@@ -20,59 +20,30 @@ use std::{
 };
 
 fn main() {
-    let matches = Command::new("filter")
-        .arg(arg!(nic1: --nic1 <nic1> "nic1 to use").required(true))
-        .arg(arg!(nic2: -p --nic2 <nic2> "nic2 to use").required(true))
-        .arg(arg!(source: --"source-word" <source_word> "source word to be changed").required(true))
-        .arg(arg!(target: --"target-word" <target_word> "target word to change").required(true))
-        .arg(
-            arg!(chunk_size: -s --"chunk-size" <size> "Chunk size")
-                .value_parser(value_parser!(usize))
-                .required(false)
-                .default_value("2048"),
-        )
-        .arg(
-            arg!(chunk_count: -c --"chunk-count" <count> "Chunk count")
-                .required(false)
-                .value_parser(value_parser!(usize))
-                .default_value("1024"),
-        )
-        .arg(
-            arg!(rx_ring_size: -r --"rx-ring" <count> "Rx ring size")
-                .value_parser(value_parser!(usize))
-                .required(false)
-                .default_value("64"),
-        )
-        .arg(
-            arg!(tx_ring_size: -t --"tx-ring" <count> "Tx ring size")
-                .value_parser(value_parser!(usize))
-                .required(false)
-                .default_value("64"),
-        )
-        .arg(
-            arg!(fill_ring_size: -f --"fill-ring" <count> "Fill ring size")
-                .value_parser(value_parser!(usize))
-                .required(false)
-                .default_value("64"),
-        )
-        .arg(
-            arg!(completion_ring_size: -o --"completion-ring" <count> "Completion ring size")
-                .value_parser(value_parser!(usize))
-                .required(false)
-                .default_value("64"),
-        )
-        .get_matches();
+    let mut if_name1: String = Default::default();
+    let mut if_name2: String = Default::default();
+    let mut chunk_size: usize = 0;
+    let mut chunk_count: usize = 0;
+    let mut rx_ring_size: usize = 0;
+    let mut tx_ring_size: usize = 0;
+    let mut filling_ring_size: usize = 0;
+    let mut completion_ring_size: usize = 0;
 
-    let name1 = matches.get_one::<String>("nic1").unwrap().clone();
-    let name2 = matches.get_one::<String>("nic2").unwrap().clone();
-    let chunk_size = *matches.get_one::<usize>("chunk_size").unwrap();
-    let chunk_count = *matches.get_one::<usize>("chunk_count").unwrap();
-    let rx_ring_size = *matches.get_one::<usize>("rx_ring_size").unwrap();
-    let tx_ring_size = *matches.get_one::<usize>("tx_ring_size").unwrap();
-    let filling_ring_size = *matches.get_one::<usize>("fill_ring_size").unwrap();
-    let completion_ring_size = *matches.get_one::<usize>("completion_ring_size").unwrap();
-    let source_word: String = matches.get_one::<String>("source").unwrap().clone();
-    let target_word: String = matches.get_one::<String>("target").unwrap().clone();
+    let mut source_word: String = Default::default();
+    let mut change_word: String = Default::default();
+
+    do_command(
+        &mut if_name1,
+        &mut if_name2,
+        &mut chunk_size,
+        &mut chunk_count,
+        &mut rx_ring_size,
+        &mut tx_ring_size,
+        &mut filling_ring_size,
+        &mut completion_ring_size,
+        &mut source_word,
+        &mut change_word,
+    );
 
     // Signal handlers
     let term: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
@@ -88,7 +59,7 @@ fn main() {
     }
 
     let mut nic1 = match pv::Nic::new(
-        &name1,
+        &if_name1,
         chunk_size,
         chunk_count,
         filling_ring_size,
@@ -103,7 +74,7 @@ fn main() {
     };
 
     let mut nic2 = match pv::Nic::new(
-        &name2,
+        &if_name2,
         chunk_size,
         chunk_count,
         filling_ring_size,
@@ -254,4 +225,71 @@ fn get_original_payload_data(packet: &mut pv::Packet) -> String {
     let mut udp = MutableUdpPacket::new(ipv4.payload_mut()).unwrap();
     let payload = udp.payload_mut();
     unsafe { String::from_utf8_unchecked(payload.to_vec()) }
+}
+
+fn do_command(
+    if_name1: &mut String,
+    if_name2: &mut String,
+    chunk_size: &mut usize,
+    chunk_count: &mut usize,
+    rx_ring_size: &mut usize,
+    tx_ring_size: &mut usize,
+    filling_ring_size: &mut usize,
+    completion_ring_size: &mut usize,
+    source_word: &mut String,
+    change_word: &mut String,
+) {
+    let matches = Command::new("change_word")
+        .arg(arg!(nic1: --nic1 <nic1> "nic1 to use").required(true))
+        .arg(arg!(nic2: -p --nic2 <nic2> "nic2 to use").required(true))
+        .arg(arg!(source: --"source-word" <source_word> "source word to be changed").required(true))
+        .arg(arg!(change: --"change-word" <change_word> "target word to change").required(true))
+        .arg(
+            arg!(chunk_size: -s --"chunk-size" <size> "Chunk size")
+                .value_parser(value_parser!(usize))
+                .required(false)
+                .default_value("2048"),
+        )
+        .arg(
+            arg!(chunk_count: -c --"chunk-count" <count> "Chunk count")
+                .required(false)
+                .value_parser(value_parser!(usize))
+                .default_value("1024"),
+        )
+        .arg(
+            arg!(rx_ring_size: -r --"rx-ring" <count> "Rx ring size")
+                .value_parser(value_parser!(usize))
+                .required(false)
+                .default_value("64"),
+        )
+        .arg(
+            arg!(tx_ring_size: -t --"tx-ring" <count> "Tx ring size")
+                .value_parser(value_parser!(usize))
+                .required(false)
+                .default_value("64"),
+        )
+        .arg(
+            arg!(fill_ring_size: -f --"fill-ring" <count> "Fill ring size")
+                .value_parser(value_parser!(usize))
+                .required(false)
+                .default_value("64"),
+        )
+        .arg(
+            arg!(completion_ring_size: -o --"completion-ring" <count> "Completion ring size")
+                .value_parser(value_parser!(usize))
+                .required(false)
+                .default_value("64"),
+        )
+        .get_matches();
+
+    *if_name1 = matches.get_one::<String>("nic1").unwrap().clone();
+    *if_name2 = matches.get_one::<String>("nic2").unwrap().clone();
+    *chunk_size = *matches.get_one::<usize>("chunk_size").unwrap();
+    *chunk_count = *matches.get_one::<usize>("chunk_count").unwrap();
+    *rx_ring_size = *matches.get_one::<usize>("rx_ring_size").unwrap();
+    *tx_ring_size = *matches.get_one::<usize>("tx_ring_size").unwrap();
+    *filling_ring_size = *matches.get_one::<usize>("fill_ring_size").unwrap();
+    *completion_ring_size = *matches.get_one::<usize>("completion_ring_size").unwrap();
+    *source_word = matches.get_one::<String>("source").unwrap().clone();
+    *change_word = matches.get_one::<String>("change").unwrap().clone();
 }

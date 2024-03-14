@@ -1,4 +1,4 @@
-use clap::{arg, Command};
+use clap::{arg, value_parser, Command};
 use pnet::{
     datalink::MacAddr,
     packet::arp::{ArpOperations, MutableArpPacket},
@@ -32,71 +32,23 @@ use std::{
 };
 
 fn main() {
-    let matches = Command::new("echo")
-        .arg(arg!(interface: <interface> "Interface to use").required(true))
-        .arg(
-            arg!(chunk_size: -s --"chunk-size" <size> "Chunk size")
-                .required(false)
-                .default_value("2048"),
-        )
-        .arg(
-            arg!(chunk_count: -c --"chunk-count" <count> "Chunk count")
-                .required(false)
-                .default_value("1024"),
-        )
-        .arg(
-            arg!(rx_ring_size: -r --"rx-ring" <count> "Rx ring size")
-                .required(false)
-                .default_value("64"),
-        )
-        .arg(
-            arg!(tx_ring_size: -t --"tx-ring" <count> "Tx ring size")
-                .required(false)
-                .default_value("64"),
-        )
-        .arg(
-            arg!(fill_ring_size: -f --"fill-ring" <count> "Fill ring size")
-                .required(false)
-                .default_value("64"),
-        )
-        .arg(
-            arg!(completion_ring_size: -o --"completion-ring" <count> "Completion ring size")
-                .required(false)
-                .default_value("64"),
-        )
-        .get_matches();
+    let mut if_name: String = Default::default();
+    let mut chunk_size: usize = 0;
+    let mut chunk_count: usize = 0;
+    let mut rx_ring_size: usize = 0;
+    let mut tx_ring_size: usize = 0;
+    let mut filling_ring_size: usize = 0;
+    let mut completion_ring_size: usize = 0;
 
-    let if_name = matches.get_one::<String>("interface").unwrap().clone();
-    let chunk_size = matches
-        .get_one::<String>("chunk_size")
-        .unwrap()
-        .parse()
-        .unwrap();
-    let chunk_count = matches
-        .get_one::<String>("chunk_count")
-        .unwrap()
-        .parse()
-        .unwrap();
-    let rx_ring_size = matches
-        .get_one::<String>("rx_ring_size")
-        .unwrap()
-        .parse()
-        .unwrap();
-    let tx_ring_size = matches
-        .get_one::<String>("tx_ring_size")
-        .unwrap()
-        .parse()
-        .unwrap();
-    let filling_ring_size = matches
-        .get_one::<String>("fill_ring_size")
-        .unwrap()
-        .parse()
-        .unwrap();
-    let completion_ring_size = matches
-        .get_one::<String>("completion_ring_size")
-        .unwrap()
-        .parse()
-        .unwrap();
+    do_command(
+        &mut if_name,
+        &mut chunk_size,
+        &mut chunk_count,
+        &mut rx_ring_size,
+        &mut tx_ring_size,
+        &mut filling_ring_size,
+        &mut completion_ring_size,
+    );
 
     // Signal handlers
     let term: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
@@ -355,4 +307,62 @@ fn process_udpv6(packet: &mut pv::Packet) -> bool {
         &destination,
     ));
     true
+}
+
+fn do_command(
+    if_name: &mut String,
+    chunk_size: &mut usize,
+    chunk_count: &mut usize,
+    rx_ring_size: &mut usize,
+    tx_ring_size: &mut usize,
+    filling_ring_size: &mut usize,
+    completion_ring_size: &mut usize,
+) {
+    let matches = Command::new("echo")
+        .arg(arg!(interface: <interface> "Interface to use").required(true))
+        .arg(
+            arg!(chunk_size: -s --"chunk-size" <size> "Chunk size")
+                .required(false)
+                .value_parser(value_parser!(usize))
+                .default_value("2048"),
+        )
+        .arg(
+            arg!(chunk_count: -c --"chunk-count" <count> "Chunk count")
+                .required(false)
+                .value_parser(value_parser!(usize))
+                .default_value("1024"),
+        )
+        .arg(
+            arg!(rx_ring_size: -r --"rx-ring" <count> "Rx ring size")
+                .required(false)
+                .value_parser(value_parser!(usize))
+                .default_value("64"),
+        )
+        .arg(
+            arg!(tx_ring_size: -t --"tx-ring" <count> "Tx ring size")
+                .required(false)
+                .value_parser(value_parser!(usize))
+                .default_value("64"),
+        )
+        .arg(
+            arg!(fill_ring_size: -f --"fill-ring" <count> "Fill ring size")
+                .required(false)
+                .value_parser(value_parser!(usize))
+                .default_value("64"),
+        )
+        .arg(
+            arg!(completion_ring_size: -o --"completion-ring" <count> "Completion ring size")
+                .required(false)
+                .value_parser(value_parser!(usize))
+                .default_value("64"),
+        )
+        .get_matches();
+
+    *if_name = matches.get_one::<String>("interface").unwrap().clone();
+    *chunk_size = *matches.get_one::<usize>("chunk_size").unwrap();
+    *chunk_count = *matches.get_one::<usize>("chunk_count").unwrap();
+    *rx_ring_size = *matches.get_one::<usize>("rx_ring_size").unwrap();
+    *tx_ring_size = *matches.get_one::<usize>("tx_ring_size").unwrap();
+    *filling_ring_size = *matches.get_one::<usize>("fill_ring_size").unwrap();
+    *completion_ring_size = *matches.get_one::<usize>("completion_ring_size").unwrap();
 }
