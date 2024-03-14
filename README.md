@@ -99,7 +99,9 @@ in contrast to RX side procedure, `CQ` should have enough empty slots before sen
 9. lastly, user should inform kernel how many slots in `CQ` are consumed through `xsk_ring_cons__release()`. so that kernel will move `tail` of `CQ` for the next packet's chunk to be saved in the ring.
 
 # License
-This software is distributed under GPLv2
+This software is distributed under GPLv3 or any later version.
+
+If you need other license than GPLv3 for proprietary use or professional support, please mail us to contact at tsnlab dot com.
 
 # TODO
 Make an installer including an option to change capabilities of the application.
