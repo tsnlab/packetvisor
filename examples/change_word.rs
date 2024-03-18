@@ -79,24 +79,18 @@ fn main() {
     };
 
     while !term.load(Ordering::Relaxed) {
-        match do_change_word(&mut nic1, &mut nic2, &source_word, &change_word) {
-            Some(sent_cnt) => {
-                println!(
-                    "[{} -> {}] Sent Packet Count : {}",
-                    nic1.interface.name, nic2.interface.name, sent_cnt
-                );
-            }
-            None => {}
+        if let Some(sent_cnt) = do_change_word(&mut nic1, &mut nic2, &source_word, &change_word) {
+            println!(
+                "[{} -> {}] Sent Packet Count : {}",
+                nic1.interface.name, nic2.interface.name, sent_cnt
+            );
         }
 
-        match do_change_word(&mut nic2, &mut nic1, &source_word, &change_word) {
-            Some(sent_cnt) => {
-                println!(
-                    "[{} -> {}] Sent Packet Count : {}",
-                    nic2.interface.name, nic1.interface.name, sent_cnt
-                );
-            }
-            None => {}
+        if let Some(sent_cnt) = do_change_word(&mut nic2, &mut nic1, &source_word, &change_word) {
+            println!(
+                "[{} -> {}] Sent Packet Count : {}",
+                nic2.interface.name, nic1.interface.name, sent_cnt
+            );
         }
 
         thread::sleep(Duration::from_millis(100));
@@ -106,15 +100,15 @@ fn main() {
 fn do_change_word(
     from: &mut pv::Nic,
     to: &mut pv::Nic,
-    source_word: &String,
-    target_word: &String,
+    source_word: &str,
+    target_word: &str,
 ) -> Option<usize> {
     /* initialize rx_batch_size and packet metadata */
     let rx_batch_size: usize = 64;
     let mut packets = from.receive(rx_batch_size);
     let received = packets.len();
 
-    if 0 >= received {
+    if 0 == received {
         return None;
     }
 
@@ -132,7 +126,7 @@ fn do_change_word(
         change_word_packets.push(change_word_packet);
     }
 
-    for _ in 0..4 {
+    for _ in 0..3 {
         let sent_cnt = to.send(&mut change_word_packets);
 
         if sent_cnt > 0 {
@@ -154,17 +148,20 @@ fn is_udp(packet: &mut pv::Packet) -> bool {
     match eth.get_ethertype() {
         EtherTypes::Ipv4 => {
             let ipv4 = MutableIpv4Packet::new(eth.payload_mut()).unwrap();
+
+            matches!(ipv4.get_next_level_protocol(), IpNextHeaderProtocols::Udp)
+            /*
             match ipv4.get_next_level_protocol() {
-                IpNextHeaderProtocols::Udp => return true,
-                _ => return false,
-            }
+                IpNextHeaderProtocols::Udp => true,
+                _ => false,
+            }*/
         }
-        _ => return false,
+        _ => false,
     }
 }
 
 // change all matched source_word to target_word
-fn change_word(packet: &mut pv::Packet, source_word: &String, target_word: &String) {
+fn change_word(packet: &mut pv::Packet, source_word: &str, target_word: &str) {
     /*
       get difference of length between original payload and changed payload
       get original payload data also.
@@ -216,7 +213,7 @@ fn change_word(packet: &mut pv::Packet, source_word: &String, target_word: &Stri
     ipv4.set_checksum(ipv4::checksum(&ipv4.to_immutable()));
 }
 
-fn get_diff(packet: &mut pv::Packet, source_word: &String, target_word: &String) -> isize {
+fn get_diff(packet: &mut pv::Packet, source_word: &str, target_word: &str) -> isize {
     let payload_data: String;
 
     let mut eth = MutableEthernetPacket::new(packet.get_buffer_mut()).unwrap();

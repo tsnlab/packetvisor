@@ -73,11 +73,8 @@ fn main() {
     };
 
     while !term.load(Ordering::Relaxed) {
-        match do_echo(&mut nic) {
-            Some(sent_cnt) => {
-                println!("Echo Packet Count : {}", sent_cnt);
-            }
-            None => {}
+        if let Some(sent_cnt) = do_echo(&mut nic) {
+            println!("Echo Packet Count : {}", sent_cnt);
         }
 
         thread::sleep(Duration::from_millis(100));
@@ -90,13 +87,13 @@ fn do_echo(echo_nic: &mut pv::Nic) -> Option<usize> {
     let mut packets = echo_nic.receive(rx_batch_size);
     let received = packets.len();
 
-    if received <= 0 {
+    if 0 == received {
         return None;
     }
 
-    packets.retain_mut(|p| process_packet(p, &echo_nic));
+    packets.retain_mut(|p| process_packet(p, echo_nic));
 
-    for _ in 0..4 {
+    for _ in 0..3 {
         let sent_cnt = echo_nic.send(&mut packets);
 
         if sent_cnt > 0 {

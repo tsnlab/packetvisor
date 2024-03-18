@@ -86,7 +86,7 @@ fn forward(from: &mut pv::Nic, to: &mut pv::Nic, dump: bool) -> usize {
     let mut packets = from.receive(rx_batch_size);
     let received = packets.len();
 
-    if 0 >= received {
+    if 0 == received {
         return 0;
     }
 
@@ -96,7 +96,7 @@ fn forward(from: &mut pv::Nic, to: &mut pv::Nic, dump: bool) -> usize {
         }
     }
 
-    for _ in 0..4 {
+    for _ in 0..3 {
         let sent_cnt = to.send(&mut packets);
 
         if sent_cnt > 0 {

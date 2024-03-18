@@ -75,24 +75,18 @@ fn main() {
     };
 
     while !term.load(Ordering::Relaxed) {
-        match do_filtering(&mut nic1, &mut nic2) {
-            Some(sent_cnt) => {
-                println!(
-                    "[{} -> {}] Sent Packet Count : {}",
-                    nic1.interface.name, nic2.interface.name, sent_cnt
-                );
-            }
-            None => {}
+        if let Some(sent_cnt) = do_filtering(&mut nic1, &mut nic2) {
+            println!(
+                "[{} -> {}] Sent Packet Count : {}",
+                nic1.interface.name, nic2.interface.name, sent_cnt
+            );
         }
 
-        match do_filtering(&mut nic2, &mut nic1) {
-            Some(sent_cnt) => {
-                println!(
-                    "[{} -> {}] Sent Packet Count : {}",
-                    nic2.interface.name, nic1.interface.name, sent_cnt
-                );
-            }
-            None => {}
+        if let Some(sent_cnt) = do_filtering(&mut nic2, &mut nic1) {
+            println!(
+                "[{} -> {}] Sent Packet Count : {}",
+                nic2.interface.name, nic1.interface.name, sent_cnt
+            );
         }
 
         thread::sleep(Duration::from_millis(100));
@@ -105,7 +99,7 @@ fn do_filtering(from: &mut pv::Nic, to: &mut pv::Nic) -> Option<usize> {
     let mut packets = from.receive(rx_batch_size);
     let received = packets.len();
 
-    if 0 >= received {
+    if 0 == received {
         return None;
     }
 
@@ -125,7 +119,7 @@ fn do_filtering(from: &mut pv::Nic, to: &mut pv::Nic) -> Option<usize> {
         }
     }
 
-    for _ in 0..4 {
+    for _ in 0..3 {
         let sent_cnt = to.send(&mut filter_packets);
 
         if sent_cnt > 0 {
@@ -156,7 +150,7 @@ fn process_packet(packet: &mut pv::Packet) -> bool {
         None => return true,
     };
 
-    if word.len() > 0 && (tcp.get_source() == port || tcp.get_destination() == port) {
+    if !word.is_empty() && (tcp.get_source() == port || tcp.get_destination() == port) {
         return !String::from_utf8_lossy(tcp.payload())
             .into_owned()
             .contains(word);

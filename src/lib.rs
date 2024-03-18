@@ -331,16 +331,10 @@ impl Pool {
         fq_size: usize,
         cq_size: usize,
     ) -> Result<(), String> {
-        match unsafe { POOL.as_ref() } {
-            None => {
-                let mut pool_obj = Pool::new()?;
-                pool_obj.re_init(chunk_size, chunk_count, fq_size, cq_size)?;
-                unsafe { POOL = Some(pool_obj) };
-            }
-            _ => {
-                #[cfg(debug_assertions)]
-                eprintln!("Pool has already been initialized.");
-            }
+        if unsafe { POOL.as_ref() }.is_none() {
+            let mut pool_obj = Pool::new()?;
+            pool_obj.re_init(chunk_size, chunk_count, fq_size, cq_size)?;
+            unsafe { POOL = Some(pool_obj) };
         }
 
         Ok(())
