@@ -1,4 +1,4 @@
-use clap::{arg, value_parser, Command};
+use clap::{arg, value_parser, ArgMatches, Command};
 
 use pnet::{
     packet::ipv4::MutableIpv4Packet,
@@ -18,25 +18,18 @@ use std::{
 };
 
 fn main() {
-    let mut if_name1: String = Default::default();
-    let mut if_name2: String = Default::default();
-    let mut chunk_size: usize = 0;
-    let mut chunk_count: usize = 0;
-    let mut rx_ring_size: usize = 0;
-    let mut tx_ring_size: usize = 0;
-    let mut filling_ring_size: usize = 0;
-    let mut completion_ring_size: usize = 0;
+    let cli_options = parse_cli_options();
 
-    do_command(
-        &mut if_name1,
-        &mut if_name2,
-        &mut chunk_size,
-        &mut chunk_count,
-        &mut rx_ring_size,
-        &mut tx_ring_size,
-        &mut filling_ring_size,
-        &mut completion_ring_size,
-    );
+    let if_name1 = cli_options.get_one::<String>("nic1").unwrap().clone();
+    let if_name2 = cli_options.get_one::<String>("nic2").unwrap().clone();
+    let chunk_size = *cli_options.get_one::<usize>("chunk_size").unwrap();
+    let chunk_count = *cli_options.get_one::<usize>("chunk_count").unwrap();
+    let rx_ring_size = *cli_options.get_one::<usize>("rx_ring_size").unwrap();
+    let tx_ring_size = *cli_options.get_one::<usize>("tx_ring_size").unwrap();
+    let filling_ring_size = *cli_options.get_one::<usize>("fill_ring_size").unwrap();
+    let completion_ring_size = *cli_options
+        .get_one::<usize>("completion_ring_size")
+        .unwrap();
 
     // Signal handlers
     let term: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
@@ -252,17 +245,8 @@ fn send_tcp_rst(from: &mut pv::Nic, to: &mut pv::Nic, received: &mut pv::Packet)
     to.send(&mut vec![packet]);
 }
 
-fn do_command(
-    if_name1: &mut String,
-    if_name2: &mut String,
-    chunk_size: &mut usize,
-    chunk_count: &mut usize,
-    rx_ring_size: &mut usize,
-    tx_ring_size: &mut usize,
-    filling_ring_size: &mut usize,
-    completion_ring_size: &mut usize,
-) {
-    let matches = Command::new("filter")
+fn parse_cli_options() -> ArgMatches {
+    Command::new("filter")
         .arg(arg!(nic1: --nic1 <nic1> "nic1 to use").required(true))
         .arg(arg!(nic2: -p --nic2 <nic2> "nic2 to use").required(true))
         .arg(
@@ -301,14 +285,5 @@ fn do_command(
                 .required(false)
                 .default_value("64"),
         )
-        .get_matches();
-
-    *if_name1 = matches.get_one::<String>("nic1").unwrap().clone();
-    *if_name2 = matches.get_one::<String>("nic2").unwrap().clone();
-    *chunk_size = *matches.get_one::<usize>("chunk_size").unwrap();
-    *chunk_count = *matches.get_one::<usize>("chunk_count").unwrap();
-    *rx_ring_size = *matches.get_one::<usize>("rx_ring_size").unwrap();
-    *tx_ring_size = *matches.get_one::<usize>("tx_ring_size").unwrap();
-    *filling_ring_size = *matches.get_one::<usize>("fill_ring_size").unwrap();
-    *completion_ring_size = *matches.get_one::<usize>("completion_ring_size").unwrap();
+        .get_matches()
 }

@@ -1,4 +1,4 @@
-use clap::{arg, Command};
+use clap::{arg, ArgMatches, Command};
 use pnet::packet::{
     ethernet::{EtherTypes, MutableEthernetPacket},
     ip::IpNextHeaderProtocols,
@@ -9,18 +9,11 @@ use pnet::packet::{
 use std::{io, net::UdpSocket, thread, time::Duration};
 
 fn main() {
-    let matches = Command::new("tunnel")
-        .arg(arg!(interface: -i --interface <interface> "Interface to send or receive packet from inner host.").required(true))
-        .arg(arg!(source: -s --source <source> "Source IP address:port to open and bind UDP socket. ex) 192.160.0.1:8080").required(true))
-        .arg(
-            arg!(destination: -d --destination <destination> "Destination IP address:port to send packet. ex) 192.160.0.2:8080")
-                .required(true),
-        )
-        .get_matches();
+    let cli_options = parse_cli_options();
 
-    let interface = matches.get_one::<String>("interface").unwrap();
-    let source = matches.get_one::<String>("source").unwrap();
-    let destination = matches.get_one::<String>("destination").unwrap();
+    let interface = cli_options.get_one::<String>("interface").unwrap();
+    let source = cli_options.get_one::<String>("source").unwrap();
+    let destination = cli_options.get_one::<String>("destination").unwrap();
 
     const CHUNK_SIZE: usize = 2048;
     const CHUNK_COUNT: usize = 1024;
@@ -30,7 +23,7 @@ fn main() {
     const COMPLETION_RING_SIZE: usize = 64;
 
     let mut interface = match pv::Nic::new(
-        &interface,
+        interface,
         CHUNK_SIZE,
         CHUNK_COUNT,
         FILLING_RING_SIZE,
@@ -139,4 +132,15 @@ fn set_mms(packet: &mut pv::Packet, mms: u16) {
         &destination_ip_addr,
     ));
     ipv4.set_checksum(ipv4::checksum(&ipv4.to_immutable()));
+}
+
+fn parse_cli_options() -> ArgMatches {
+    Command::new("tunnel")
+        .arg(arg!(interface: -i --interface <interface> "Interface to send or receive packet from inner host.").required(true))
+        .arg(arg!(source: -s --source <source> "Source IP address:port to open and bind UDP socket. ex) 192.160.0.1:8080").required(true))
+        .arg(
+            arg!(destination: -d --destination <destination> "Destination IP address:port to send packet. ex) 192.160.0.2:8080")
+            .required(true),
+            )
+        .get_matches()
 }
