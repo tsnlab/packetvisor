@@ -148,13 +148,7 @@ fn is_udp(packet: &mut pv::Packet) -> bool {
     match eth.get_ethertype() {
         EtherTypes::Ipv4 => {
             let ipv4 = MutableIpv4Packet::new(eth.payload_mut()).unwrap();
-
             matches!(ipv4.get_next_level_protocol(), IpNextHeaderProtocols::Udp)
-            /*
-            match ipv4.get_next_level_protocol() {
-                IpNextHeaderProtocols::Udp => true,
-                _ => false,
-            }*/
         }
         _ => false,
     }
