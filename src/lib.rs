@@ -1,3 +1,37 @@
+//!
+//! # Packetvisor
+//!
+//! `Packetvisor` is a Raw Packet I/O framework based on the Rust language.
+//! It can process packets much faster than `Standard Sockets` through the
+//! Linux Kernel's `eXpress Data Path (XDP)`.
+//!
+//! ## Key features
+//!
+//! **1. Bypassing the Network Stack in the Linux Kernel and Achieving Zero-Copy with `XDP`**
+//! * Packetvisor completely bypasses the Network Stack in the Linux kernel using `XDP`,
+//! reducing unnecessary overhead in the packet processing process.
+//!
+//! **2. High-Speed Packet Processing with the `pv::Nic` Structure**
+//! * `Packetvisor` uses the `pv::Nic` structure to attach to specific Network Interface.
+//! This structure utilizes `XDP_SOCKET(XSK)` to directly process transmit
+//! and receive packets, allowing applications to directly transmit and
+//! receive packets in the application space. This helps to simplify the
+//! data processing process and improve performance.
+//!
+//! **3. Easy Development with Rust**
+//! * `Packetvisor` is developed based on the Rust language, so you can use
+//! Rust to create high-performance _firewalls_ and implement _tunneling
+//! protocols_ with just a few dozen lines of code.
+//!
+//! **4. XDP Fallback Mode Support**
+//! * `Packetvisor` supports both `XDP` `Native(=DRV)` and `Generic(=SKB)` modes,
+//! and the mode selection is automatically determined by `Packetvisor`.
+//!
+//! ## Examples
+//! Various examples for packet _echo_, _filtering_, _forwarding_, etc.
+//! can be found in the `examples/` directory.
+//!
+
 mod bindings {
     #![allow(non_upper_case_globals)]
     #![allow(non_camel_case_types)]
@@ -62,8 +96,11 @@ struct Pool {
     refcount: usize,
 }
 
+/// NIC Structure that supports Packetvisor
 #[derive(Debug)]
 pub struct Nic {
+    /// Attached network interface information.
+    /// (ex. `interface name`, `L2-3 address`, etc.)
     pub interface: NetworkInterface,
     xsk: *mut xsk_socket,
 
@@ -74,13 +111,18 @@ pub struct Nic {
     umem_cq: xsk_ring_cons,
 }
 
+/// Packet Structure used by Packetvisor
 #[derive(Debug)]
 pub struct Packet {
-    pub start: usize,       // payload offset pointing the start of payload. ex. 256
-    pub end: usize,         // payload offset point the end of payload. ex. 1000
-    pub buffer_size: usize, // total size of buffer. ex. 2048
-    pub buffer: *mut u8,    // buffer address.
-    private: *mut c_void,   // DO NOT touch this.
+    /// payload offset pointing the start of payload.
+    pub start: usize,
+    /// payload offset point the end of payload.
+    pub end: usize,
+    /// total size of buffer.
+    pub buffer_size: usize,
+    /// buffer address.
+    pub buffer: *mut u8,
+    private: *mut c_void, // DO NOT touch this.
 
     buffer_pool: Rc<RefCell<BufferPool>>,
 }
@@ -427,6 +469,18 @@ impl Pool {
 }
 
 impl Nic {
+    /// # Description
+    /// Attaching `pv::Nic` to network interface
+    /// # Arguments
+    /// `if_name` - network interface name <br/>
+    /// `chunk_size` - total size of packet payload <br/>
+    /// `chunk_count` - total count of chunk <br/>
+    /// `fq_size` - filling ring size <br/>
+    /// `cq_size` - completion ring size <br/>
+    /// `tx_size` - tx ring size <br/>
+    /// `rx_size` - rx ring size <br/>
+    /// # Returns
+    /// Nic bound to a network interface
     pub fn new(
         if_name: &str,
         chunk_size: usize,
@@ -602,15 +656,19 @@ impl Nic {
         Ok(())
     }
 
+    /// # Description
     /// Allocate packet using Pool
+    /// # Returns
+    /// Packet with empty payload
     pub fn alloc_packet(&self) -> Option<Packet> {
         unsafe { POOL.as_mut().unwrap().try_alloc_packet() }
     }
 
-    /// Send packets using NIC
+    /// # Description
+    /// Send packets <br/>
+    /// **\*Sent packets are removed from the vector.**
     /// # Arguments
-    /// * `packets` - Packets to send
-    /// Sent packets are removed from the vector.
+    /// `packets` - Packets to send
     /// # Returns
     /// Number of packets sent
     pub fn send(&mut self, packets: &mut Vec<Packet>) -> usize {
@@ -627,9 +685,10 @@ impl Nic {
         sent_count
     }
 
-    /// Receive packets using NIC
+    /// # Description
+    /// Receive packets
     /// # Arguments
-    /// * `len` - Number of packets to receive
+    /// `len` - Number of packets to receive
     /// # Returns
     /// Received packets
     pub fn receive(&mut self, len: usize) -> Vec<Packet> {
@@ -657,8 +716,11 @@ impl Packet {
         }
     }
 
-    /// replace payload with new data
-    pub fn replace_data(&mut self, new_data: &Vec<u8>) -> Result<(), String> {
+    /// # Description
+    /// Replace payload with new data
+    /// # Arguments
+    /// `new_data` - new packet payload
+    pub fn replace_data(&mut self, new_data: &[u8]) -> Result<(), String> {
         if new_data.len() <= self.buffer_size {
             unsafe {
                 // replace data
@@ -675,7 +737,8 @@ impl Packet {
         }
     }
 
-    /// get payload as Vec<u8>
+    /// # Description
+    /// Get payload as `Vec<u8>`
     pub fn get_buffer_mut(&mut self) -> &mut [u8] {
         unsafe {
             std::slice::from_raw_parts_mut(
@@ -685,6 +748,7 @@ impl Packet {
         }
     }
 
+    /// # Description
     /// Resize payload size
     pub fn resize(&mut self, size: usize) -> Result<(), String> {
         if size > self.buffer_size {
@@ -714,6 +778,7 @@ impl Packet {
         Ok(())
     }
 
+    /// # Description
     /// Dump packet payload as hex
     #[allow(dead_code)]
     pub fn dump(&self) {
