@@ -65,7 +65,8 @@ fn main() {
         completion_ring_size,
         tx_ring_size,
         rx_ring_size,
-    ).unwrap_or_else(|err| panic!("Failed to create Nic: {}", err));
+    )
+    .unwrap_or_else(|err| panic!("Failed to create Nic: {}", err));
 
     while !term.load(Ordering::Relaxed) {
         if let Some(sent_cnt) = do_echo(&mut nic) {

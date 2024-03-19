@@ -46,7 +46,8 @@ fn main() {
         completion_ring_size,
         tx_ring_size,
         rx_ring_size,
-    ).unwrap_or_else(|err| panic!("Failed to create Nic1: {}", err));
+    )
+    .unwrap_or_else(|err| panic!("Failed to create Nic1: {}", err));
 
     let mut nic2 = pv::Nic::new(
         &if_name2,
@@ -56,7 +57,8 @@ fn main() {
         completion_ring_size,
         tx_ring_size,
         rx_ring_size,
-    ).unwrap_or_else(|err| panic!("Failed to create Nic2: {}", err));
+    )
+    .unwrap_or_else(|err| panic!("Failed to create Nic2: {}", err));
 
     while !term.load(Ordering::Relaxed) {
         let processed1 = forward(&mut nic1, &mut nic2, dump);
