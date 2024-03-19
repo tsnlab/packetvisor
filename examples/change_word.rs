@@ -1,4 +1,4 @@
-use clap::{arg, value_parser, Command};
+use clap::{arg, value_parser, ArgMatches, Command};
 
 use pnet::{
     packet::ipv4::MutableIpv4Packet,
@@ -20,59 +20,20 @@ use std::{
 };
 
 fn main() {
-    let matches = Command::new("filter")
-        .arg(arg!(nic1: --nic1 <nic1> "nic1 to use").required(true))
-        .arg(arg!(nic2: -p --nic2 <nic2> "nic2 to use").required(true))
-        .arg(arg!(source: --"source-word" <source_word> "source word to be changed").required(true))
-        .arg(arg!(target: --"target-word" <target_word> "target word to change").required(true))
-        .arg(
-            arg!(chunk_size: -s --"chunk-size" <size> "Chunk size")
-                .value_parser(value_parser!(usize))
-                .required(false)
-                .default_value("2048"),
-        )
-        .arg(
-            arg!(chunk_count: -c --"chunk-count" <count> "Chunk count")
-                .required(false)
-                .value_parser(value_parser!(usize))
-                .default_value("1024"),
-        )
-        .arg(
-            arg!(rx_ring_size: -r --"rx-ring" <count> "Rx ring size")
-                .value_parser(value_parser!(u32))
-                .required(false)
-                .default_value("64"),
-        )
-        .arg(
-            arg!(tx_ring_size: -t --"tx-ring" <count> "Tx ring size")
-                .value_parser(value_parser!(u32))
-                .required(false)
-                .default_value("64"),
-        )
-        .arg(
-            arg!(fill_ring_size: -f --"fill-ring" <count> "Fill ring size")
-                .value_parser(value_parser!(u32))
-                .required(false)
-                .default_value("64"),
-        )
-        .arg(
-            arg!(completion_ring_size: -o --"completion-ring" <count> "Completion ring size")
-                .value_parser(value_parser!(u32))
-                .required(false)
-                .default_value("64"),
-        )
-        .get_matches();
+    let cli_options = parse_cli_options();
 
-    let name1 = matches.get_one::<String>("nic1").unwrap().clone();
-    let name2 = matches.get_one::<String>("nic2").unwrap().clone();
-    let chunk_size = *matches.get_one::<usize>("chunk_size").unwrap();
-    let chunk_count = *matches.get_one::<usize>("chunk_count").unwrap();
-    let rx_ring_size = *matches.get_one::<u32>("rx_ring_size").unwrap();
-    let tx_ring_size = *matches.get_one::<u32>("tx_ring_size").unwrap();
-    let filling_ring_size = *matches.get_one::<u32>("fill_ring_size").unwrap();
-    let completion_ring_size = *matches.get_one::<u32>("completion_ring_size").unwrap();
-    let source_word: String = matches.get_one::<String>("source").unwrap().clone();
-    let target_word: String = matches.get_one::<String>("target").unwrap().clone();
+    let if_name1 = cli_options.get_one::<String>("nic1").unwrap().clone();
+    let if_name2 = cli_options.get_one::<String>("nic2").unwrap().clone();
+    let chunk_size = *cli_options.get_one::<usize>("chunk_size").unwrap();
+    let chunk_count = *cli_options.get_one::<usize>("chunk_count").unwrap();
+    let rx_ring_size = *cli_options.get_one::<usize>("rx_ring_size").unwrap();
+    let tx_ring_size = *cli_options.get_one::<usize>("tx_ring_size").unwrap();
+    let filling_ring_size = *cli_options.get_one::<usize>("fill_ring_size").unwrap();
+    let completion_ring_size = *cli_options
+        .get_one::<usize>("completion_ring_size")
+        .unwrap();
+    let source_word = cli_options.get_one::<String>("source").unwrap().clone();
+    let change_word = cli_options.get_one::<String>("change").unwrap().clone();
 
     // Signal handlers
     let term: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
@@ -87,60 +48,85 @@ fn main() {
         panic!("signal is forbidden");
     }
 
-    let mut nic1 = pv::NIC::new(&name1, chunk_size, chunk_count).unwrap();
-    nic1.open(
-        rx_ring_size,
-        tx_ring_size,
+    let mut nic1 = pv::Nic::new(
+        &if_name1,
+        chunk_size,
+        chunk_count,
         filling_ring_size,
         completion_ring_size,
-    )
-    .unwrap();
-    let mut nic2 = pv::NIC::new(&name2, chunk_size, chunk_count).unwrap();
-    nic2.open(
-        rx_ring_size,
         tx_ring_size,
+        rx_ring_size,
+    )
+    .unwrap_or_else(|err| panic!("Failed to create Nic1: {}", err));
+
+    let mut nic2 = pv::Nic::new(
+        &if_name2,
+        chunk_size,
+        chunk_count,
         filling_ring_size,
         completion_ring_size,
+        tx_ring_size,
+        rx_ring_size,
     )
-    .unwrap();
+    .unwrap_or_else(|err| panic!("Failed to create Nic2: {}", err));
 
     while !term.load(Ordering::Relaxed) {
-        forward(&mut nic1, &mut nic2, &source_word, &target_word);
-        forward(&mut nic2, &mut nic1, &source_word, &target_word);
+        if let Some(sent_cnt) = forward(&mut nic1, &mut nic2, &source_word, &change_word) {
+            println!(
+                "[{} -> {}] Sent Packet Count : {}",
+                nic1.interface.name, nic2.interface.name, sent_cnt
+            );
+        }
+
+        if let Some(sent_cnt) = forward(&mut nic2, &mut nic1, &source_word, &change_word) {
+            println!(
+                "[{} -> {}] Sent Packet Count : {}",
+                nic2.interface.name, nic1.interface.name, sent_cnt
+            );
+        }
+
+        thread::sleep(Duration::from_millis(100));
     }
 }
 
-fn forward(from: &mut pv::NIC, to: &mut pv::NIC, source_word: &String, target_word: &String) {
+fn forward(
+    from: &mut pv::Nic,
+    to: &mut pv::Nic,
+    source_word: &str,
+    target_word: &str,
+) -> Option<usize> {
     /* initialize rx_batch_size and packet metadata */
-    let rx_batch_size: u32 = 64;
-    let mut packets1: Vec<pv::Packet> = Vec::with_capacity(rx_batch_size as usize);
-    let mut packets2: Vec<pv::Packet> = Vec::with_capacity(rx_batch_size as usize);
+    let rx_batch_size: usize = 64;
+    let mut packets = from.receive(rx_batch_size);
 
-    let received = from.receive(&mut packets1);
-
-    if received > 0 {
-        for packet in &mut packets1 {
-            match is_udp(packet) {
-                true => change_word(packet, source_word, target_word),
-                false => {}
-            }
-            packets2.push(to.copy_from(packet).unwrap());
-        }
-
-        for retry in (0..3).rev() {
-            match (to.send(&mut packets2), retry) {
-                (cnt, _) if cnt > 0 => break, // Success
-                (0, 0) => {
-                    // Failed 3 times
-                    break;
-                }
-                _ => continue, // Retrying
-            }
-        }
-    } else {
-        // No packets received. Sleep
-        thread::sleep(Duration::from_millis(100));
+    if packets.is_empty() {
+        return None;
     }
+
+    let received = packets.len();
+    let mut change_word_packets: Vec<pv::Packet> = Vec::with_capacity(received);
+    for packet in &mut packets {
+        match is_udp(packet) {
+            true => change_word(packet, source_word, target_word),
+            false => {}
+        }
+
+        let packet_data = packet.get_buffer_mut().to_vec();
+        let mut change_word_packet = to.alloc_packet().unwrap();
+        change_word_packet.replace_data(&packet_data).unwrap();
+
+        change_word_packets.push(change_word_packet);
+    }
+
+    for _ in 0..3 {
+        let sent_cnt = to.send(&mut change_word_packets);
+
+        if sent_cnt > 0 {
+            return Some(sent_cnt);
+        }
+    }
+
+    None
 }
 
 // check if packet is udp or not
@@ -154,17 +140,14 @@ fn is_udp(packet: &mut pv::Packet) -> bool {
     match eth.get_ethertype() {
         EtherTypes::Ipv4 => {
             let ipv4 = MutableIpv4Packet::new(eth.payload_mut()).unwrap();
-            match ipv4.get_next_level_protocol() {
-                IpNextHeaderProtocols::Udp => return true,
-                _ => return false,
-            }
+            matches!(ipv4.get_next_level_protocol(), IpNextHeaderProtocols::Udp)
         }
-        _ => return false,
+        _ => false,
     }
 }
 
 // change all matched source_word to target_word
-fn change_word(packet: &mut pv::Packet, source_word: &String, target_word: &String) {
+fn change_word(packet: &mut pv::Packet, source_word: &str, target_word: &str) {
     /*
       get difference of length between original payload and changed payload
       get original payload data also.
@@ -175,9 +158,13 @@ fn change_word(packet: &mut pv::Packet, source_word: &String, target_word: &Stri
     let original_payload_data = get_original_payload_data(packet);
 
     if diff.is_negative() {
-        packet.resize(packet.end - packet.start - diff.wrapping_abs() as usize);
+        packet
+            .resize(packet.end - packet.start - diff.wrapping_abs() as usize)
+            .unwrap();
     } else {
-        packet.resize(packet.end - packet.start + diff as usize);
+        packet
+            .resize(packet.end - packet.start + diff as usize)
+            .unwrap();
     }
 
     let mut eth = MutableEthernetPacket::new(packet.get_buffer_mut()).unwrap();
@@ -212,7 +199,7 @@ fn change_word(packet: &mut pv::Packet, source_word: &String, target_word: &Stri
     ipv4.set_checksum(ipv4::checksum(&ipv4.to_immutable()));
 }
 
-fn get_diff(packet: &mut pv::Packet, source_word: &String, target_word: &String) -> isize {
+fn get_diff(packet: &mut pv::Packet, source_word: &str, target_word: &str) -> isize {
     let payload_data: String;
 
     let mut eth = MutableEthernetPacket::new(packet.get_buffer_mut()).unwrap();
@@ -233,4 +220,49 @@ fn get_original_payload_data(packet: &mut pv::Packet) -> String {
     let mut udp = MutableUdpPacket::new(ipv4.payload_mut()).unwrap();
     let payload = udp.payload_mut();
     unsafe { String::from_utf8_unchecked(payload.to_vec()) }
+}
+
+fn parse_cli_options() -> ArgMatches {
+    Command::new("change_word")
+        .arg(arg!(nic1: --nic1 <nic1> "nic1 to use").required(true))
+        .arg(arg!(nic2: -p --nic2 <nic2> "nic2 to use").required(true))
+        .arg(arg!(source: --"source-word" <source_word> "source word to be changed").required(true))
+        .arg(arg!(change: --"change-word" <change_word> "target word to change").required(true))
+        .arg(
+            arg!(chunk_size: -s --"chunk-size" <size> "Chunk size")
+                .value_parser(value_parser!(usize))
+                .required(false)
+                .default_value("2048"),
+        )
+        .arg(
+            arg!(chunk_count: -c --"chunk-count" <count> "Chunk count")
+                .required(false)
+                .value_parser(value_parser!(usize))
+                .default_value("1024"),
+        )
+        .arg(
+            arg!(rx_ring_size: -r --"rx-ring" <count> "Rx ring size")
+                .value_parser(value_parser!(usize))
+                .required(false)
+                .default_value("64"),
+        )
+        .arg(
+            arg!(tx_ring_size: -t --"tx-ring" <count> "Tx ring size")
+                .value_parser(value_parser!(usize))
+                .required(false)
+                .default_value("64"),
+        )
+        .arg(
+            arg!(fill_ring_size: -f --"fill-ring" <count> "Fill ring size")
+                .value_parser(value_parser!(usize))
+                .required(false)
+                .default_value("64"),
+        )
+        .arg(
+            arg!(completion_ring_size: -o --"completion-ring" <count> "Completion ring size")
+                .value_parser(value_parser!(usize))
+                .required(false)
+                .default_value("64"),
+        )
+        .get_matches()
 }

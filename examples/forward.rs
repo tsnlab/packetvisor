@@ -1,4 +1,4 @@
-use clap::{arg, value_parser, Command};
+use clap::{arg, value_parser, ArgMatches, Command};
 
 use signal_hook::SigId;
 use std::{
@@ -10,7 +10,96 @@ use std::{
 };
 
 fn main() {
-    let matches = Command::new("filter")
+    let cli_options = parse_cli_options();
+
+    let if_name1 = cli_options.get_one::<String>("nic1").unwrap().clone();
+    let if_name2 = cli_options.get_one::<String>("nic2").unwrap().clone();
+    let chunk_size = *cli_options.get_one::<usize>("chunk_size").unwrap();
+    let chunk_count = *cli_options.get_one::<usize>("chunk_count").unwrap();
+    let rx_ring_size = *cli_options.get_one::<usize>("rx_ring_size").unwrap();
+    let tx_ring_size = *cli_options.get_one::<usize>("tx_ring_size").unwrap();
+    let filling_ring_size = *cli_options.get_one::<usize>("fill_ring_size").unwrap();
+    let completion_ring_size = *cli_options
+        .get_one::<usize>("completion_ring_size")
+        .unwrap();
+    let dump = *cli_options.get_one::<bool>("dump").unwrap_or(&false);
+    let stat = *cli_options.get_one::<bool>("stat").unwrap_or(&false);
+
+    // Signal handlers
+    let term: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
+    let result_sigint: Result<SigId, Error> =
+        signal_hook::flag::register(signal_hook::consts::SIGINT, Arc::clone(&term));
+    let result_sigterm: Result<SigId, Error> =
+        signal_hook::flag::register(signal_hook::consts::SIGTERM, Arc::clone(&term));
+    let result_sigabrt: Result<SigId, Error> =
+        signal_hook::flag::register(signal_hook::consts::SIGABRT, Arc::clone(&term));
+
+    if result_sigint.or(result_sigterm).or(result_sigabrt).is_err() {
+        panic!("signal is forbidden");
+    }
+
+    let mut nic1 = pv::Nic::new(
+        &if_name1,
+        chunk_size,
+        chunk_count,
+        filling_ring_size,
+        completion_ring_size,
+        tx_ring_size,
+        rx_ring_size,
+    )
+    .unwrap_or_else(|err| panic!("Failed to create Nic1: {}", err));
+
+    let mut nic2 = pv::Nic::new(
+        &if_name2,
+        chunk_size,
+        chunk_count,
+        filling_ring_size,
+        completion_ring_size,
+        tx_ring_size,
+        rx_ring_size,
+    )
+    .unwrap_or_else(|err| panic!("Failed to create Nic2: {}", err));
+
+    while !term.load(Ordering::Relaxed) {
+        let processed1 = forward(&mut nic1, &mut nic2, dump);
+        let processed2 = forward(&mut nic2, &mut nic1, dump);
+
+        if processed1 + processed2 == 0 {
+            thread::sleep(Duration::from_millis(100));
+        } else if stat {
+            println!("Processed {}, {} packets", processed1, processed2);
+        }
+    }
+}
+
+fn forward(from: &mut pv::Nic, to: &mut pv::Nic, dump: bool) -> usize {
+    /* initialize rx_batch_size and packet metadata */
+    let rx_batch_size = 64;
+    let mut packets = from.receive(rx_batch_size);
+
+    if packets.is_empty() {
+        return 0;
+    }
+
+    if dump {
+        for packet in packets.iter_mut() {
+            packet.dump();
+        }
+    }
+
+    for _ in 0..3 {
+        let sent_cnt = to.send(&mut packets);
+
+        if sent_cnt > 0 {
+            return sent_cnt;
+        }
+    }
+
+    0
+}
+
+fn parse_cli_options() -> ArgMatches {
+    Command::new("filter")
         .arg(arg!(nic1: <nic1> "nic1 to use").required(true))
         .arg(arg!(nic2: <nic2> "nic2 to use").required(true))
         .arg(
@@ -51,103 +140,5 @@ fn main() {
         )
         .arg(arg!(dump: -d --dump "Dump packets").required(false))
         .arg(arg!(stat: -S --stat "Show statistics").required(false))
-        .get_matches();
-
-    let name1 = matches.get_one::<String>("nic1").unwrap().clone();
-    let name2 = matches.get_one::<String>("nic2").unwrap().clone();
-    let chunk_size = *matches.get_one::<usize>("chunk_size").unwrap();
-    let chunk_count = *matches.get_one::<usize>("chunk_count").unwrap();
-    let rx_ring_size = *matches.get_one::<usize>("rx_ring_size").unwrap();
-    let tx_ring_size = *matches.get_one::<usize>("tx_ring_size").unwrap();
-    let filling_ring_size = *matches.get_one::<usize>("fill_ring_size").unwrap();
-    let completion_ring_size = *matches.get_one::<usize>("completion_ring_size").unwrap();
-    let dump = *matches.get_one::<bool>("dump").unwrap_or(&false);
-    let stat = *matches.get_one::<bool>("stat").unwrap_or(&false);
-
-    // Signal handlers
-    let term: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
-    let result_sigint: Result<SigId, Error> =
-        signal_hook::flag::register(signal_hook::consts::SIGINT, Arc::clone(&term));
-    let result_sigterm: Result<SigId, Error> =
-        signal_hook::flag::register(signal_hook::consts::SIGTERM, Arc::clone(&term));
-    let result_sigabrt: Result<SigId, Error> =
-        signal_hook::flag::register(signal_hook::consts::SIGABRT, Arc::clone(&term));
-
-    if result_sigint.or(result_sigterm).or(result_sigabrt).is_err() {
-        panic!("signal is forbidden");
-    }
-
-    let mut nic1 = match pv::Nic::new(
-        &name1,
-        chunk_size,
-        chunk_count,
-        filling_ring_size,
-        completion_ring_size,
-        tx_ring_size,
-        rx_ring_size,
-    ) {
-        Ok(nic) => nic,
-        Err(err) => {
-            panic!("Failed to create NIC1: {}", err);
-        }
-    };
-    println!("Nic1 created");
-
-    let mut nic2 = match pv::Nic::new(
-        &name2,
-        chunk_size,
-        chunk_count,
-        filling_ring_size,
-        completion_ring_size,
-        tx_ring_size,
-        rx_ring_size,
-    ) {
-        Ok(nic) => nic,
-        Err(err) => {
-            panic!("Failed to create NIC2: {}", err);
-        }
-    };
-    println!("Nic2 created");
-
-    while !term.load(Ordering::Relaxed) {
-        let processed1 = forward(&mut nic1, &mut nic2, dump);
-        let processed2 = forward(&mut nic2, &mut nic1, dump);
-
-        if processed1 + processed2 == 0 {
-            thread::sleep(Duration::from_millis(100));
-        } else if stat {
-            println!("Processed {}, {} packets", processed1, processed2);
-        }
-    }
-}
-
-fn forward(nic1: &mut pv::Nic, nic2: &mut pv::Nic, dump: bool) -> usize {
-    /* initialize rx_batch_size and packet metadata */
-    let rx_batch_size = 64;
-    let mut packets = nic1.receive(rx_batch_size);
-    let count = packets.len();
-
-    if count == 0 {
-        return 0;
-    }
-
-    if dump {
-        for packet in packets.iter_mut() {
-            packet.dump();
-        }
-    }
-
-    for retry in (0..3).rev() {
-        match (nic2.send(&mut packets), retry) {
-            (cnt, _) if cnt > 0 => break, // Success
-            (0, 0) => {
-                // Failed 3 times
-                println!("Failed to send packets");
-                break;
-            }
-            _ => continue, // Retrying
-        }
-    }
-
-    count
+        .get_matches()
 }
