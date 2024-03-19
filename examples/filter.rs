@@ -75,14 +75,14 @@ fn main() {
     };
 
     while !term.load(Ordering::Relaxed) {
-        if let Some(sent_cnt) = do_filtering(&mut nic1, &mut nic2) {
+        if let Some(sent_cnt) = forward(&mut nic1, &mut nic2) {
             println!(
                 "[{} -> {}] Sent Packet Count : {}",
                 nic1.interface.name, nic2.interface.name, sent_cnt
             );
         }
 
-        if let Some(sent_cnt) = do_filtering(&mut nic2, &mut nic1) {
+        if let Some(sent_cnt) = forward(&mut nic2, &mut nic1) {
             println!(
                 "[{} -> {}] Sent Packet Count : {}",
                 nic2.interface.name, nic1.interface.name, sent_cnt
@@ -93,7 +93,7 @@ fn main() {
     }
 }
 
-fn do_filtering(from: &mut pv::Nic, to: &mut pv::Nic) -> Option<usize> {
+fn forward(from: &mut pv::Nic, to: &mut pv::Nic) -> Option<usize> {
     /* initialize rx_batch_size and packet metadata */
     let rx_batch_size: usize = 64;
     let mut packets = from.receive(rx_batch_size);

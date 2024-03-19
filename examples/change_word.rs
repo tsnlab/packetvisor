@@ -79,14 +79,14 @@ fn main() {
     };
 
     while !term.load(Ordering::Relaxed) {
-        if let Some(sent_cnt) = do_change_word(&mut nic1, &mut nic2, &source_word, &change_word) {
+        if let Some(sent_cnt) = forward(&mut nic1, &mut nic2, &source_word, &change_word) {
             println!(
                 "[{} -> {}] Sent Packet Count : {}",
                 nic1.interface.name, nic2.interface.name, sent_cnt
             );
         }
 
-        if let Some(sent_cnt) = do_change_word(&mut nic2, &mut nic1, &source_word, &change_word) {
+        if let Some(sent_cnt) = forward(&mut nic2, &mut nic1, &source_word, &change_word) {
             println!(
                 "[{} -> {}] Sent Packet Count : {}",
                 nic2.interface.name, nic1.interface.name, sent_cnt
@@ -97,7 +97,7 @@ fn main() {
     }
 }
 
-fn do_change_word(
+fn forward(
     from: &mut pv::Nic,
     to: &mut pv::Nic,
     source_word: &str,
