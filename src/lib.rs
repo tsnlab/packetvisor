@@ -43,7 +43,7 @@ struct BufferPool {
 
     pool: HashSet<u64>,
 
-    pub buffer: *mut c_void, // buffer address.
+    buffer: *mut c_void, // buffer address.
 
     fq_size: usize,
     cq_size: usize,
@@ -256,7 +256,7 @@ impl BufferPool {
 
     fn send(
         &mut self,
-        packets: &mut Vec<Packet>,
+        packets: &mut [Packet],
         xsk: &*mut xsk_socket,
         tx: &mut xsk_ring_prod,
         cq: &mut xsk_ring_cons,
