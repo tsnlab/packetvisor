@@ -22,7 +22,7 @@ fn main() {
     const FILLING_RING_SIZE: usize = 64;
     const COMPLETION_RING_SIZE: usize = 64;
 
-    let mut interface = match pv::Nic::new(
+    let mut interface = pv::Nic::new(
         interface,
         CHUNK_SIZE,
         CHUNK_COUNT,
@@ -30,12 +30,8 @@ fn main() {
         COMPLETION_RING_SIZE,
         TX_RING_SIZE,
         RX_RING_SIZE,
-    ) {
-        Ok(nic) => nic,
-        Err(err) => {
-            panic!("Failed to create NIC1: {}", err);
-        }
-    };
+    )
+    .unwrap_or_else(|err| panic!("Failed to create interface: {}", err));
 
     let socket = UdpSocket::bind(source).unwrap();
     socket
