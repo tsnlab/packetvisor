@@ -57,7 +57,7 @@ fn main() {
         panic!("signal is forbidden");
     }
 
-    let mut nic = match pv::Nic::new(
+    let mut nic = pv::Nic::new(
         &if_name,
         chunk_size,
         chunk_count,
@@ -65,12 +65,7 @@ fn main() {
         completion_ring_size,
         tx_ring_size,
         rx_ring_size,
-    ) {
-        Ok(nic) => nic,
-        Err(err) => {
-            panic!("Failed to create Nic: {}", err);
-        }
-    };
+    ).unwrap_or_else(|err| panic!("Failed to create Nic: {}", err));
 
     while !term.load(Ordering::Relaxed) {
         if let Some(sent_cnt) = do_echo(&mut nic) {
@@ -85,9 +80,8 @@ fn do_echo(echo_nic: &mut pv::Nic) -> Option<usize> {
     /* initialize rx_batch_size and packet metadata */
     let rx_batch_size = 64;
     let mut packets = echo_nic.receive(rx_batch_size);
-    let received = packets.len();
 
-    if 0 == received {
+    if packets.is_empty() {
         return None;
     }
 

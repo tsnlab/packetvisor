@@ -44,7 +44,7 @@ fn main() {
         panic!("signal is forbidden");
     }
 
-    let mut nic1 = match pv::Nic::new(
+    let mut nic1 = pv::Nic::new(
         &if_name1,
         chunk_size,
         chunk_count,
@@ -52,14 +52,9 @@ fn main() {
         completion_ring_size,
         tx_ring_size,
         rx_ring_size,
-    ) {
-        Ok(nic) => nic,
-        Err(err) => {
-            panic!("Failed to create NIC1: {}", err);
-        }
-    };
+    ).unwrap_or_else(|err| panic!("Failed to create Nic1: {}", err));
 
-    let mut nic2 = match pv::Nic::new(
+    let mut nic2 = pv::Nic::new(
         &if_name2,
         chunk_size,
         chunk_count,
@@ -67,12 +62,7 @@ fn main() {
         completion_ring_size,
         tx_ring_size,
         rx_ring_size,
-    ) {
-        Ok(nic) => nic,
-        Err(err) => {
-            panic!("Failed to create NIC2: {}", err);
-        }
-    };
+    ).unwrap_or_else(|err| panic!("Failed to create Nic2: {}", err));
 
     while !term.load(Ordering::Relaxed) {
         if let Some(sent_cnt) = forward(&mut nic1, &mut nic2) {
@@ -97,12 +87,12 @@ fn forward(from: &mut pv::Nic, to: &mut pv::Nic) -> Option<usize> {
     /* initialize rx_batch_size and packet metadata */
     let rx_batch_size: usize = 64;
     let mut packets = from.receive(rx_batch_size);
-    let received = packets.len();
 
-    if 0 == received {
+    if packets.is_empty() {
         return None;
     }
 
+    let received = packets.len();
     let mut filter_packets: Vec<pv::Packet> = Vec::with_capacity(received);
     for packet in &mut packets {
         match process_packet(packet) {
