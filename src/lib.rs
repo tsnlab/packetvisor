@@ -473,16 +473,16 @@ impl Nic {
     /// # Description
     /// Attaching `pv::Nic` to network interface
     /// # Arguments
-    /// `if_name` - network interface name <br/>
-    /// `chunk_size` - total size of packet payload <br/>
-    /// `chunk_count` - total count of chunk <br/>
-    /// `fq_size` - filling ring size <br/>
-    /// `cq_size` - completion ring size <br/>
-    /// `tx_size` - tx ring size <br/>
-    /// `rx_size` - rx ring size <br/>
+    /// `if_name` - network interface name \
+    /// `chunk_size` - total size of packet payload \
+    /// `chunk_count` - total count of chunk \
+    /// `fq_size` - filling ring size \
+    /// `cq_size` - completion ring size \
+    /// `tx_size` - tx ring size \
+    /// `rx_size` - rx ring size \
     /// # Returns
-    /// On success, returns `Ok(pv::Nic)` bound to the network interface. <br/>
-    /// On failure, returns an error string as `Err(String)`.
+    /// On success, returns `pv::Nic` bound to the network interface. \
+    /// On failure, returns an error string.
     pub fn new(
         if_name: &str,
         chunk_size: usize,
@@ -661,19 +661,19 @@ impl Nic {
     /// # Description
     /// Allocate packet using Pool
     /// # Returns
-    /// On success, returns `Some(pv::Packet)` with empty payload. <br/>
+    /// On success, returns `pv::Packet` with empty payload. \
     /// On failure, returns `None`.
     pub fn alloc_packet(&self) -> Option<Packet> {
         unsafe { POOL.as_mut().unwrap().try_alloc_packet() }
     }
 
     /// # Description
-    /// Send packets <br/>
+    /// Send packets \
     /// **\*Sent packets are removed from the vector.**
     /// # Arguments
     /// `packets` - Packets to send
     /// # Returns
-    /// Number of packets sent as `usize`
+    /// Number of packets sent
     pub fn send(&mut self, packets: &mut Vec<Packet>) -> usize {
         let sent_count = unsafe {
             POOL.as_mut().unwrap().buffer_pool.borrow_mut().send(
@@ -693,7 +693,7 @@ impl Nic {
     /// # Arguments
     /// `len` - Number of packets to receive
     /// # Returns
-    /// Received packets as `Vec<pv::Packet>`
+    /// Received packets
     pub fn receive(&mut self, len: usize) -> Vec<Packet> {
         unsafe {
             POOL.as_mut().unwrap().buffer_pool.borrow_mut().recv(
@@ -720,13 +720,13 @@ impl Packet {
     }
 
     /// # Description
-    /// Replace payload with new data.
+    /// Replace payload with new data. \
     /// Data can be memmoved if needed.
     /// # Arguments
     /// `new_data` - new packet payload
     /// # Returns
-    /// On success, returns `Ok()` and payload of `pv::Packet` is replaced with `new_data`. <br/>
-    /// On failure, returns an error string as `Err(String)`.
+    /// On success, returns payload of `pv::Packet` is replaced with `new_data`. \
+    /// On failure, returns an error string.
     pub fn replace_data(&mut self, new_data: &[u8]) -> Result<(), String> {
         if new_data.len() <= self.buffer_size {
             unsafe {
@@ -745,7 +745,7 @@ impl Packet {
     }
 
     /// # Description
-    /// Get payload as `&mut [u8]`
+    /// Get mutable payload
     pub fn get_buffer_mut(&mut self) -> &mut [u8] {
         unsafe {
             std::slice::from_raw_parts_mut(
@@ -760,9 +760,8 @@ impl Packet {
     /// # Arguments
     /// `new_size` - new packet payload size
     /// # Returns
-    /// On success, returns `Ok()` and payload size of `pv::Packet` is replaced with `new_size`.
-    /// <br/>
-    /// On failure, returns an error string as `Err(String)`.
+    /// On success, returns payload size of `pv::Packet` is replaced with `new_size`. \
+    /// On failure, returns an error string.
     pub fn resize(&mut self, new_size: usize) -> Result<(), String> {
         if new_size > self.buffer_size {
             return Err(format!(
