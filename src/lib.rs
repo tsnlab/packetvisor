@@ -481,7 +481,8 @@ impl Nic {
     /// `tx_size` - tx ring size <br/>
     /// `rx_size` - rx ring size <br/>
     /// # Returns
-    /// Nic bound to a network interface
+    /// On success, returns `Ok(pv::Nic)` bound to the network interface. <br/>
+    /// On failure, returns an error string as `Err(String)`.
     pub fn new(
         if_name: &str,
         chunk_size: usize,
@@ -660,7 +661,8 @@ impl Nic {
     /// # Description
     /// Allocate packet using Pool
     /// # Returns
-    /// Packet with empty payload
+    /// On success, returns `Some(pv::Packet)` with empty payload. <br/>
+    /// On failure, returns `None`.
     pub fn alloc_packet(&self) -> Option<Packet> {
         unsafe { POOL.as_mut().unwrap().try_alloc_packet() }
     }
@@ -671,7 +673,7 @@ impl Nic {
     /// # Arguments
     /// `packets` - Packets to send
     /// # Returns
-    /// Number of packets sent
+    /// Number of packets sent as `usize`
     pub fn send(&mut self, packets: &mut Vec<Packet>) -> usize {
         let sent_count = unsafe {
             POOL.as_mut().unwrap().buffer_pool.borrow_mut().send(
@@ -691,7 +693,7 @@ impl Nic {
     /// # Arguments
     /// `len` - Number of packets to receive
     /// # Returns
-    /// Received packets
+    /// Received packets as `Vec<pv::Packet>`
     pub fn receive(&mut self, len: usize) -> Vec<Packet> {
         unsafe {
             POOL.as_mut().unwrap().buffer_pool.borrow_mut().recv(
@@ -722,6 +724,9 @@ impl Packet {
     /// Data can be memmoved if needed.
     /// # Arguments
     /// `new_data` - new packet payload
+    /// # Returns
+    /// On success, returns `Ok()` and payload of `pv::Packet` is replaced with `new_data`. <br/>
+    /// On failure, returns an error string as `Err(String)`.
     pub fn replace_data(&mut self, new_data: &[u8]) -> Result<(), String> {
         if new_data.len() <= self.buffer_size {
             unsafe {
@@ -752,6 +757,12 @@ impl Packet {
 
     /// # Description
     /// Resize payload size to `new_size`
+    /// # Arguments
+    /// `new_size` - new packet payload size
+    /// # Returns
+    /// On success, returns `Ok()` and payload size of `pv::Packet` is replaced with `new_size`.
+    /// <br/>
+    /// On failure, returns an error string as `Err(String)`.
     pub fn resize(&mut self, new_size: usize) -> Result<(), String> {
         if new_size > self.buffer_size {
             return Err(format!(
