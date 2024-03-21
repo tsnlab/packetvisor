@@ -9,7 +9,7 @@
 //!
 //! **1. Bypassing the Network Stack in the Linux Kernel and Achieving Zero-Copy with `XDP`**
 //! * Packetvisor completely bypasses the Network Stack in the Linux kernel using `XDP`,
-//! reducing unnecessary overhead in the packet processing process.
+//! reducing unnecessary overhead in the packet processing.
 //!
 //! **2. High-Speed Packet Processing with the `pv::Nic` Structure**
 //! * `Packetvisor` uses the `pv::Nic` structure to attach to specific Network Interface.
@@ -23,14 +23,15 @@
 //! Rust to create high-performance _firewalls_ and implement _tunneling
 //! protocols_ with just a few dozen lines of code.
 //!
-//! **4. XDP Fallback Mode Support**
+//! **4. Automatically detects XDP mode**
 //! * `Packetvisor` supports both `XDP` `Native(=DRV)` and `Generic(=SKB)` modes,
 //! and the mode selection is automatically determined by `Packetvisor`.
 //!
 //! ## Examples
 //! Various examples for packet _echo_, _filtering_, _forwarding_, etc.
-//! can be found in the `examples/` directory.
+//! can be found in the [examples] directory.
 //!
+//! [examples]: https://github.com/tsnlab/packetvisor/tree/master/examples
 
 mod bindings {
     #![allow(non_upper_case_globals)]
@@ -114,9 +115,9 @@ pub struct Nic {
 /// Packet Structure used by Packetvisor
 #[derive(Debug)]
 pub struct Packet {
-    /// payload offset pointing the start of payload.
+    /// payload offset from `buffer` pointing the start of payload.
     pub start: usize,
-    /// payload offset point the end of payload.
+    /// payload offset from `buffer` point the end of payload.
     pub end: usize,
     /// total size of buffer.
     pub buffer_size: usize,
@@ -717,7 +718,8 @@ impl Packet {
     }
 
     /// # Description
-    /// Replace payload with new data
+    /// Replace payload with new data.
+    /// Data can be memmoved if needed.
     /// # Arguments
     /// `new_data` - new packet payload
     pub fn replace_data(&mut self, new_data: &[u8]) -> Result<(), String> {
@@ -738,7 +740,7 @@ impl Packet {
     }
 
     /// # Description
-    /// Get payload as `Vec<u8>`
+    /// Get payload as `&mut [u8]`
     pub fn get_buffer_mut(&mut self) -> &mut [u8] {
         unsafe {
             std::slice::from_raw_parts_mut(
@@ -749,8 +751,8 @@ impl Packet {
     }
 
     /// # Description
-    /// Resize payload size
-    pub fn resize(&mut self, size: usize) -> Result<(), String> {
+    /// Resize payload size to `new_size`
+    pub fn resize(&mut self, new_size: usize) -> Result<(), String> {
         if size > self.buffer_size {
             return Err(format!(
                 "The requested size is to large. (Max = {})",
@@ -779,7 +781,7 @@ impl Packet {
     }
 
     /// # Description
-    /// Dump packet payload as hex
+    /// Dump packet payload as hex. Debugging purpose
     #[allow(dead_code)]
     pub fn dump(&self) {
         let chunk_address = self.private as u64;
