@@ -725,7 +725,7 @@ impl Packet {
     /// # Arguments
     /// `new_data` - new packet payload
     /// # Returns
-    /// On success, payload of `pv::Packet` is replaced with `new_data`. \
+    /// On success, returns `None` and payload of `pv::Packet` is replaced with `new_data`. \
     /// On failure, returns an error string.
     pub fn replace_data(&mut self, new_data: &[u8]) -> Result<(), String> {
         if new_data.len() <= self.buffer_size {
@@ -760,7 +760,7 @@ impl Packet {
     /// # Arguments
     /// `new_size` - new packet payload size
     /// # Returns
-    /// On success, payload size of `pv::Packet` is replaced with `new_size`. \
+    /// On success, return None and payload size of `pv::Packet` is replaced with `new_size`. \
     /// On failure, returns an error string.
     pub fn resize(&mut self, new_size: usize) -> Result<(), String> {
         if new_size > self.buffer_size {
