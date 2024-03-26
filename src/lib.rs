@@ -1,3 +1,38 @@
+//!
+//! # Packetvisor
+//!
+//! `Packetvisor` is a Raw Packet I/O framework based on the Rust language.
+//! It can process packets much faster than `Standard Sockets` through the
+//! Linux Kernel's `eXpress Data Path (XDP)`.
+//!
+//! ## Key features
+//!
+//! **1. Bypassing the Network Stack in the Linux Kernel and Achieving Zero-Copy with `XDP`**
+//! * Packetvisor completely bypasses the Network Stack in the Linux kernel using `XDP`,
+//! reducing unnecessary overhead in the packet processing.
+//!
+//! **2. High-Speed Packet Processing with the `pv::Nic` Structure**
+//! * `Packetvisor` uses the `pv::Nic` structure to attach to specific Network Interface.
+//! This structure utilizes `XDP_SOCKET(XSK)` to directly process transmit
+//! and receive packets, allowing applications to directly transmit and
+//! receive packets in the application space. This helps to simplify the
+//! data processing process and improve performance.
+//!
+//! **3. Easy Development with Rust**
+//! * `Packetvisor` is developed based on the Rust language, so you can use
+//! Rust to create high-performance _firewalls_ and implement _tunneling
+//! protocols_ with just a few dozen lines of code.
+//!
+//! **4. Automatically detects XDP mode**
+//! * `Packetvisor` supports both `XDP` `Native(=DRV)` and `Generic(=SKB)` modes,
+//! and the mode selection is automatically determined by `Packetvisor`.
+//!
+//! ## Examples
+//! Various examples for packet _echo_, _filtering_, _forwarding_, etc.
+//! can be found in the [examples] directory.
+//!
+//! [examples]: https://github.com/tsnlab/packetvisor/tree/master/examples
+
 mod bindings {
     #![allow(non_upper_case_globals)]
     #![allow(non_camel_case_types)]
@@ -43,7 +78,7 @@ struct BufferPool {
 
     pool: HashSet<u64>,
 
-    pub buffer: *mut c_void, // buffer address.
+    buffer: *mut c_void, // buffer address.
 
     fq_size: usize,
     cq_size: usize,
@@ -62,8 +97,11 @@ struct Pool {
     refcount: usize,
 }
 
+/// NIC Structure that supports Packetvisor
 #[derive(Debug)]
 pub struct Nic {
+    /// Attached network interface information.
+    /// (ex. `interface name`, `L2-3 address`, etc.)
     pub interface: NetworkInterface,
     xsk: *mut xsk_socket,
 
@@ -74,13 +112,18 @@ pub struct Nic {
     umem_cq: xsk_ring_cons,
 }
 
+/// Packet Structure used by Packetvisor
 #[derive(Debug)]
 pub struct Packet {
-    pub start: usize,       // payload offset pointing the start of payload. ex. 256
-    pub end: usize,         // payload offset point the end of payload. ex. 1000
-    pub buffer_size: usize, // total size of buffer. ex. 2048
-    pub buffer: *mut u8,    // buffer address.
-    private: *mut c_void,   // DO NOT touch this.
+    /// payload offset from `buffer` pointing the start of payload.
+    pub start: usize,
+    /// payload offset from `buffer` point the end of payload.
+    pub end: usize,
+    /// total size of buffer.
+    pub buffer_size: usize,
+    /// buffer address.
+    pub buffer: *mut u8,
+    private: *mut c_void, // DO NOT touch this.
 
     buffer_pool: Rc<RefCell<BufferPool>>,
 }
@@ -256,7 +299,7 @@ impl BufferPool {
 
     fn send(
         &mut self,
-        packets: &mut Vec<Packet>,
+        packets: &mut [Packet],
         xsk: &*mut xsk_socket,
         tx: &mut xsk_ring_prod,
         cq: &mut xsk_ring_cons,
@@ -427,6 +470,19 @@ impl Pool {
 }
 
 impl Nic {
+    /// # Description
+    /// Attaching `pv::Nic` to network interface
+    /// # Arguments
+    /// `if_name` - network interface name \
+    /// `chunk_size` - total size of packet payload \
+    /// `chunk_count` - total count of chunk \
+    /// `fq_size` - filling ring size \
+    /// `cq_size` - completion ring size \
+    /// `tx_size` - tx ring size \
+    /// `rx_size` - rx ring size \
+    /// # Returns
+    /// On success, returns `pv::Nic` bound to the network interface. \
+    /// On failure, returns an error string.
     pub fn new(
         if_name: &str,
         chunk_size: usize,
@@ -602,15 +658,20 @@ impl Nic {
         Ok(())
     }
 
+    /// # Description
     /// Allocate packet using Pool
+    /// # Returns
+    /// On success, returns `pv::Packet` with empty payload. \
+    /// On failure, returns `None`.
     pub fn alloc_packet(&self) -> Option<Packet> {
         unsafe { POOL.as_mut().unwrap().try_alloc_packet() }
     }
 
-    /// Send packets using NIC
+    /// # Description
+    /// Send packets \
+    /// **\*Sent packets are removed from the vector.**
     /// # Arguments
-    /// * `packets` - Packets to send
-    /// Sent packets are removed from the vector.
+    /// `packets` - Packets to send
     /// # Returns
     /// Number of packets sent
     pub fn send(&mut self, packets: &mut Vec<Packet>) -> usize {
@@ -627,9 +688,10 @@ impl Nic {
         sent_count
     }
 
-    /// Receive packets using NIC
+    /// # Description
+    /// Receive packets
     /// # Arguments
-    /// * `len` - Number of packets to receive
+    /// `len` - Number of packets to receive
     /// # Returns
     /// Received packets
     pub fn receive(&mut self, len: usize) -> Vec<Packet> {
@@ -657,8 +719,15 @@ impl Packet {
         }
     }
 
-    /// replace payload with new data
-    pub fn replace_data(&mut self, new_data: &Vec<u8>) -> Result<(), String> {
+    /// # Description
+    /// Replace payload with new data. \
+    /// Data can be memmoved if needed.
+    /// # Arguments
+    /// `new_data` - new packet payload
+    /// # Returns
+    /// On success, returns `None` and payload of `pv::Packet` is replaced with `new_data`. \
+    /// On failure, returns an error string.
+    pub fn replace_data(&mut self, new_data: &[u8]) -> Result<(), String> {
         if new_data.len() <= self.buffer_size {
             unsafe {
                 // replace data
@@ -675,7 +744,8 @@ impl Packet {
         }
     }
 
-    /// get payload as Vec<u8>
+    /// # Description
+    /// Get mutable payload
     pub fn get_buffer_mut(&mut self) -> &mut [u8] {
         unsafe {
             std::slice::from_raw_parts_mut(
@@ -685,9 +755,15 @@ impl Packet {
         }
     }
 
-    /// Resize payload size
-    pub fn resize(&mut self, size: usize) -> Result<(), String> {
-        if size > self.buffer_size {
+    /// # Description
+    /// Resize payload size to `new_size`
+    /// # Arguments
+    /// `new_size` - new packet payload size
+    /// # Returns
+    /// On success, return None and payload size of `pv::Packet` is replaced with `new_size`. \
+    /// On failure, returns an error string.
+    pub fn resize(&mut self, new_size: usize) -> Result<(), String> {
+        if new_size > self.buffer_size {
             return Err(format!(
                 "The requested size is to large. (Max = {})",
                 self.buffer_size
@@ -696,7 +772,7 @@ impl Packet {
 
         let temp_end = self.end;
 
-        if size > self.buffer_size - self.start {
+        if new_size > self.buffer_size - self.start {
             // Need to move data
             unsafe {
                 copy(
@@ -706,15 +782,16 @@ impl Packet {
                 );
             }
             self.start = 0;
-            self.end = size;
+            self.end = new_size;
             return Ok(());
         }
 
-        self.end = self.start + size;
+        self.end = self.start + new_size;
         Ok(())
     }
 
-    /// Dump packet payload as hex
+    /// # Description
+    /// Dump packet payload as hex. Debugging purpose
     #[allow(dead_code)]
     pub fn dump(&self) {
         let chunk_address = self.private as u64;

@@ -154,10 +154,7 @@ fn process_packet(packet: &mut pv::Packet) -> bool {
 fn send_tcp_rst(from: &mut pv::Nic, to: &mut pv::Nic, received: &mut pv::Packet) {
     let mut packet = from.alloc_packet().unwrap();
 
-    if packet
-        .replace_data(&received.get_buffer_mut().to_vec())
-        .is_err()
-    {
+    if packet.replace_data(received.get_buffer_mut()).is_err() {
         return;
     }
 
@@ -198,10 +195,7 @@ fn send_tcp_rst(from: &mut pv::Nic, to: &mut pv::Nic, received: &mut pv::Packet)
 
     let mut packet = to.alloc_packet().unwrap();
 
-    if packet
-        .replace_data(&received.get_buffer_mut().to_vec())
-        .is_err()
-    {
+    if packet.replace_data(received.get_buffer_mut()).is_err() {
         return;
     }
 

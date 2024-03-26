@@ -68,7 +68,7 @@ fn main() {
                 // received data from socket and send to interface
                 let mut packet = interface.alloc_packet().unwrap();
                 let fit_buffer = &buf[0..n];
-                packet.replace_data(&fit_buffer.to_vec()).unwrap();
+                packet.replace_data(fit_buffer).unwrap();
                 interface.send(&mut vec![packet]);
                 buf.fill(0);
             }
