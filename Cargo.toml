@@ -1,5 +1,5 @@
 [package]
-name = "pv"
+name = "packetvisor"
 version = "0.1.0"
 edition = "2021"
 license = "GPL-3.0+"
@@ -10,6 +10,7 @@ description = "Packetvisor is a Raw Packet I/O framework based on the Rust langu
 
 [lib]
 doctest = false
+name = "pv"
 
 [build-dependencies]
 bindgen = "0.65.1"
