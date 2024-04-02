@@ -47,12 +47,12 @@ use pnet::datalink::{interfaces, NetworkInterface};
 use std::alloc::{alloc_zeroed, Layout};
 use std::cell::RefCell;
 use std::collections::hash_set::HashSet;
-use std::ffi::{CStr, CString, c_int, c_char, c_void};
+use std::convert::TryInto;
+use std::ffi::{c_char, c_int, c_void, CStr, CString};
 use std::ptr::copy;
 use std::rc::Rc;
 use std::thread;
 use std::time::Duration;
-use std::convert::TryInto;
 
 use libc::strerror;
 
