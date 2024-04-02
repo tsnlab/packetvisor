@@ -1,8 +1,8 @@
 [package]
 name = "pv"
 version = "0.1.0"
+edition = "2021"
 license = "GPL-3.0+"
-
 authors = ["arm@tsnlab.com", "pakji@tsnlab.com", "sik@tsnlab.com", "semih@tsnlab.com"]
 description = "Packetvisor is a Raw Packet I/O framework based on the Rust language. It can process packets much faster than Standard Sockets through the Linux Kernel's eXpress Data Path(XDP)."
 
