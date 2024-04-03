@@ -1,12 +1,8 @@
 # Packetvisor(PV)
 
 ## System dependencies
-- clang (clang-strip)
-- llvm
-- libelf-dev (gelf.h)
-- libpcap-dev
-- gcc-multilib (asm/types.h)
-- m4
+- clang version >= 11
+- llvm version >= 11
 
 ## bpftool & XDP-tools (submodules)
 PV uses `libxdp` in [XDP-tools][].
