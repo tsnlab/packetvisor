@@ -1,9 +1,9 @@
 [package]
 name = "packetvisor"
-version = "0.1.0"
+version = "1.0.0"
 edition = "2021"
 license = "GPL-3.0+"
-authors = ["TSNLab <cto@tsnlab.com>"]
+authors = ["TSN Lab <cto@tsnlab.com>"]
 description = "Packetvisor is a Raw Packet I/O framework based on the Rust language. It can process packets much faster than Standard Sockets through the Linux Kernel's eXpress Data Path(XDP)."
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
