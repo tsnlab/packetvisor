@@ -69,8 +69,12 @@ Please execute the following commands on TERM1 and TERM2.
 (TERM1) $ ./target/release/examples/echo veth1
 -------------------------------------------------
 (TERM2) $ sudo apt-get install arping 2ping
+
+# ARP echo test
 (TERM2) $ sudo arping 10.0.0.5
+# ICMP echo test
 (TERM2) $ ping 10.0.0.5
+# UDP echo test
 (TERM2) $ 2ping 10.0.0.5 --port 7
 ```
 You can now see ARP, ICMP, and UDP (Port 7) packets being echoed in the test1 namespace through the TERM1 logs!
