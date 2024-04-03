@@ -31,7 +31,7 @@ $ cargo build -r --example echo
 The compiled example binaries are located in the `target/release/examples/` directory.
 
 Before running the Echo example, you need to create a Linux network namespace. <br/>
-We provide two scripts for this:  
+We provide two scripts for this:
 - `examples/set_veth.sh` : Create two linux network namespaces.
 - `examples/unset_veth.sh` : Delete the two linux network namespaces that were created.
 
