@@ -17,10 +17,10 @@ PV uses `libxdp` in [XDP-tools][].
 You can use `cargo build -r` command to build PV library and the library file will be located in `target/release/`.
 
 ## Getting started
-This guide will walk you through the process of compiling and using example source code written with the PV library.  
-The following explanation will be based on the Echo example.  
+This guide will walk you through the process of compiling and using example source code written with the PV library. <br/>
+The following explanation will be based on the Echo example.
 
-Please compile the example source first.  
+Please compile the example source first.
 ```Bash
 # Compile all examples using PV.
 $ cargo build -r --examples
@@ -30,13 +30,13 @@ $ cargo build -r --example echo
 ```
 The compiled example binaries are located in the `target/release/examples/` directory.
 
-Before running the Echo example, you need to create a Linux network namespace.  
+Before running the Echo example, you need to create a Linux network namespace. <br/>
 We provide two scripts for this:  
 - `examples/set_veth.sh` : Create two linux network namespaces.
 - `examples/unset_veth.sh` : Delete the two linux network namespaces that were created.
 
 Running the `examples/set_veth.sh` script creates two namespaces(Test1 and Test2) within the Host.
-```
+```Bash
 # Host veth0 is connected to veth1 in the Test1 namespace.
 # Host veth2 is connected to veth3 in the Test2 namespace.
 
@@ -50,11 +50,11 @@ Running the `examples/set_veth.sh` script creates two namespaces(Test1 and Test2
 ```
 Only the Test1 namespace is used in the Echo example test.
 
-Now, open two terminals.  
-On one terminal (TERM1), run Echo on the veth1 interface of Test1 namespace.  
-The other terminal (TERM2) sends ARP, ICMP, and UDP packets from Host to Test1.  
+Now, open two terminals.
+- On one terminal (TERM1), run Echo on the veth1 interface of Test1 namespace.
+- The other terminal (TERM2) sends ARP, ICMP, and UDP packets from Host to Test1.
 
-In summary, Host and Test1 perform ARP, ICMP, and UDP Echo (Ping-Pong) with each other.  
+In summary, Host and Test1 perform ARP, ICMP, and UDP Echo (Ping-Pong) with each other.
 
 Please execute the following commands on TERM1 and TERM2.
 ```bash
