@@ -1,9 +1,6 @@
-# Packetvisor 3.0
+# Packetvisor(PV)
 
-## Prerequisite
-
-### System dependencies
-
+## System dependencies
 - clang (clang-strip)
 - llvm
 - libelf-dev (gelf.h)
@@ -11,61 +8,68 @@
 - gcc-multilib (asm/types.h)
 - m4
 
-### bpftool & XDP-tools (submodules)
-PV 3.0 uses `libxdp` in [XDP-tools][].
+## bpftool & XDP-tools (submodules)
+PV uses `libxdp` in [XDP-tools][].
 
 [XDP-tools]: https://github.com/xdp-project/xdp-tools
 
 ## Build Library
-You can use `cargo build -r` command to build PV 3.0 library and the library file will be located in `root/target/release`.
+You can use `cargo build -r` command to build PV library and the library file will be located in `target/release/`.
 
-## Run examples
-Example sources that show dealing with some network protocols using Packetvisor library are located in `root/examples`.
-To compile examples, run the following command: `cargo build -r --examples`.
-They will be located in `root/target/release/examples`
+## Getting started
+This guide will walk you through the process of compiling and using example source code written with the PV library.  
+The following explanation will be based on the Echo example.  
 
-Example apps can be executed commonly like this: `sudo ./(EXAMPLE APP) <inferface name> <chunk size> <chunk count> <Filling ring size> <RX ring size> <Completion ring size> <TX ring size>`
+Please compile the example source first.  
+```Bash
+# Compile all examples using PV.
+$ cargo build -r --examples
 
-You can test ipv4 and ipv6.
+# Compile the specific example using PV.
+$ cargo build -r --example echo
+```
+The compiled example binaries are located in the `target/release/examples/` directory.
 
-If you want to test ipv4, ipv6 you can use `set_veth.sh` to set veths for testing the application.
-After the script is executed, veth0 and veth1 are created.
-veth1 is created in `test_namespace` namespace but veth0 in local.
+Before running the Echo example, you need to create a Linux network namespace.  
+We provide two scripts for this:  
+- `examples/set_veth.sh` : Create two linux network namespaces.
+- `examples/unset_veth.sh` : Delete the two linux network namespaces that were created.
 
-echo example has many options. If you want to see the options.
-Execute `echo --help`
+Running the `examples/set_veth.sh` script creates two namespaces(Test1 and Test2) within the Host.
+```
+# Host veth0 is connected to veth1 in the Test1 namespace.
+# Host veth2 is connected to veth3 in the Test2 namespace.
 
-To execute echo example.
++-----------+          +-----------+
+|   Test1   |          |   Test2   |
++--[veth1]--+          +--[veth3]--+
+      |                      |
++--[veth0]----------------[veth2]--+
+|               Host               |
++----------------------------------+
+```
+Only the Test1 namespace is used in the Echo example test.
 
-Execute `sudo ./set_veth.sh` then execute`sudo ./echo -i veth0` in `/target/release/examples`.
+Now, open two terminals.  
+On one terminal (TERM1), run Echo on the veth1 interface of Test1 namespace.  
+The other terminal (TERM2) sends ARP, ICMP, and UDP packets from Host to Test1.  
 
-echo example has three functions, ARP reply, ICMP echo(ping), UDP echo.
+In summary, Host and Test1 perform ARP, ICMP, and UDP Echo (Ping-Pong) with each other.  
 
-If you want to test ARP reply, Execute the following command.
-`sudo ip netns exec test_namespace arping 10.0.0.4`.
+Please execute the following commands on TERM1 and TERM2.
+```bash
+# Working directory on TERM1 is packetvisor/.
+(TERM1) $ sudo ip netns exec test1 /bin/bash
+(TERM1) $ ./target/release/examples/echo veth1
+-------------------------------------------------
+(TERM2) $ sudo apt-get install arping 2ping
+(TERM2) $ sudo arping 10.0.0.5
+(TERM2) $ ping 10.0.0.5
+(TERM2) $ 2ping 10.0.0.5 --port 7
+```
+You can now see ARP, ICMP, and UDP (Port 7) packets being echoed in the Test1 namespace through the TERM1 logs!
 
-If you want to test ICMP echo, Execute the following command.
-`sudo ip netns exec test_namespace ping 10.0.0.4`.
-In case of ipv6, Execute the following command.
-`sudo ip netns exec test_namespace ping 2001:db8::1`.
-
-
-If you want to test UDP echo, Execute the following command.
-`sudo ip netns exec test_namespace nc -u 10.0.0.4 7`
-In case of ipv6, Execute the following command.
-`sudo ip netns exec test_namespace nc -u 2001:db8::1 7`
-
-To execute change_word example.
-
-Execute `sudo ./set_veth.sh`.
-Execute change_word program `sudo ./target/debug/examples/change_word --nic1 veth0 --nic2 veth2 --source-word apple --target-word wawtermelon`.
-Run test server `sudo ip netns exec test2 nc -l 0.0.0.0 8080 -u`.
-Run test client `sudo ip netns exec test1 nc -u 10.0.0.7 8080`.
-
-Then, communicate between server and client.
-
-To remove veths created by `set_veth.sh`, `unset_veth.sh` will remove them.
-
+---
 ## Description of XSK (XDP Socket)
 
 ### Elements of XSK
