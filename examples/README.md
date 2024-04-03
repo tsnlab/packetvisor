@@ -1,7 +1,7 @@
 ## Examples
 - echo : ARP, ICMP, UDP echo server
-- forward : Packet forwarding between two network interface
-- change_word : UDP packet payload changing between two network interfaces
+- forward : Forward packets between two network interface
+- change_word : Find and replace some word from UDP flow while forwarding between two network interfaces
 - filter : TCP packet filtering between two network interfaces
 - tunnel : Tunneling packets received through packetvisor to standard udp socket
 
