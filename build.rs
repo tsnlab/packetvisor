@@ -22,8 +22,10 @@ fn main() {
     let copy_options = fs_extra::dir::CopyOptions::new()
         .content_only(true)
         .overwrite(true);
-    fs_extra::dir::copy(&bpftool_src_dir, &bpftool_out_dir, &copy_options).expect("Failed to copy bpftool");
-    fs_extra::dir::copy(&xdptools_src_dir, &xdptools_out_dir, &copy_options).expect("Failed to copy xdptools");
+    fs_extra::dir::copy(bpftool_src_dir, &bpftool_out_dir, &copy_options)
+        .expect("Failed to copy bpftool");
+    fs_extra::dir::copy(xdptools_src_dir, &xdptools_out_dir, &copy_options)
+        .expect("Failed to copy xdptools");
 
     println!("Build bpftool on {}", bpftool_out_dir.display());
     let status = process::Command::new("make")
@@ -36,7 +38,10 @@ fn main() {
 
     let status = process::Command::new("make")
         .current_dir(&xdptools_out_dir)
-        .arg(format!("BPFTOOL={}", bpftool_out_dir.join("src").join("bpftool").display()))
+        .arg(format!(
+            "BPFTOOL={}",
+            bpftool_out_dir.join("src").join("bpftool").display()
+        ))
         .arg("libxdp")
         .status()
         .expect("could not execute make for libxdp");
