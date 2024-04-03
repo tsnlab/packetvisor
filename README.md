@@ -36,31 +36,31 @@ $ cargo build -r --example echo
 ```
 The compiled example binaries are located in the `target/release/examples/` directory.
 
-Before running the Echo example, you need to create a Linux network namespace. <br/>
+Before running the Echo example, you need to create a Linux network namespace. \
 We provide two scripts for this:
 - `examples/set_veth.sh` : Create two linux network namespaces.
 - `examples/unset_veth.sh` : Delete the two linux network namespaces that were created.
 
-Running the `examples/set_veth.sh` script creates two namespaces(Test1 and Test2) within the Host.
+Running the `examples/set_veth.sh` script creates two namespaces(test1 and test2) within the Host.
 ```Bash
-# Host veth0 is connected to veth1 in the Test1 namespace.
-# Host veth2 is connected to veth3 in the Test2 namespace.
+# Host veth0 is connected to veth1 in the test1 namespace.
+# Host veth2 is connected to veth3 in the test2 namespace.
 
 +-----------+          +-----------+
-|   Test1   |          |   Test2   |
+|   test1   |          |   test2   |
 +--[veth1]--+          +--[veth3]--+
       |                      |
 +--[veth0]----------------[veth2]--+
 |               Host               |
 +----------------------------------+
 ```
-Only the Test1 namespace is used in the Echo example test.
+Only the test1 namespace is used in the Echo example test.
 
 Now, open two terminals.
-- On one terminal (TERM1), run Echo on the veth1 interface of Test1 namespace.
-- The other terminal (TERM2) sends ARP, ICMP, and UDP packets from Host to Test1.
+- On one terminal (TERM1), run Echo on the veth1 interface of test1 namespace.
+- The other terminal (TERM2) sends ARP, ICMP, and UDP packets from Host to test1.
 
-In summary, Host and Test1 perform ARP, ICMP, and UDP Echo (Ping-Pong) with each other.
+In summary, Host and test1 perform ARP, ICMP, and UDP Echo (Ping-Pong) with each other.
 
 Please execute the following commands on TERM1 and TERM2.
 ```bash
@@ -73,7 +73,7 @@ Please execute the following commands on TERM1 and TERM2.
 (TERM2) $ ping 10.0.0.5
 (TERM2) $ 2ping 10.0.0.5 --port 7
 ```
-You can now see ARP, ICMP, and UDP (Port 7) packets being echoed in the Test1 namespace through the TERM1 logs!
+You can now see ARP, ICMP, and UDP (Port 7) packets being echoed in the test1 namespace through the TERM1 logs!
 
 ---
 ## Description of XSK (XDP Socket)

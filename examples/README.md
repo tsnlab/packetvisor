@@ -8,9 +8,10 @@
 ## Run examples
 Example sources that show dealing with some network protocols using Packetvisor library are located in `examples/`.
 To compile examples, run the following command: `cargo build -r --examples`.
-They will be located in `root/target/release/examples`
+They will be located in `target/release/examples/`
 
-Example apps can be executed commonly like this: `sudo ./(EXAMPLE APP) <inferface name> <chunk size> <chunk count> <Filling ring size> <RX ring size> <Completion ring size> <TX ring size>`
+Example apps can be executed commonly like this: `sudo ./(EXAMPLE APP) <inferface name>`
+Example apps also supports the help command like this: `./(EXAMPLE APP) --help`
 
 You can test ipv4 and ipv6.
 
@@ -23,7 +24,7 @@ Execute `echo --help`
 
 To execute echo example.
 
-Execute `sudo ./set_veth.sh` then execute`sudo ./echo -i veth0` in `/target/release/examples`.
+Execute `sudo ./set_veth.sh` then execute `sudo ./echo veth0` in `target/release/examples/`.
 
 echo example has three functions, ARP reply, ICMP echo(ping), UDP echo.
 
@@ -44,7 +45,7 @@ In case of ipv6, Execute the following command.
 To execute change_word example.
 
 Execute `sudo ./set_veth.sh`.
-Execute change_word program `sudo ./target/debug/examples/change_word --nic1 veth0 --nic2 veth2 --source-word apple --target-word wawtermelon`.
+Execute change_word program `sudo ./target/release/examples/change_word --nic1 veth0 --nic2 veth2 --source apple --target watermelon`.
 Run test server `sudo ip netns exec test2 nc -l 0.0.0.0 8080 -u`.
 Run test client `sudo ip netns exec test1 nc -u 10.0.0.7 8080`.
 
