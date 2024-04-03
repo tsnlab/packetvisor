@@ -13,10 +13,20 @@ PV uses `libxdp` in [XDP-tools][].
 You can use `cargo build -r` command to build PV library and the library file will be located in `target/release/`.
 
 ## Getting started
-This guide will walk you through the process of compiling and using example source code written with the PV library. <br/>
+This guide will walk you through the process of compiling and using example source code written with the PV library. \
 The following explanation will be based on the Echo example.
 
-Please compile the example source first.
+Please install the dependent packages first.
+```Bash
+# Install dependent packages
+$ sudo apt-get install llvm clang libelf-dev gcc-multilib libpcap-dev m4 make curl
+
+# Install Rust.
+$ curl https://sh.rustup.rs -sSf | sh
+$ source "$HOME/.cargo/env"
+```
+
+And compile the example source.
 ```Bash
 # Compile all examples using PV.
 $ cargo build -r --examples
