@@ -17,7 +17,7 @@ This guide will walk you through the process of compiling and using example sour
 The following explanation will be based on the Echo example.
 
 Please install the dependent packages first.
-```Bash
+```sh
 # Install build dependencies
 $ sudo apt-get install llvm clang libelf-dev gcc-multilib libpcap-dev m4 make curl
 
@@ -27,7 +27,7 @@ $ source "$HOME/.cargo/env"
 ```
 
 And compile the example source.
-```Bash
+```sh
 # Compile all examples using PV.
 $ cargo build -r --examples
 
@@ -42,7 +42,7 @@ We provide two scripts for this:
 - `examples/unset_veth.sh` : Delete the two linux network namespaces that were created.
 
 Running the `examples/set_veth.sh` script creates two namespaces(test1 and test2) within the Host.
-```Bash
+```sh
 # Host veth0 is connected to veth1 in the test1 namespace.
 # Host veth2 is connected to veth3 in the test2 namespace.
 
