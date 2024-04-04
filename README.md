@@ -18,7 +18,7 @@ The following explanation will be based on the Echo example.
 
 Please install the dependent packages first.
 ```Bash
-# Install dependent packages
+# Install build dependencies
 $ sudo apt-get install llvm clang libelf-dev gcc-multilib libpcap-dev m4 make curl
 
 # Install Rust.
