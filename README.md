@@ -21,17 +21,17 @@ Please install the dependent packages first.
 # Install build dependencies
 $ sudo apt-get install llvm clang libelf-dev gcc-multilib libpcap-dev m4 make curl
 
-# Install Rust.
+# Install Rust
 $ curl https://sh.rustup.rs -sSf | sh
 $ source "$HOME/.cargo/env"
 ```
 
 And compile the example source.
 ```sh
-# Compile all examples using PV.
+# Compile all examples.
 $ cargo build -r --examples
 
-# Compile the specific example using PV.
+# Compile the specific example.
 $ cargo build -r --example echo
 ```
 The compiled example binaries are located in the `target/release/examples/` directory.
