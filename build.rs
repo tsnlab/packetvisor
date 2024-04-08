@@ -7,9 +7,10 @@ fn main() {
     let src_dir = path::PathBuf::from(env::var_os("CARGO_MANIFEST_DIR").unwrap());
     let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
 
+    println!("cargo:rerun-if-changed=build.rs");
+    println!("cargo:rerun-if-changed=Cargo.lock");
+
     if std::env::var("DOCS_RS").is_ok() {
-        std::fs::copy(src_dir.join("src/bindings.rs"), out_dir.join("bindings.rs"))
-            .expect("Failed to copy bindings.rs");
         return;
     }
 
