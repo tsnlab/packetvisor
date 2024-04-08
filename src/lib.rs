@@ -39,6 +39,10 @@ mod bindings {
     #![allow(non_snake_case)]
     #![allow(dead_code)]
     #![allow(clippy::all)]
+
+    #[cfg(docsrs)]
+    include!("bindings.rs");
+    #[cfg(not(docsrs))]
     include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 }
 
