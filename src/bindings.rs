@@ -330,9 +330,9 @@ pub const SIG_ATOMIC_MAX: u32 = 2147483647;
 pub const SIZE_MAX: i32 = -1;
 pub const WINT_MIN: u32 = 0;
 pub const WINT_MAX: u32 = 4294967295;
-pub const __bool_true_false_are_defined: u32 = 1;
 pub const true_: u32 = 1;
 pub const false_: u32 = 0;
+pub const __bool_true_false_are_defined: u32 = 1;
 pub const _SYS_TYPES_H: u32 = 1;
 pub const __clock_t_defined: u32 = 1;
 pub const __clockid_t_defined: u32 = 1;
@@ -419,6 +419,96 @@ pub const XSK_UMEM__DEFAULT_FRAME_HEADROOM: u32 = 0;
 pub const XSK_UMEM__DEFAULT_FLAGS: u32 = 0;
 pub const XSK_LIBBPF_FLAGS__INHIBIT_PROG_LOAD: u32 = 1;
 pub const XSK_LIBXDP_FLAGS__INHIBIT_PROG_LOAD: u32 = 1;
+pub const _K_SS_MAXSIZE: u32 = 128;
+pub const SOCK_SNDBUF_LOCK: u32 = 1;
+pub const SOCK_RCVBUF_LOCK: u32 = 2;
+pub const SOCK_BUF_LOCK_MASK: u32 = 3;
+pub const NETLINK_ROUTE: u32 = 0;
+pub const NETLINK_UNUSED: u32 = 1;
+pub const NETLINK_USERSOCK: u32 = 2;
+pub const NETLINK_FIREWALL: u32 = 3;
+pub const NETLINK_SOCK_DIAG: u32 = 4;
+pub const NETLINK_NFLOG: u32 = 5;
+pub const NETLINK_XFRM: u32 = 6;
+pub const NETLINK_SELINUX: u32 = 7;
+pub const NETLINK_ISCSI: u32 = 8;
+pub const NETLINK_AUDIT: u32 = 9;
+pub const NETLINK_FIB_LOOKUP: u32 = 10;
+pub const NETLINK_CONNECTOR: u32 = 11;
+pub const NETLINK_NETFILTER: u32 = 12;
+pub const NETLINK_IP6_FW: u32 = 13;
+pub const NETLINK_DNRTMSG: u32 = 14;
+pub const NETLINK_KOBJECT_UEVENT: u32 = 15;
+pub const NETLINK_GENERIC: u32 = 16;
+pub const NETLINK_SCSITRANSPORT: u32 = 18;
+pub const NETLINK_ECRYPTFS: u32 = 19;
+pub const NETLINK_RDMA: u32 = 20;
+pub const NETLINK_CRYPTO: u32 = 21;
+pub const NETLINK_SMC: u32 = 22;
+pub const NETLINK_INET_DIAG: u32 = 4;
+pub const MAX_LINKS: u32 = 32;
+pub const NLM_F_REQUEST: u32 = 1;
+pub const NLM_F_MULTI: u32 = 2;
+pub const NLM_F_ACK: u32 = 4;
+pub const NLM_F_ECHO: u32 = 8;
+pub const NLM_F_DUMP_INTR: u32 = 16;
+pub const NLM_F_DUMP_FILTERED: u32 = 32;
+pub const NLM_F_ROOT: u32 = 256;
+pub const NLM_F_MATCH: u32 = 512;
+pub const NLM_F_ATOMIC: u32 = 1024;
+pub const NLM_F_DUMP: u32 = 768;
+pub const NLM_F_REPLACE: u32 = 256;
+pub const NLM_F_EXCL: u32 = 512;
+pub const NLM_F_CREATE: u32 = 1024;
+pub const NLM_F_APPEND: u32 = 2048;
+pub const NLM_F_NONREC: u32 = 256;
+pub const NLM_F_CAPPED: u32 = 256;
+pub const NLM_F_ACK_TLVS: u32 = 512;
+pub const NLMSG_ALIGNTO: u32 = 4;
+pub const NLMSG_NOOP: u32 = 1;
+pub const NLMSG_ERROR: u32 = 2;
+pub const NLMSG_DONE: u32 = 3;
+pub const NLMSG_OVERRUN: u32 = 4;
+pub const NLMSG_MIN_TYPE: u32 = 16;
+pub const NETLINK_ADD_MEMBERSHIP: u32 = 1;
+pub const NETLINK_DROP_MEMBERSHIP: u32 = 2;
+pub const NETLINK_PKTINFO: u32 = 3;
+pub const NETLINK_BROADCAST_ERROR: u32 = 4;
+pub const NETLINK_NO_ENOBUFS: u32 = 5;
+pub const NETLINK_RX_RING: u32 = 6;
+pub const NETLINK_TX_RING: u32 = 7;
+pub const NETLINK_LISTEN_ALL_NSID: u32 = 8;
+pub const NETLINK_LIST_MEMBERSHIPS: u32 = 9;
+pub const NETLINK_CAP_ACK: u32 = 10;
+pub const NETLINK_EXT_ACK: u32 = 11;
+pub const NETLINK_GET_STRICT_CHK: u32 = 12;
+pub const NL_MMAP_MSG_ALIGNMENT: u32 = 4;
+pub const NET_MAJOR: u32 = 36;
+pub const NLA_F_NESTED: u32 = 32768;
+pub const NLA_F_NET_BYTEORDER: u32 = 16384;
+pub const NLA_TYPE_MASK: i32 = -49153;
+pub const NLA_ALIGNTO: u32 = 4;
+pub const MACVLAN_FLAG_NOPROMISC: u32 = 1;
+pub const MACVLAN_FLAG_NODST: u32 = 2;
+pub const IPVLAN_F_PRIVATE: u32 = 1;
+pub const IPVLAN_F_VEPA: u32 = 2;
+pub const MAX_VLAN_LIST_LEN: u32 = 1;
+pub const PORT_PROFILE_MAX: u32 = 40;
+pub const PORT_UUID_MAX: u32 = 16;
+pub const PORT_SELF_VF: i32 = -1;
+pub const XDP_FLAGS_UPDATE_IF_NOEXIST: u32 = 1;
+pub const XDP_FLAGS_SKB_MODE: u32 = 2;
+pub const XDP_FLAGS_DRV_MODE: u32 = 4;
+pub const XDP_FLAGS_HW_MODE: u32 = 8;
+pub const XDP_FLAGS_REPLACE: u32 = 16;
+pub const XDP_FLAGS_MODES: u32 = 14;
+pub const XDP_FLAGS_MASK: u32 = 31;
+pub const RMNET_FLAGS_INGRESS_DEAGGREGATION: u32 = 1;
+pub const RMNET_FLAGS_INGRESS_MAP_COMMANDS: u32 = 2;
+pub const RMNET_FLAGS_INGRESS_MAP_CKSUMV4: u32 = 4;
+pub const RMNET_FLAGS_EGRESS_MAP_CKSUMV4: u32 = 8;
+pub const RMNET_FLAGS_INGRESS_MAP_CKSUMV5: u32 = 16;
+pub const RMNET_FLAGS_EGRESS_MAP_CKSUMV5: u32 = 32;
 pub type va_list = __builtin_va_list;
 pub type __gnuc_va_list = __builtin_va_list;
 pub type __u_char = ::std::os::raw::c_uchar;
@@ -17687,6 +17777,2712 @@ extern "C" {
 extern "C" {
     pub fn xsk_socket__delete(xsk: *mut xsk_socket);
 }
+pub type __kernel_sa_family_t = ::std::os::raw::c_ushort;
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub struct __kernel_sockaddr_storage {
+    pub __bindgen_anon_1: __kernel_sockaddr_storage__bindgen_ty_1,
+}
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub union __kernel_sockaddr_storage__bindgen_ty_1 {
+    pub __bindgen_anon_1: __kernel_sockaddr_storage__bindgen_ty_1__bindgen_ty_1,
+    pub __align: *mut ::std::os::raw::c_void,
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct __kernel_sockaddr_storage__bindgen_ty_1__bindgen_ty_1 {
+    pub ss_family: __kernel_sa_family_t,
+    pub __data: [::std::os::raw::c_char; 126usize],
+}
+#[test]
+fn bindgen_test_layout___kernel_sockaddr_storage__bindgen_ty_1__bindgen_ty_1() {
+    const UNINIT: ::std::mem::MaybeUninit<__kernel_sockaddr_storage__bindgen_ty_1__bindgen_ty_1> =
+        ::std::mem::MaybeUninit::uninit();
+    let ptr = UNINIT.as_ptr();
+    assert_eq!(
+        ::std::mem::size_of::<__kernel_sockaddr_storage__bindgen_ty_1__bindgen_ty_1>(),
+        128usize,
+        concat!(
+            "Size of: ",
+            stringify!(__kernel_sockaddr_storage__bindgen_ty_1__bindgen_ty_1)
+        )
+    );
+    assert_eq!(
+        ::std::mem::align_of::<__kernel_sockaddr_storage__bindgen_ty_1__bindgen_ty_1>(),
+        2usize,
+        concat!(
+            "Alignment of ",
+            stringify!(__kernel_sockaddr_storage__bindgen_ty_1__bindgen_ty_1)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).ss_family) as usize - ptr as usize },
+        0usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(__kernel_sockaddr_storage__bindgen_ty_1__bindgen_ty_1),
+            "::",
+            stringify!(ss_family)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).__data) as usize - ptr as usize },
+        2usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(__kernel_sockaddr_storage__bindgen_ty_1__bindgen_ty_1),
+            "::",
+            stringify!(__data)
+        )
+    );
+}
+#[test]
+fn bindgen_test_layout___kernel_sockaddr_storage__bindgen_ty_1() {
+    const UNINIT: ::std::mem::MaybeUninit<__kernel_sockaddr_storage__bindgen_ty_1> =
+        ::std::mem::MaybeUninit::uninit();
+    let ptr = UNINIT.as_ptr();
+    assert_eq!(
+        ::std::mem::size_of::<__kernel_sockaddr_storage__bindgen_ty_1>(),
+        128usize,
+        concat!(
+            "Size of: ",
+            stringify!(__kernel_sockaddr_storage__bindgen_ty_1)
+        )
+    );
+    assert_eq!(
+        ::std::mem::align_of::<__kernel_sockaddr_storage__bindgen_ty_1>(),
+        8usize,
+        concat!(
+            "Alignment of ",
+            stringify!(__kernel_sockaddr_storage__bindgen_ty_1)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).__align) as usize - ptr as usize },
+        0usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(__kernel_sockaddr_storage__bindgen_ty_1),
+            "::",
+            stringify!(__align)
+        )
+    );
+}
+#[test]
+fn bindgen_test_layout___kernel_sockaddr_storage() {
+    assert_eq!(
+        ::std::mem::size_of::<__kernel_sockaddr_storage>(),
+        128usize,
+        concat!("Size of: ", stringify!(__kernel_sockaddr_storage))
+    );
+    assert_eq!(
+        ::std::mem::align_of::<__kernel_sockaddr_storage>(),
+        8usize,
+        concat!("Alignment of ", stringify!(__kernel_sockaddr_storage))
+    );
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct sockaddr_nl {
+    pub nl_family: __kernel_sa_family_t,
+    pub nl_pad: ::std::os::raw::c_ushort,
+    pub nl_pid: __u32,
+    pub nl_groups: __u32,
+}
+#[test]
+fn bindgen_test_layout_sockaddr_nl() {
+    const UNINIT: ::std::mem::MaybeUninit<sockaddr_nl> = ::std::mem::MaybeUninit::uninit();
+    let ptr = UNINIT.as_ptr();
+    assert_eq!(
+        ::std::mem::size_of::<sockaddr_nl>(),
+        12usize,
+        concat!("Size of: ", stringify!(sockaddr_nl))
+    );
+    assert_eq!(
+        ::std::mem::align_of::<sockaddr_nl>(),
+        4usize,
+        concat!("Alignment of ", stringify!(sockaddr_nl))
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).nl_family) as usize - ptr as usize },
+        0usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(sockaddr_nl),
+            "::",
+            stringify!(nl_family)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).nl_pad) as usize - ptr as usize },
+        2usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(sockaddr_nl),
+            "::",
+            stringify!(nl_pad)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).nl_pid) as usize - ptr as usize },
+        4usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(sockaddr_nl),
+            "::",
+            stringify!(nl_pid)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).nl_groups) as usize - ptr as usize },
+        8usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(sockaddr_nl),
+            "::",
+            stringify!(nl_groups)
+        )
+    );
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct nlmsghdr {
+    pub nlmsg_len: __u32,
+    pub nlmsg_type: __u16,
+    pub nlmsg_flags: __u16,
+    pub nlmsg_seq: __u32,
+    pub nlmsg_pid: __u32,
+}
+#[test]
+fn bindgen_test_layout_nlmsghdr() {
+    const UNINIT: ::std::mem::MaybeUninit<nlmsghdr> = ::std::mem::MaybeUninit::uninit();
+    let ptr = UNINIT.as_ptr();
+    assert_eq!(
+        ::std::mem::size_of::<nlmsghdr>(),
+        16usize,
+        concat!("Size of: ", stringify!(nlmsghdr))
+    );
+    assert_eq!(
+        ::std::mem::align_of::<nlmsghdr>(),
+        4usize,
+        concat!("Alignment of ", stringify!(nlmsghdr))
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).nlmsg_len) as usize - ptr as usize },
+        0usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(nlmsghdr),
+            "::",
+            stringify!(nlmsg_len)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).nlmsg_type) as usize - ptr as usize },
+        4usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(nlmsghdr),
+            "::",
+            stringify!(nlmsg_type)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).nlmsg_flags) as usize - ptr as usize },
+        6usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(nlmsghdr),
+            "::",
+            stringify!(nlmsg_flags)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).nlmsg_seq) as usize - ptr as usize },
+        8usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(nlmsghdr),
+            "::",
+            stringify!(nlmsg_seq)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).nlmsg_pid) as usize - ptr as usize },
+        12usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(nlmsghdr),
+            "::",
+            stringify!(nlmsg_pid)
+        )
+    );
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct nlmsgerr {
+    pub error: ::std::os::raw::c_int,
+    pub msg: nlmsghdr,
+}
+#[test]
+fn bindgen_test_layout_nlmsgerr() {
+    const UNINIT: ::std::mem::MaybeUninit<nlmsgerr> = ::std::mem::MaybeUninit::uninit();
+    let ptr = UNINIT.as_ptr();
+    assert_eq!(
+        ::std::mem::size_of::<nlmsgerr>(),
+        20usize,
+        concat!("Size of: ", stringify!(nlmsgerr))
+    );
+    assert_eq!(
+        ::std::mem::align_of::<nlmsgerr>(),
+        4usize,
+        concat!("Alignment of ", stringify!(nlmsgerr))
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).error) as usize - ptr as usize },
+        0usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(nlmsgerr),
+            "::",
+            stringify!(error)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).msg) as usize - ptr as usize },
+        4usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(nlmsgerr),
+            "::",
+            stringify!(msg)
+        )
+    );
+}
+pub const nlmsgerr_attrs_NLMSGERR_ATTR_UNUSED: nlmsgerr_attrs = 0;
+pub const nlmsgerr_attrs_NLMSGERR_ATTR_MSG: nlmsgerr_attrs = 1;
+pub const nlmsgerr_attrs_NLMSGERR_ATTR_OFFS: nlmsgerr_attrs = 2;
+pub const nlmsgerr_attrs_NLMSGERR_ATTR_COOKIE: nlmsgerr_attrs = 3;
+pub const nlmsgerr_attrs_NLMSGERR_ATTR_POLICY: nlmsgerr_attrs = 4;
+pub const nlmsgerr_attrs___NLMSGERR_ATTR_MAX: nlmsgerr_attrs = 5;
+pub const nlmsgerr_attrs_NLMSGERR_ATTR_MAX: nlmsgerr_attrs = 4;
+pub type nlmsgerr_attrs = ::std::os::raw::c_uint;
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct nl_pktinfo {
+    pub group: __u32,
+}
+#[test]
+fn bindgen_test_layout_nl_pktinfo() {
+    const UNINIT: ::std::mem::MaybeUninit<nl_pktinfo> = ::std::mem::MaybeUninit::uninit();
+    let ptr = UNINIT.as_ptr();
+    assert_eq!(
+        ::std::mem::size_of::<nl_pktinfo>(),
+        4usize,
+        concat!("Size of: ", stringify!(nl_pktinfo))
+    );
+    assert_eq!(
+        ::std::mem::align_of::<nl_pktinfo>(),
+        4usize,
+        concat!("Alignment of ", stringify!(nl_pktinfo))
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).group) as usize - ptr as usize },
+        0usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(nl_pktinfo),
+            "::",
+            stringify!(group)
+        )
+    );
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct nl_mmap_req {
+    pub nm_block_size: ::std::os::raw::c_uint,
+    pub nm_block_nr: ::std::os::raw::c_uint,
+    pub nm_frame_size: ::std::os::raw::c_uint,
+    pub nm_frame_nr: ::std::os::raw::c_uint,
+}
+#[test]
+fn bindgen_test_layout_nl_mmap_req() {
+    const UNINIT: ::std::mem::MaybeUninit<nl_mmap_req> = ::std::mem::MaybeUninit::uninit();
+    let ptr = UNINIT.as_ptr();
+    assert_eq!(
+        ::std::mem::size_of::<nl_mmap_req>(),
+        16usize,
+        concat!("Size of: ", stringify!(nl_mmap_req))
+    );
+    assert_eq!(
+        ::std::mem::align_of::<nl_mmap_req>(),
+        4usize,
+        concat!("Alignment of ", stringify!(nl_mmap_req))
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).nm_block_size) as usize - ptr as usize },
+        0usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(nl_mmap_req),
+            "::",
+            stringify!(nm_block_size)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).nm_block_nr) as usize - ptr as usize },
+        4usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(nl_mmap_req),
+            "::",
+            stringify!(nm_block_nr)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).nm_frame_size) as usize - ptr as usize },
+        8usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(nl_mmap_req),
+            "::",
+            stringify!(nm_frame_size)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).nm_frame_nr) as usize - ptr as usize },
+        12usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(nl_mmap_req),
+            "::",
+            stringify!(nm_frame_nr)
+        )
+    );
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct nl_mmap_hdr {
+    pub nm_status: ::std::os::raw::c_uint,
+    pub nm_len: ::std::os::raw::c_uint,
+    pub nm_group: __u32,
+    pub nm_pid: __u32,
+    pub nm_uid: __u32,
+    pub nm_gid: __u32,
+}
+#[test]
+fn bindgen_test_layout_nl_mmap_hdr() {
+    const UNINIT: ::std::mem::MaybeUninit<nl_mmap_hdr> = ::std::mem::MaybeUninit::uninit();
+    let ptr = UNINIT.as_ptr();
+    assert_eq!(
+        ::std::mem::size_of::<nl_mmap_hdr>(),
+        24usize,
+        concat!("Size of: ", stringify!(nl_mmap_hdr))
+    );
+    assert_eq!(
+        ::std::mem::align_of::<nl_mmap_hdr>(),
+        4usize,
+        concat!("Alignment of ", stringify!(nl_mmap_hdr))
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).nm_status) as usize - ptr as usize },
+        0usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(nl_mmap_hdr),
+            "::",
+            stringify!(nm_status)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).nm_len) as usize - ptr as usize },
+        4usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(nl_mmap_hdr),
+            "::",
+            stringify!(nm_len)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).nm_group) as usize - ptr as usize },
+        8usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(nl_mmap_hdr),
+            "::",
+            stringify!(nm_group)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).nm_pid) as usize - ptr as usize },
+        12usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(nl_mmap_hdr),
+            "::",
+            stringify!(nm_pid)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).nm_uid) as usize - ptr as usize },
+        16usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(nl_mmap_hdr),
+            "::",
+            stringify!(nm_uid)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).nm_gid) as usize - ptr as usize },
+        20usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(nl_mmap_hdr),
+            "::",
+            stringify!(nm_gid)
+        )
+    );
+}
+pub const nl_mmap_status_NL_MMAP_STATUS_UNUSED: nl_mmap_status = 0;
+pub const nl_mmap_status_NL_MMAP_STATUS_RESERVED: nl_mmap_status = 1;
+pub const nl_mmap_status_NL_MMAP_STATUS_VALID: nl_mmap_status = 2;
+pub const nl_mmap_status_NL_MMAP_STATUS_COPY: nl_mmap_status = 3;
+pub const nl_mmap_status_NL_MMAP_STATUS_SKIP: nl_mmap_status = 4;
+pub type nl_mmap_status = ::std::os::raw::c_uint;
+pub const NETLINK_UNCONNECTED: _bindgen_ty_37 = 0;
+pub const NETLINK_CONNECTED: _bindgen_ty_37 = 1;
+pub type _bindgen_ty_37 = ::std::os::raw::c_uint;
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct nlattr {
+    pub nla_len: __u16,
+    pub nla_type: __u16,
+}
+#[test]
+fn bindgen_test_layout_nlattr() {
+    const UNINIT: ::std::mem::MaybeUninit<nlattr> = ::std::mem::MaybeUninit::uninit();
+    let ptr = UNINIT.as_ptr();
+    assert_eq!(
+        ::std::mem::size_of::<nlattr>(),
+        4usize,
+        concat!("Size of: ", stringify!(nlattr))
+    );
+    assert_eq!(
+        ::std::mem::align_of::<nlattr>(),
+        2usize,
+        concat!("Alignment of ", stringify!(nlattr))
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).nla_len) as usize - ptr as usize },
+        0usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(nlattr),
+            "::",
+            stringify!(nla_len)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).nla_type) as usize - ptr as usize },
+        2usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(nlattr),
+            "::",
+            stringify!(nla_type)
+        )
+    );
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct nla_bitfield32 {
+    pub value: __u32,
+    pub selector: __u32,
+}
+#[test]
+fn bindgen_test_layout_nla_bitfield32() {
+    const UNINIT: ::std::mem::MaybeUninit<nla_bitfield32> = ::std::mem::MaybeUninit::uninit();
+    let ptr = UNINIT.as_ptr();
+    assert_eq!(
+        ::std::mem::size_of::<nla_bitfield32>(),
+        8usize,
+        concat!("Size of: ", stringify!(nla_bitfield32))
+    );
+    assert_eq!(
+        ::std::mem::align_of::<nla_bitfield32>(),
+        4usize,
+        concat!("Alignment of ", stringify!(nla_bitfield32))
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).value) as usize - ptr as usize },
+        0usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(nla_bitfield32),
+            "::",
+            stringify!(value)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).selector) as usize - ptr as usize },
+        4usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(nla_bitfield32),
+            "::",
+            stringify!(selector)
+        )
+    );
+}
+pub const netlink_attribute_type_NL_ATTR_TYPE_INVALID: netlink_attribute_type = 0;
+pub const netlink_attribute_type_NL_ATTR_TYPE_FLAG: netlink_attribute_type = 1;
+pub const netlink_attribute_type_NL_ATTR_TYPE_U8: netlink_attribute_type = 2;
+pub const netlink_attribute_type_NL_ATTR_TYPE_U16: netlink_attribute_type = 3;
+pub const netlink_attribute_type_NL_ATTR_TYPE_U32: netlink_attribute_type = 4;
+pub const netlink_attribute_type_NL_ATTR_TYPE_U64: netlink_attribute_type = 5;
+pub const netlink_attribute_type_NL_ATTR_TYPE_S8: netlink_attribute_type = 6;
+pub const netlink_attribute_type_NL_ATTR_TYPE_S16: netlink_attribute_type = 7;
+pub const netlink_attribute_type_NL_ATTR_TYPE_S32: netlink_attribute_type = 8;
+pub const netlink_attribute_type_NL_ATTR_TYPE_S64: netlink_attribute_type = 9;
+pub const netlink_attribute_type_NL_ATTR_TYPE_BINARY: netlink_attribute_type = 10;
+pub const netlink_attribute_type_NL_ATTR_TYPE_STRING: netlink_attribute_type = 11;
+pub const netlink_attribute_type_NL_ATTR_TYPE_NUL_STRING: netlink_attribute_type = 12;
+pub const netlink_attribute_type_NL_ATTR_TYPE_NESTED: netlink_attribute_type = 13;
+pub const netlink_attribute_type_NL_ATTR_TYPE_NESTED_ARRAY: netlink_attribute_type = 14;
+pub const netlink_attribute_type_NL_ATTR_TYPE_BITFIELD32: netlink_attribute_type = 15;
+pub type netlink_attribute_type = ::std::os::raw::c_uint;
+pub const netlink_policy_type_attr_NL_POLICY_TYPE_ATTR_UNSPEC: netlink_policy_type_attr = 0;
+pub const netlink_policy_type_attr_NL_POLICY_TYPE_ATTR_TYPE: netlink_policy_type_attr = 1;
+pub const netlink_policy_type_attr_NL_POLICY_TYPE_ATTR_MIN_VALUE_S: netlink_policy_type_attr = 2;
+pub const netlink_policy_type_attr_NL_POLICY_TYPE_ATTR_MAX_VALUE_S: netlink_policy_type_attr = 3;
+pub const netlink_policy_type_attr_NL_POLICY_TYPE_ATTR_MIN_VALUE_U: netlink_policy_type_attr = 4;
+pub const netlink_policy_type_attr_NL_POLICY_TYPE_ATTR_MAX_VALUE_U: netlink_policy_type_attr = 5;
+pub const netlink_policy_type_attr_NL_POLICY_TYPE_ATTR_MIN_LENGTH: netlink_policy_type_attr = 6;
+pub const netlink_policy_type_attr_NL_POLICY_TYPE_ATTR_MAX_LENGTH: netlink_policy_type_attr = 7;
+pub const netlink_policy_type_attr_NL_POLICY_TYPE_ATTR_POLICY_IDX: netlink_policy_type_attr = 8;
+pub const netlink_policy_type_attr_NL_POLICY_TYPE_ATTR_POLICY_MAXTYPE: netlink_policy_type_attr = 9;
+pub const netlink_policy_type_attr_NL_POLICY_TYPE_ATTR_BITFIELD32_MASK: netlink_policy_type_attr =
+    10;
+pub const netlink_policy_type_attr_NL_POLICY_TYPE_ATTR_PAD: netlink_policy_type_attr = 11;
+pub const netlink_policy_type_attr_NL_POLICY_TYPE_ATTR_MASK: netlink_policy_type_attr = 12;
+pub const netlink_policy_type_attr___NL_POLICY_TYPE_ATTR_MAX: netlink_policy_type_attr = 13;
+pub const netlink_policy_type_attr_NL_POLICY_TYPE_ATTR_MAX: netlink_policy_type_attr = 12;
+pub type netlink_policy_type_attr = ::std::os::raw::c_uint;
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct rtnl_link_stats {
+    pub rx_packets: __u32,
+    pub tx_packets: __u32,
+    pub rx_bytes: __u32,
+    pub tx_bytes: __u32,
+    pub rx_errors: __u32,
+    pub tx_errors: __u32,
+    pub rx_dropped: __u32,
+    pub tx_dropped: __u32,
+    pub multicast: __u32,
+    pub collisions: __u32,
+    pub rx_length_errors: __u32,
+    pub rx_over_errors: __u32,
+    pub rx_crc_errors: __u32,
+    pub rx_frame_errors: __u32,
+    pub rx_fifo_errors: __u32,
+    pub rx_missed_errors: __u32,
+    pub tx_aborted_errors: __u32,
+    pub tx_carrier_errors: __u32,
+    pub tx_fifo_errors: __u32,
+    pub tx_heartbeat_errors: __u32,
+    pub tx_window_errors: __u32,
+    pub rx_compressed: __u32,
+    pub tx_compressed: __u32,
+    pub rx_nohandler: __u32,
+}
+#[test]
+fn bindgen_test_layout_rtnl_link_stats() {
+    const UNINIT: ::std::mem::MaybeUninit<rtnl_link_stats> = ::std::mem::MaybeUninit::uninit();
+    let ptr = UNINIT.as_ptr();
+    assert_eq!(
+        ::std::mem::size_of::<rtnl_link_stats>(),
+        96usize,
+        concat!("Size of: ", stringify!(rtnl_link_stats))
+    );
+    assert_eq!(
+        ::std::mem::align_of::<rtnl_link_stats>(),
+        4usize,
+        concat!("Alignment of ", stringify!(rtnl_link_stats))
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).rx_packets) as usize - ptr as usize },
+        0usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(rtnl_link_stats),
+            "::",
+            stringify!(rx_packets)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).tx_packets) as usize - ptr as usize },
+        4usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(rtnl_link_stats),
+            "::",
+            stringify!(tx_packets)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).rx_bytes) as usize - ptr as usize },
+        8usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(rtnl_link_stats),
+            "::",
+            stringify!(rx_bytes)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).tx_bytes) as usize - ptr as usize },
+        12usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(rtnl_link_stats),
+            "::",
+            stringify!(tx_bytes)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).rx_errors) as usize - ptr as usize },
+        16usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(rtnl_link_stats),
+            "::",
+            stringify!(rx_errors)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).tx_errors) as usize - ptr as usize },
+        20usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(rtnl_link_stats),
+            "::",
+            stringify!(tx_errors)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).rx_dropped) as usize - ptr as usize },
+        24usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(rtnl_link_stats),
+            "::",
+            stringify!(rx_dropped)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).tx_dropped) as usize - ptr as usize },
+        28usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(rtnl_link_stats),
+            "::",
+            stringify!(tx_dropped)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).multicast) as usize - ptr as usize },
+        32usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(rtnl_link_stats),
+            "::",
+            stringify!(multicast)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).collisions) as usize - ptr as usize },
+        36usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(rtnl_link_stats),
+            "::",
+            stringify!(collisions)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).rx_length_errors) as usize - ptr as usize },
+        40usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(rtnl_link_stats),
+            "::",
+            stringify!(rx_length_errors)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).rx_over_errors) as usize - ptr as usize },
+        44usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(rtnl_link_stats),
+            "::",
+            stringify!(rx_over_errors)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).rx_crc_errors) as usize - ptr as usize },
+        48usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(rtnl_link_stats),
+            "::",
+            stringify!(rx_crc_errors)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).rx_frame_errors) as usize - ptr as usize },
+        52usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(rtnl_link_stats),
+            "::",
+            stringify!(rx_frame_errors)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).rx_fifo_errors) as usize - ptr as usize },
+        56usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(rtnl_link_stats),
+            "::",
+            stringify!(rx_fifo_errors)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).rx_missed_errors) as usize - ptr as usize },
+        60usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(rtnl_link_stats),
+            "::",
+            stringify!(rx_missed_errors)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).tx_aborted_errors) as usize - ptr as usize },
+        64usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(rtnl_link_stats),
+            "::",
+            stringify!(tx_aborted_errors)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).tx_carrier_errors) as usize - ptr as usize },
+        68usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(rtnl_link_stats),
+            "::",
+            stringify!(tx_carrier_errors)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).tx_fifo_errors) as usize - ptr as usize },
+        72usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(rtnl_link_stats),
+            "::",
+            stringify!(tx_fifo_errors)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).tx_heartbeat_errors) as usize - ptr as usize },
+        76usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(rtnl_link_stats),
+            "::",
+            stringify!(tx_heartbeat_errors)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).tx_window_errors) as usize - ptr as usize },
+        80usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(rtnl_link_stats),
+            "::",
+            stringify!(tx_window_errors)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).rx_compressed) as usize - ptr as usize },
+        84usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(rtnl_link_stats),
+            "::",
+            stringify!(rx_compressed)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).tx_compressed) as usize - ptr as usize },
+        88usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(rtnl_link_stats),
+            "::",
+            stringify!(tx_compressed)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).rx_nohandler) as usize - ptr as usize },
+        92usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(rtnl_link_stats),
+            "::",
+            stringify!(rx_nohandler)
+        )
+    );
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct rtnl_link_stats64 {
+    pub rx_packets: __u64,
+    pub tx_packets: __u64,
+    pub rx_bytes: __u64,
+    pub tx_bytes: __u64,
+    pub rx_errors: __u64,
+    pub tx_errors: __u64,
+    pub rx_dropped: __u64,
+    pub tx_dropped: __u64,
+    pub multicast: __u64,
+    pub collisions: __u64,
+    pub rx_length_errors: __u64,
+    pub rx_over_errors: __u64,
+    pub rx_crc_errors: __u64,
+    pub rx_frame_errors: __u64,
+    pub rx_fifo_errors: __u64,
+    pub rx_missed_errors: __u64,
+    pub tx_aborted_errors: __u64,
+    pub tx_carrier_errors: __u64,
+    pub tx_fifo_errors: __u64,
+    pub tx_heartbeat_errors: __u64,
+    pub tx_window_errors: __u64,
+    pub rx_compressed: __u64,
+    pub tx_compressed: __u64,
+    pub rx_nohandler: __u64,
+}
+#[test]
+fn bindgen_test_layout_rtnl_link_stats64() {
+    const UNINIT: ::std::mem::MaybeUninit<rtnl_link_stats64> = ::std::mem::MaybeUninit::uninit();
+    let ptr = UNINIT.as_ptr();
+    assert_eq!(
+        ::std::mem::size_of::<rtnl_link_stats64>(),
+        192usize,
+        concat!("Size of: ", stringify!(rtnl_link_stats64))
+    );
+    assert_eq!(
+        ::std::mem::align_of::<rtnl_link_stats64>(),
+        8usize,
+        concat!("Alignment of ", stringify!(rtnl_link_stats64))
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).rx_packets) as usize - ptr as usize },
+        0usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(rtnl_link_stats64),
+            "::",
+            stringify!(rx_packets)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).tx_packets) as usize - ptr as usize },
+        8usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(rtnl_link_stats64),
+            "::",
+            stringify!(tx_packets)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).rx_bytes) as usize - ptr as usize },
+        16usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(rtnl_link_stats64),
+            "::",
+            stringify!(rx_bytes)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).tx_bytes) as usize - ptr as usize },
+        24usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(rtnl_link_stats64),
+            "::",
+            stringify!(tx_bytes)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).rx_errors) as usize - ptr as usize },
+        32usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(rtnl_link_stats64),
+            "::",
+            stringify!(rx_errors)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).tx_errors) as usize - ptr as usize },
+        40usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(rtnl_link_stats64),
+            "::",
+            stringify!(tx_errors)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).rx_dropped) as usize - ptr as usize },
+        48usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(rtnl_link_stats64),
+            "::",
+            stringify!(rx_dropped)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).tx_dropped) as usize - ptr as usize },
+        56usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(rtnl_link_stats64),
+            "::",
+            stringify!(tx_dropped)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).multicast) as usize - ptr as usize },
+        64usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(rtnl_link_stats64),
+            "::",
+            stringify!(multicast)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).collisions) as usize - ptr as usize },
+        72usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(rtnl_link_stats64),
+            "::",
+            stringify!(collisions)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).rx_length_errors) as usize - ptr as usize },
+        80usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(rtnl_link_stats64),
+            "::",
+            stringify!(rx_length_errors)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).rx_over_errors) as usize - ptr as usize },
+        88usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(rtnl_link_stats64),
+            "::",
+            stringify!(rx_over_errors)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).rx_crc_errors) as usize - ptr as usize },
+        96usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(rtnl_link_stats64),
+            "::",
+            stringify!(rx_crc_errors)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).rx_frame_errors) as usize - ptr as usize },
+        104usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(rtnl_link_stats64),
+            "::",
+            stringify!(rx_frame_errors)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).rx_fifo_errors) as usize - ptr as usize },
+        112usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(rtnl_link_stats64),
+            "::",
+            stringify!(rx_fifo_errors)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).rx_missed_errors) as usize - ptr as usize },
+        120usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(rtnl_link_stats64),
+            "::",
+            stringify!(rx_missed_errors)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).tx_aborted_errors) as usize - ptr as usize },
+        128usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(rtnl_link_stats64),
+            "::",
+            stringify!(tx_aborted_errors)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).tx_carrier_errors) as usize - ptr as usize },
+        136usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(rtnl_link_stats64),
+            "::",
+            stringify!(tx_carrier_errors)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).tx_fifo_errors) as usize - ptr as usize },
+        144usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(rtnl_link_stats64),
+            "::",
+            stringify!(tx_fifo_errors)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).tx_heartbeat_errors) as usize - ptr as usize },
+        152usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(rtnl_link_stats64),
+            "::",
+            stringify!(tx_heartbeat_errors)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).tx_window_errors) as usize - ptr as usize },
+        160usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(rtnl_link_stats64),
+            "::",
+            stringify!(tx_window_errors)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).rx_compressed) as usize - ptr as usize },
+        168usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(rtnl_link_stats64),
+            "::",
+            stringify!(rx_compressed)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).tx_compressed) as usize - ptr as usize },
+        176usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(rtnl_link_stats64),
+            "::",
+            stringify!(tx_compressed)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).rx_nohandler) as usize - ptr as usize },
+        184usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(rtnl_link_stats64),
+            "::",
+            stringify!(rx_nohandler)
+        )
+    );
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct rtnl_link_ifmap {
+    pub mem_start: __u64,
+    pub mem_end: __u64,
+    pub base_addr: __u64,
+    pub irq: __u16,
+    pub dma: __u8,
+    pub port: __u8,
+}
+#[test]
+fn bindgen_test_layout_rtnl_link_ifmap() {
+    const UNINIT: ::std::mem::MaybeUninit<rtnl_link_ifmap> = ::std::mem::MaybeUninit::uninit();
+    let ptr = UNINIT.as_ptr();
+    assert_eq!(
+        ::std::mem::size_of::<rtnl_link_ifmap>(),
+        32usize,
+        concat!("Size of: ", stringify!(rtnl_link_ifmap))
+    );
+    assert_eq!(
+        ::std::mem::align_of::<rtnl_link_ifmap>(),
+        8usize,
+        concat!("Alignment of ", stringify!(rtnl_link_ifmap))
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).mem_start) as usize - ptr as usize },
+        0usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(rtnl_link_ifmap),
+            "::",
+            stringify!(mem_start)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).mem_end) as usize - ptr as usize },
+        8usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(rtnl_link_ifmap),
+            "::",
+            stringify!(mem_end)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).base_addr) as usize - ptr as usize },
+        16usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(rtnl_link_ifmap),
+            "::",
+            stringify!(base_addr)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).irq) as usize - ptr as usize },
+        24usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(rtnl_link_ifmap),
+            "::",
+            stringify!(irq)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).dma) as usize - ptr as usize },
+        26usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(rtnl_link_ifmap),
+            "::",
+            stringify!(dma)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).port) as usize - ptr as usize },
+        27usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(rtnl_link_ifmap),
+            "::",
+            stringify!(port)
+        )
+    );
+}
+pub const IFLA_UNSPEC: _bindgen_ty_38 = 0;
+pub const IFLA_ADDRESS: _bindgen_ty_38 = 1;
+pub const IFLA_BROADCAST: _bindgen_ty_38 = 2;
+pub const IFLA_IFNAME: _bindgen_ty_38 = 3;
+pub const IFLA_MTU: _bindgen_ty_38 = 4;
+pub const IFLA_LINK: _bindgen_ty_38 = 5;
+pub const IFLA_QDISC: _bindgen_ty_38 = 6;
+pub const IFLA_STATS: _bindgen_ty_38 = 7;
+pub const IFLA_COST: _bindgen_ty_38 = 8;
+pub const IFLA_PRIORITY: _bindgen_ty_38 = 9;
+pub const IFLA_MASTER: _bindgen_ty_38 = 10;
+pub const IFLA_WIRELESS: _bindgen_ty_38 = 11;
+pub const IFLA_PROTINFO: _bindgen_ty_38 = 12;
+pub const IFLA_TXQLEN: _bindgen_ty_38 = 13;
+pub const IFLA_MAP: _bindgen_ty_38 = 14;
+pub const IFLA_WEIGHT: _bindgen_ty_38 = 15;
+pub const IFLA_OPERSTATE: _bindgen_ty_38 = 16;
+pub const IFLA_LINKMODE: _bindgen_ty_38 = 17;
+pub const IFLA_LINKINFO: _bindgen_ty_38 = 18;
+pub const IFLA_NET_NS_PID: _bindgen_ty_38 = 19;
+pub const IFLA_IFALIAS: _bindgen_ty_38 = 20;
+pub const IFLA_NUM_VF: _bindgen_ty_38 = 21;
+pub const IFLA_VFINFO_LIST: _bindgen_ty_38 = 22;
+pub const IFLA_STATS64: _bindgen_ty_38 = 23;
+pub const IFLA_VF_PORTS: _bindgen_ty_38 = 24;
+pub const IFLA_PORT_SELF: _bindgen_ty_38 = 25;
+pub const IFLA_AF_SPEC: _bindgen_ty_38 = 26;
+pub const IFLA_GROUP: _bindgen_ty_38 = 27;
+pub const IFLA_NET_NS_FD: _bindgen_ty_38 = 28;
+pub const IFLA_EXT_MASK: _bindgen_ty_38 = 29;
+pub const IFLA_PROMISCUITY: _bindgen_ty_38 = 30;
+pub const IFLA_NUM_TX_QUEUES: _bindgen_ty_38 = 31;
+pub const IFLA_NUM_RX_QUEUES: _bindgen_ty_38 = 32;
+pub const IFLA_CARRIER: _bindgen_ty_38 = 33;
+pub const IFLA_PHYS_PORT_ID: _bindgen_ty_38 = 34;
+pub const IFLA_CARRIER_CHANGES: _bindgen_ty_38 = 35;
+pub const IFLA_PHYS_SWITCH_ID: _bindgen_ty_38 = 36;
+pub const IFLA_LINK_NETNSID: _bindgen_ty_38 = 37;
+pub const IFLA_PHYS_PORT_NAME: _bindgen_ty_38 = 38;
+pub const IFLA_PROTO_DOWN: _bindgen_ty_38 = 39;
+pub const IFLA_GSO_MAX_SEGS: _bindgen_ty_38 = 40;
+pub const IFLA_GSO_MAX_SIZE: _bindgen_ty_38 = 41;
+pub const IFLA_PAD: _bindgen_ty_38 = 42;
+pub const IFLA_XDP: _bindgen_ty_38 = 43;
+pub const IFLA_EVENT: _bindgen_ty_38 = 44;
+pub const IFLA_NEW_NETNSID: _bindgen_ty_38 = 45;
+pub const IFLA_IF_NETNSID: _bindgen_ty_38 = 46;
+pub const IFLA_TARGET_NETNSID: _bindgen_ty_38 = 46;
+pub const IFLA_CARRIER_UP_COUNT: _bindgen_ty_38 = 47;
+pub const IFLA_CARRIER_DOWN_COUNT: _bindgen_ty_38 = 48;
+pub const IFLA_NEW_IFINDEX: _bindgen_ty_38 = 49;
+pub const IFLA_MIN_MTU: _bindgen_ty_38 = 50;
+pub const IFLA_MAX_MTU: _bindgen_ty_38 = 51;
+pub const IFLA_PROP_LIST: _bindgen_ty_38 = 52;
+pub const IFLA_ALT_IFNAME: _bindgen_ty_38 = 53;
+pub const IFLA_PERM_ADDRESS: _bindgen_ty_38 = 54;
+pub const IFLA_PROTO_DOWN_REASON: _bindgen_ty_38 = 55;
+pub const IFLA_PARENT_DEV_NAME: _bindgen_ty_38 = 56;
+pub const IFLA_PARENT_DEV_BUS_NAME: _bindgen_ty_38 = 57;
+pub const __IFLA_MAX: _bindgen_ty_38 = 58;
+pub type _bindgen_ty_38 = ::std::os::raw::c_uint;
+pub const IFLA_PROTO_DOWN_REASON_UNSPEC: _bindgen_ty_39 = 0;
+pub const IFLA_PROTO_DOWN_REASON_MASK: _bindgen_ty_39 = 1;
+pub const IFLA_PROTO_DOWN_REASON_VALUE: _bindgen_ty_39 = 2;
+pub const __IFLA_PROTO_DOWN_REASON_CNT: _bindgen_ty_39 = 3;
+pub const IFLA_PROTO_DOWN_REASON_MAX: _bindgen_ty_39 = 2;
+pub type _bindgen_ty_39 = ::std::os::raw::c_uint;
+pub const IFLA_INET_UNSPEC: _bindgen_ty_40 = 0;
+pub const IFLA_INET_CONF: _bindgen_ty_40 = 1;
+pub const __IFLA_INET_MAX: _bindgen_ty_40 = 2;
+pub type _bindgen_ty_40 = ::std::os::raw::c_uint;
+pub const IFLA_INET6_UNSPEC: _bindgen_ty_41 = 0;
+pub const IFLA_INET6_FLAGS: _bindgen_ty_41 = 1;
+pub const IFLA_INET6_CONF: _bindgen_ty_41 = 2;
+pub const IFLA_INET6_STATS: _bindgen_ty_41 = 3;
+pub const IFLA_INET6_MCAST: _bindgen_ty_41 = 4;
+pub const IFLA_INET6_CACHEINFO: _bindgen_ty_41 = 5;
+pub const IFLA_INET6_ICMP6STATS: _bindgen_ty_41 = 6;
+pub const IFLA_INET6_TOKEN: _bindgen_ty_41 = 7;
+pub const IFLA_INET6_ADDR_GEN_MODE: _bindgen_ty_41 = 8;
+pub const IFLA_INET6_RA_MTU: _bindgen_ty_41 = 9;
+pub const __IFLA_INET6_MAX: _bindgen_ty_41 = 10;
+pub type _bindgen_ty_41 = ::std::os::raw::c_uint;
+pub const in6_addr_gen_mode_IN6_ADDR_GEN_MODE_EUI64: in6_addr_gen_mode = 0;
+pub const in6_addr_gen_mode_IN6_ADDR_GEN_MODE_NONE: in6_addr_gen_mode = 1;
+pub const in6_addr_gen_mode_IN6_ADDR_GEN_MODE_STABLE_PRIVACY: in6_addr_gen_mode = 2;
+pub const in6_addr_gen_mode_IN6_ADDR_GEN_MODE_RANDOM: in6_addr_gen_mode = 3;
+pub type in6_addr_gen_mode = ::std::os::raw::c_uint;
+pub const IFLA_BR_UNSPEC: _bindgen_ty_42 = 0;
+pub const IFLA_BR_FORWARD_DELAY: _bindgen_ty_42 = 1;
+pub const IFLA_BR_HELLO_TIME: _bindgen_ty_42 = 2;
+pub const IFLA_BR_MAX_AGE: _bindgen_ty_42 = 3;
+pub const IFLA_BR_AGEING_TIME: _bindgen_ty_42 = 4;
+pub const IFLA_BR_STP_STATE: _bindgen_ty_42 = 5;
+pub const IFLA_BR_PRIORITY: _bindgen_ty_42 = 6;
+pub const IFLA_BR_VLAN_FILTERING: _bindgen_ty_42 = 7;
+pub const IFLA_BR_VLAN_PROTOCOL: _bindgen_ty_42 = 8;
+pub const IFLA_BR_GROUP_FWD_MASK: _bindgen_ty_42 = 9;
+pub const IFLA_BR_ROOT_ID: _bindgen_ty_42 = 10;
+pub const IFLA_BR_BRIDGE_ID: _bindgen_ty_42 = 11;
+pub const IFLA_BR_ROOT_PORT: _bindgen_ty_42 = 12;
+pub const IFLA_BR_ROOT_PATH_COST: _bindgen_ty_42 = 13;
+pub const IFLA_BR_TOPOLOGY_CHANGE: _bindgen_ty_42 = 14;
+pub const IFLA_BR_TOPOLOGY_CHANGE_DETECTED: _bindgen_ty_42 = 15;
+pub const IFLA_BR_HELLO_TIMER: _bindgen_ty_42 = 16;
+pub const IFLA_BR_TCN_TIMER: _bindgen_ty_42 = 17;
+pub const IFLA_BR_TOPOLOGY_CHANGE_TIMER: _bindgen_ty_42 = 18;
+pub const IFLA_BR_GC_TIMER: _bindgen_ty_42 = 19;
+pub const IFLA_BR_GROUP_ADDR: _bindgen_ty_42 = 20;
+pub const IFLA_BR_FDB_FLUSH: _bindgen_ty_42 = 21;
+pub const IFLA_BR_MCAST_ROUTER: _bindgen_ty_42 = 22;
+pub const IFLA_BR_MCAST_SNOOPING: _bindgen_ty_42 = 23;
+pub const IFLA_BR_MCAST_QUERY_USE_IFADDR: _bindgen_ty_42 = 24;
+pub const IFLA_BR_MCAST_QUERIER: _bindgen_ty_42 = 25;
+pub const IFLA_BR_MCAST_HASH_ELASTICITY: _bindgen_ty_42 = 26;
+pub const IFLA_BR_MCAST_HASH_MAX: _bindgen_ty_42 = 27;
+pub const IFLA_BR_MCAST_LAST_MEMBER_CNT: _bindgen_ty_42 = 28;
+pub const IFLA_BR_MCAST_STARTUP_QUERY_CNT: _bindgen_ty_42 = 29;
+pub const IFLA_BR_MCAST_LAST_MEMBER_INTVL: _bindgen_ty_42 = 30;
+pub const IFLA_BR_MCAST_MEMBERSHIP_INTVL: _bindgen_ty_42 = 31;
+pub const IFLA_BR_MCAST_QUERIER_INTVL: _bindgen_ty_42 = 32;
+pub const IFLA_BR_MCAST_QUERY_INTVL: _bindgen_ty_42 = 33;
+pub const IFLA_BR_MCAST_QUERY_RESPONSE_INTVL: _bindgen_ty_42 = 34;
+pub const IFLA_BR_MCAST_STARTUP_QUERY_INTVL: _bindgen_ty_42 = 35;
+pub const IFLA_BR_NF_CALL_IPTABLES: _bindgen_ty_42 = 36;
+pub const IFLA_BR_NF_CALL_IP6TABLES: _bindgen_ty_42 = 37;
+pub const IFLA_BR_NF_CALL_ARPTABLES: _bindgen_ty_42 = 38;
+pub const IFLA_BR_VLAN_DEFAULT_PVID: _bindgen_ty_42 = 39;
+pub const IFLA_BR_PAD: _bindgen_ty_42 = 40;
+pub const IFLA_BR_VLAN_STATS_ENABLED: _bindgen_ty_42 = 41;
+pub const IFLA_BR_MCAST_STATS_ENABLED: _bindgen_ty_42 = 42;
+pub const IFLA_BR_MCAST_IGMP_VERSION: _bindgen_ty_42 = 43;
+pub const IFLA_BR_MCAST_MLD_VERSION: _bindgen_ty_42 = 44;
+pub const IFLA_BR_VLAN_STATS_PER_PORT: _bindgen_ty_42 = 45;
+pub const IFLA_BR_MULTI_BOOLOPT: _bindgen_ty_42 = 46;
+pub const IFLA_BR_MCAST_QUERIER_STATE: _bindgen_ty_42 = 47;
+pub const __IFLA_BR_MAX: _bindgen_ty_42 = 48;
+pub type _bindgen_ty_42 = ::std::os::raw::c_uint;
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct ifla_bridge_id {
+    pub prio: [__u8; 2usize],
+    pub addr: [__u8; 6usize],
+}
+#[test]
+fn bindgen_test_layout_ifla_bridge_id() {
+    const UNINIT: ::std::mem::MaybeUninit<ifla_bridge_id> = ::std::mem::MaybeUninit::uninit();
+    let ptr = UNINIT.as_ptr();
+    assert_eq!(
+        ::std::mem::size_of::<ifla_bridge_id>(),
+        8usize,
+        concat!("Size of: ", stringify!(ifla_bridge_id))
+    );
+    assert_eq!(
+        ::std::mem::align_of::<ifla_bridge_id>(),
+        1usize,
+        concat!("Alignment of ", stringify!(ifla_bridge_id))
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).prio) as usize - ptr as usize },
+        0usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(ifla_bridge_id),
+            "::",
+            stringify!(prio)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).addr) as usize - ptr as usize },
+        2usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(ifla_bridge_id),
+            "::",
+            stringify!(addr)
+        )
+    );
+}
+pub const BRIDGE_MODE_UNSPEC: _bindgen_ty_43 = 0;
+pub const BRIDGE_MODE_HAIRPIN: _bindgen_ty_43 = 1;
+pub type _bindgen_ty_43 = ::std::os::raw::c_uint;
+pub const IFLA_BRPORT_UNSPEC: _bindgen_ty_44 = 0;
+pub const IFLA_BRPORT_STATE: _bindgen_ty_44 = 1;
+pub const IFLA_BRPORT_PRIORITY: _bindgen_ty_44 = 2;
+pub const IFLA_BRPORT_COST: _bindgen_ty_44 = 3;
+pub const IFLA_BRPORT_MODE: _bindgen_ty_44 = 4;
+pub const IFLA_BRPORT_GUARD: _bindgen_ty_44 = 5;
+pub const IFLA_BRPORT_PROTECT: _bindgen_ty_44 = 6;
+pub const IFLA_BRPORT_FAST_LEAVE: _bindgen_ty_44 = 7;
+pub const IFLA_BRPORT_LEARNING: _bindgen_ty_44 = 8;
+pub const IFLA_BRPORT_UNICAST_FLOOD: _bindgen_ty_44 = 9;
+pub const IFLA_BRPORT_PROXYARP: _bindgen_ty_44 = 10;
+pub const IFLA_BRPORT_LEARNING_SYNC: _bindgen_ty_44 = 11;
+pub const IFLA_BRPORT_PROXYARP_WIFI: _bindgen_ty_44 = 12;
+pub const IFLA_BRPORT_ROOT_ID: _bindgen_ty_44 = 13;
+pub const IFLA_BRPORT_BRIDGE_ID: _bindgen_ty_44 = 14;
+pub const IFLA_BRPORT_DESIGNATED_PORT: _bindgen_ty_44 = 15;
+pub const IFLA_BRPORT_DESIGNATED_COST: _bindgen_ty_44 = 16;
+pub const IFLA_BRPORT_ID: _bindgen_ty_44 = 17;
+pub const IFLA_BRPORT_NO: _bindgen_ty_44 = 18;
+pub const IFLA_BRPORT_TOPOLOGY_CHANGE_ACK: _bindgen_ty_44 = 19;
+pub const IFLA_BRPORT_CONFIG_PENDING: _bindgen_ty_44 = 20;
+pub const IFLA_BRPORT_MESSAGE_AGE_TIMER: _bindgen_ty_44 = 21;
+pub const IFLA_BRPORT_FORWARD_DELAY_TIMER: _bindgen_ty_44 = 22;
+pub const IFLA_BRPORT_HOLD_TIMER: _bindgen_ty_44 = 23;
+pub const IFLA_BRPORT_FLUSH: _bindgen_ty_44 = 24;
+pub const IFLA_BRPORT_MULTICAST_ROUTER: _bindgen_ty_44 = 25;
+pub const IFLA_BRPORT_PAD: _bindgen_ty_44 = 26;
+pub const IFLA_BRPORT_MCAST_FLOOD: _bindgen_ty_44 = 27;
+pub const IFLA_BRPORT_MCAST_TO_UCAST: _bindgen_ty_44 = 28;
+pub const IFLA_BRPORT_VLAN_TUNNEL: _bindgen_ty_44 = 29;
+pub const IFLA_BRPORT_BCAST_FLOOD: _bindgen_ty_44 = 30;
+pub const IFLA_BRPORT_GROUP_FWD_MASK: _bindgen_ty_44 = 31;
+pub const IFLA_BRPORT_NEIGH_SUPPRESS: _bindgen_ty_44 = 32;
+pub const IFLA_BRPORT_ISOLATED: _bindgen_ty_44 = 33;
+pub const IFLA_BRPORT_BACKUP_PORT: _bindgen_ty_44 = 34;
+pub const IFLA_BRPORT_MRP_RING_OPEN: _bindgen_ty_44 = 35;
+pub const IFLA_BRPORT_MRP_IN_OPEN: _bindgen_ty_44 = 36;
+pub const IFLA_BRPORT_MCAST_EHT_HOSTS_LIMIT: _bindgen_ty_44 = 37;
+pub const IFLA_BRPORT_MCAST_EHT_HOSTS_CNT: _bindgen_ty_44 = 38;
+pub const __IFLA_BRPORT_MAX: _bindgen_ty_44 = 39;
+pub type _bindgen_ty_44 = ::std::os::raw::c_uint;
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct ifla_cacheinfo {
+    pub max_reasm_len: __u32,
+    pub tstamp: __u32,
+    pub reachable_time: __u32,
+    pub retrans_time: __u32,
+}
+#[test]
+fn bindgen_test_layout_ifla_cacheinfo() {
+    const UNINIT: ::std::mem::MaybeUninit<ifla_cacheinfo> = ::std::mem::MaybeUninit::uninit();
+    let ptr = UNINIT.as_ptr();
+    assert_eq!(
+        ::std::mem::size_of::<ifla_cacheinfo>(),
+        16usize,
+        concat!("Size of: ", stringify!(ifla_cacheinfo))
+    );
+    assert_eq!(
+        ::std::mem::align_of::<ifla_cacheinfo>(),
+        4usize,
+        concat!("Alignment of ", stringify!(ifla_cacheinfo))
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).max_reasm_len) as usize - ptr as usize },
+        0usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(ifla_cacheinfo),
+            "::",
+            stringify!(max_reasm_len)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).tstamp) as usize - ptr as usize },
+        4usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(ifla_cacheinfo),
+            "::",
+            stringify!(tstamp)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).reachable_time) as usize - ptr as usize },
+        8usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(ifla_cacheinfo),
+            "::",
+            stringify!(reachable_time)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).retrans_time) as usize - ptr as usize },
+        12usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(ifla_cacheinfo),
+            "::",
+            stringify!(retrans_time)
+        )
+    );
+}
+pub const IFLA_INFO_UNSPEC: _bindgen_ty_45 = 0;
+pub const IFLA_INFO_KIND: _bindgen_ty_45 = 1;
+pub const IFLA_INFO_DATA: _bindgen_ty_45 = 2;
+pub const IFLA_INFO_XSTATS: _bindgen_ty_45 = 3;
+pub const IFLA_INFO_SLAVE_KIND: _bindgen_ty_45 = 4;
+pub const IFLA_INFO_SLAVE_DATA: _bindgen_ty_45 = 5;
+pub const __IFLA_INFO_MAX: _bindgen_ty_45 = 6;
+pub type _bindgen_ty_45 = ::std::os::raw::c_uint;
+pub const IFLA_VLAN_UNSPEC: _bindgen_ty_46 = 0;
+pub const IFLA_VLAN_ID: _bindgen_ty_46 = 1;
+pub const IFLA_VLAN_FLAGS: _bindgen_ty_46 = 2;
+pub const IFLA_VLAN_EGRESS_QOS: _bindgen_ty_46 = 3;
+pub const IFLA_VLAN_INGRESS_QOS: _bindgen_ty_46 = 4;
+pub const IFLA_VLAN_PROTOCOL: _bindgen_ty_46 = 5;
+pub const __IFLA_VLAN_MAX: _bindgen_ty_46 = 6;
+pub type _bindgen_ty_46 = ::std::os::raw::c_uint;
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct ifla_vlan_flags {
+    pub flags: __u32,
+    pub mask: __u32,
+}
+#[test]
+fn bindgen_test_layout_ifla_vlan_flags() {
+    const UNINIT: ::std::mem::MaybeUninit<ifla_vlan_flags> = ::std::mem::MaybeUninit::uninit();
+    let ptr = UNINIT.as_ptr();
+    assert_eq!(
+        ::std::mem::size_of::<ifla_vlan_flags>(),
+        8usize,
+        concat!("Size of: ", stringify!(ifla_vlan_flags))
+    );
+    assert_eq!(
+        ::std::mem::align_of::<ifla_vlan_flags>(),
+        4usize,
+        concat!("Alignment of ", stringify!(ifla_vlan_flags))
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).flags) as usize - ptr as usize },
+        0usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(ifla_vlan_flags),
+            "::",
+            stringify!(flags)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).mask) as usize - ptr as usize },
+        4usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(ifla_vlan_flags),
+            "::",
+            stringify!(mask)
+        )
+    );
+}
+pub const IFLA_VLAN_QOS_UNSPEC: _bindgen_ty_47 = 0;
+pub const IFLA_VLAN_QOS_MAPPING: _bindgen_ty_47 = 1;
+pub const __IFLA_VLAN_QOS_MAX: _bindgen_ty_47 = 2;
+pub type _bindgen_ty_47 = ::std::os::raw::c_uint;
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct ifla_vlan_qos_mapping {
+    pub from: __u32,
+    pub to: __u32,
+}
+#[test]
+fn bindgen_test_layout_ifla_vlan_qos_mapping() {
+    const UNINIT: ::std::mem::MaybeUninit<ifla_vlan_qos_mapping> =
+        ::std::mem::MaybeUninit::uninit();
+    let ptr = UNINIT.as_ptr();
+    assert_eq!(
+        ::std::mem::size_of::<ifla_vlan_qos_mapping>(),
+        8usize,
+        concat!("Size of: ", stringify!(ifla_vlan_qos_mapping))
+    );
+    assert_eq!(
+        ::std::mem::align_of::<ifla_vlan_qos_mapping>(),
+        4usize,
+        concat!("Alignment of ", stringify!(ifla_vlan_qos_mapping))
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).from) as usize - ptr as usize },
+        0usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(ifla_vlan_qos_mapping),
+            "::",
+            stringify!(from)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).to) as usize - ptr as usize },
+        4usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(ifla_vlan_qos_mapping),
+            "::",
+            stringify!(to)
+        )
+    );
+}
+pub const IFLA_MACVLAN_UNSPEC: _bindgen_ty_48 = 0;
+pub const IFLA_MACVLAN_MODE: _bindgen_ty_48 = 1;
+pub const IFLA_MACVLAN_FLAGS: _bindgen_ty_48 = 2;
+pub const IFLA_MACVLAN_MACADDR_MODE: _bindgen_ty_48 = 3;
+pub const IFLA_MACVLAN_MACADDR: _bindgen_ty_48 = 4;
+pub const IFLA_MACVLAN_MACADDR_DATA: _bindgen_ty_48 = 5;
+pub const IFLA_MACVLAN_MACADDR_COUNT: _bindgen_ty_48 = 6;
+pub const IFLA_MACVLAN_BC_QUEUE_LEN: _bindgen_ty_48 = 7;
+pub const IFLA_MACVLAN_BC_QUEUE_LEN_USED: _bindgen_ty_48 = 8;
+pub const __IFLA_MACVLAN_MAX: _bindgen_ty_48 = 9;
+pub type _bindgen_ty_48 = ::std::os::raw::c_uint;
+pub const macvlan_mode_MACVLAN_MODE_PRIVATE: macvlan_mode = 1;
+pub const macvlan_mode_MACVLAN_MODE_VEPA: macvlan_mode = 2;
+pub const macvlan_mode_MACVLAN_MODE_BRIDGE: macvlan_mode = 4;
+pub const macvlan_mode_MACVLAN_MODE_PASSTHRU: macvlan_mode = 8;
+pub const macvlan_mode_MACVLAN_MODE_SOURCE: macvlan_mode = 16;
+pub type macvlan_mode = ::std::os::raw::c_uint;
+pub const macvlan_macaddr_mode_MACVLAN_MACADDR_ADD: macvlan_macaddr_mode = 0;
+pub const macvlan_macaddr_mode_MACVLAN_MACADDR_DEL: macvlan_macaddr_mode = 1;
+pub const macvlan_macaddr_mode_MACVLAN_MACADDR_FLUSH: macvlan_macaddr_mode = 2;
+pub const macvlan_macaddr_mode_MACVLAN_MACADDR_SET: macvlan_macaddr_mode = 3;
+pub type macvlan_macaddr_mode = ::std::os::raw::c_uint;
+pub const IFLA_VRF_UNSPEC: _bindgen_ty_49 = 0;
+pub const IFLA_VRF_TABLE: _bindgen_ty_49 = 1;
+pub const __IFLA_VRF_MAX: _bindgen_ty_49 = 2;
+pub type _bindgen_ty_49 = ::std::os::raw::c_uint;
+pub const IFLA_VRF_PORT_UNSPEC: _bindgen_ty_50 = 0;
+pub const IFLA_VRF_PORT_TABLE: _bindgen_ty_50 = 1;
+pub const __IFLA_VRF_PORT_MAX: _bindgen_ty_50 = 2;
+pub type _bindgen_ty_50 = ::std::os::raw::c_uint;
+pub const IFLA_MACSEC_UNSPEC: _bindgen_ty_51 = 0;
+pub const IFLA_MACSEC_SCI: _bindgen_ty_51 = 1;
+pub const IFLA_MACSEC_PORT: _bindgen_ty_51 = 2;
+pub const IFLA_MACSEC_ICV_LEN: _bindgen_ty_51 = 3;
+pub const IFLA_MACSEC_CIPHER_SUITE: _bindgen_ty_51 = 4;
+pub const IFLA_MACSEC_WINDOW: _bindgen_ty_51 = 5;
+pub const IFLA_MACSEC_ENCODING_SA: _bindgen_ty_51 = 6;
+pub const IFLA_MACSEC_ENCRYPT: _bindgen_ty_51 = 7;
+pub const IFLA_MACSEC_PROTECT: _bindgen_ty_51 = 8;
+pub const IFLA_MACSEC_INC_SCI: _bindgen_ty_51 = 9;
+pub const IFLA_MACSEC_ES: _bindgen_ty_51 = 10;
+pub const IFLA_MACSEC_SCB: _bindgen_ty_51 = 11;
+pub const IFLA_MACSEC_REPLAY_PROTECT: _bindgen_ty_51 = 12;
+pub const IFLA_MACSEC_VALIDATION: _bindgen_ty_51 = 13;
+pub const IFLA_MACSEC_PAD: _bindgen_ty_51 = 14;
+pub const IFLA_MACSEC_OFFLOAD: _bindgen_ty_51 = 15;
+pub const __IFLA_MACSEC_MAX: _bindgen_ty_51 = 16;
+pub type _bindgen_ty_51 = ::std::os::raw::c_uint;
+pub const IFLA_XFRM_UNSPEC: _bindgen_ty_52 = 0;
+pub const IFLA_XFRM_LINK: _bindgen_ty_52 = 1;
+pub const IFLA_XFRM_IF_ID: _bindgen_ty_52 = 2;
+pub const __IFLA_XFRM_MAX: _bindgen_ty_52 = 3;
+pub type _bindgen_ty_52 = ::std::os::raw::c_uint;
+pub const macsec_validation_type_MACSEC_VALIDATE_DISABLED: macsec_validation_type = 0;
+pub const macsec_validation_type_MACSEC_VALIDATE_CHECK: macsec_validation_type = 1;
+pub const macsec_validation_type_MACSEC_VALIDATE_STRICT: macsec_validation_type = 2;
+pub const macsec_validation_type___MACSEC_VALIDATE_END: macsec_validation_type = 3;
+pub const macsec_validation_type_MACSEC_VALIDATE_MAX: macsec_validation_type = 2;
+pub type macsec_validation_type = ::std::os::raw::c_uint;
+pub const macsec_offload_MACSEC_OFFLOAD_OFF: macsec_offload = 0;
+pub const macsec_offload_MACSEC_OFFLOAD_PHY: macsec_offload = 1;
+pub const macsec_offload_MACSEC_OFFLOAD_MAC: macsec_offload = 2;
+pub const macsec_offload___MACSEC_OFFLOAD_END: macsec_offload = 3;
+pub const macsec_offload_MACSEC_OFFLOAD_MAX: macsec_offload = 2;
+pub type macsec_offload = ::std::os::raw::c_uint;
+pub const IFLA_IPVLAN_UNSPEC: _bindgen_ty_53 = 0;
+pub const IFLA_IPVLAN_MODE: _bindgen_ty_53 = 1;
+pub const IFLA_IPVLAN_FLAGS: _bindgen_ty_53 = 2;
+pub const __IFLA_IPVLAN_MAX: _bindgen_ty_53 = 3;
+pub type _bindgen_ty_53 = ::std::os::raw::c_uint;
+pub const ipvlan_mode_IPVLAN_MODE_L2: ipvlan_mode = 0;
+pub const ipvlan_mode_IPVLAN_MODE_L3: ipvlan_mode = 1;
+pub const ipvlan_mode_IPVLAN_MODE_L3S: ipvlan_mode = 2;
+pub const ipvlan_mode_IPVLAN_MODE_MAX: ipvlan_mode = 3;
+pub type ipvlan_mode = ::std::os::raw::c_uint;
+pub const IFLA_VXLAN_UNSPEC: _bindgen_ty_54 = 0;
+pub const IFLA_VXLAN_ID: _bindgen_ty_54 = 1;
+pub const IFLA_VXLAN_GROUP: _bindgen_ty_54 = 2;
+pub const IFLA_VXLAN_LINK: _bindgen_ty_54 = 3;
+pub const IFLA_VXLAN_LOCAL: _bindgen_ty_54 = 4;
+pub const IFLA_VXLAN_TTL: _bindgen_ty_54 = 5;
+pub const IFLA_VXLAN_TOS: _bindgen_ty_54 = 6;
+pub const IFLA_VXLAN_LEARNING: _bindgen_ty_54 = 7;
+pub const IFLA_VXLAN_AGEING: _bindgen_ty_54 = 8;
+pub const IFLA_VXLAN_LIMIT: _bindgen_ty_54 = 9;
+pub const IFLA_VXLAN_PORT_RANGE: _bindgen_ty_54 = 10;
+pub const IFLA_VXLAN_PROXY: _bindgen_ty_54 = 11;
+pub const IFLA_VXLAN_RSC: _bindgen_ty_54 = 12;
+pub const IFLA_VXLAN_L2MISS: _bindgen_ty_54 = 13;
+pub const IFLA_VXLAN_L3MISS: _bindgen_ty_54 = 14;
+pub const IFLA_VXLAN_PORT: _bindgen_ty_54 = 15;
+pub const IFLA_VXLAN_GROUP6: _bindgen_ty_54 = 16;
+pub const IFLA_VXLAN_LOCAL6: _bindgen_ty_54 = 17;
+pub const IFLA_VXLAN_UDP_CSUM: _bindgen_ty_54 = 18;
+pub const IFLA_VXLAN_UDP_ZERO_CSUM6_TX: _bindgen_ty_54 = 19;
+pub const IFLA_VXLAN_UDP_ZERO_CSUM6_RX: _bindgen_ty_54 = 20;
+pub const IFLA_VXLAN_REMCSUM_TX: _bindgen_ty_54 = 21;
+pub const IFLA_VXLAN_REMCSUM_RX: _bindgen_ty_54 = 22;
+pub const IFLA_VXLAN_GBP: _bindgen_ty_54 = 23;
+pub const IFLA_VXLAN_REMCSUM_NOPARTIAL: _bindgen_ty_54 = 24;
+pub const IFLA_VXLAN_COLLECT_METADATA: _bindgen_ty_54 = 25;
+pub const IFLA_VXLAN_LABEL: _bindgen_ty_54 = 26;
+pub const IFLA_VXLAN_GPE: _bindgen_ty_54 = 27;
+pub const IFLA_VXLAN_TTL_INHERIT: _bindgen_ty_54 = 28;
+pub const IFLA_VXLAN_DF: _bindgen_ty_54 = 29;
+pub const IFLA_VXLAN_FAN_MAP: _bindgen_ty_54 = 33;
+pub const __IFLA_VXLAN_MAX: _bindgen_ty_54 = 34;
+pub type _bindgen_ty_54 = ::std::os::raw::c_uint;
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct ifla_vxlan_port_range {
+    pub low: __be16,
+    pub high: __be16,
+}
+#[test]
+fn bindgen_test_layout_ifla_vxlan_port_range() {
+    const UNINIT: ::std::mem::MaybeUninit<ifla_vxlan_port_range> =
+        ::std::mem::MaybeUninit::uninit();
+    let ptr = UNINIT.as_ptr();
+    assert_eq!(
+        ::std::mem::size_of::<ifla_vxlan_port_range>(),
+        4usize,
+        concat!("Size of: ", stringify!(ifla_vxlan_port_range))
+    );
+    assert_eq!(
+        ::std::mem::align_of::<ifla_vxlan_port_range>(),
+        2usize,
+        concat!("Alignment of ", stringify!(ifla_vxlan_port_range))
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).low) as usize - ptr as usize },
+        0usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(ifla_vxlan_port_range),
+            "::",
+            stringify!(low)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).high) as usize - ptr as usize },
+        2usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(ifla_vxlan_port_range),
+            "::",
+            stringify!(high)
+        )
+    );
+}
+pub const ifla_vxlan_df_VXLAN_DF_UNSET: ifla_vxlan_df = 0;
+pub const ifla_vxlan_df_VXLAN_DF_SET: ifla_vxlan_df = 1;
+pub const ifla_vxlan_df_VXLAN_DF_INHERIT: ifla_vxlan_df = 2;
+pub const ifla_vxlan_df___VXLAN_DF_END: ifla_vxlan_df = 3;
+pub const ifla_vxlan_df_VXLAN_DF_MAX: ifla_vxlan_df = 2;
+pub type ifla_vxlan_df = ::std::os::raw::c_uint;
+pub const IFLA_GENEVE_UNSPEC: _bindgen_ty_55 = 0;
+pub const IFLA_GENEVE_ID: _bindgen_ty_55 = 1;
+pub const IFLA_GENEVE_REMOTE: _bindgen_ty_55 = 2;
+pub const IFLA_GENEVE_TTL: _bindgen_ty_55 = 3;
+pub const IFLA_GENEVE_TOS: _bindgen_ty_55 = 4;
+pub const IFLA_GENEVE_PORT: _bindgen_ty_55 = 5;
+pub const IFLA_GENEVE_COLLECT_METADATA: _bindgen_ty_55 = 6;
+pub const IFLA_GENEVE_REMOTE6: _bindgen_ty_55 = 7;
+pub const IFLA_GENEVE_UDP_CSUM: _bindgen_ty_55 = 8;
+pub const IFLA_GENEVE_UDP_ZERO_CSUM6_TX: _bindgen_ty_55 = 9;
+pub const IFLA_GENEVE_UDP_ZERO_CSUM6_RX: _bindgen_ty_55 = 10;
+pub const IFLA_GENEVE_LABEL: _bindgen_ty_55 = 11;
+pub const IFLA_GENEVE_TTL_INHERIT: _bindgen_ty_55 = 12;
+pub const IFLA_GENEVE_DF: _bindgen_ty_55 = 13;
+pub const __IFLA_GENEVE_MAX: _bindgen_ty_55 = 14;
+pub type _bindgen_ty_55 = ::std::os::raw::c_uint;
+pub const ifla_geneve_df_GENEVE_DF_UNSET: ifla_geneve_df = 0;
+pub const ifla_geneve_df_GENEVE_DF_SET: ifla_geneve_df = 1;
+pub const ifla_geneve_df_GENEVE_DF_INHERIT: ifla_geneve_df = 2;
+pub const ifla_geneve_df___GENEVE_DF_END: ifla_geneve_df = 3;
+pub const ifla_geneve_df_GENEVE_DF_MAX: ifla_geneve_df = 2;
+pub type ifla_geneve_df = ::std::os::raw::c_uint;
+pub const IFLA_BAREUDP_UNSPEC: _bindgen_ty_56 = 0;
+pub const IFLA_BAREUDP_PORT: _bindgen_ty_56 = 1;
+pub const IFLA_BAREUDP_ETHERTYPE: _bindgen_ty_56 = 2;
+pub const IFLA_BAREUDP_SRCPORT_MIN: _bindgen_ty_56 = 3;
+pub const IFLA_BAREUDP_MULTIPROTO_MODE: _bindgen_ty_56 = 4;
+pub const __IFLA_BAREUDP_MAX: _bindgen_ty_56 = 5;
+pub type _bindgen_ty_56 = ::std::os::raw::c_uint;
+pub const IFLA_PPP_UNSPEC: _bindgen_ty_57 = 0;
+pub const IFLA_PPP_DEV_FD: _bindgen_ty_57 = 1;
+pub const __IFLA_PPP_MAX: _bindgen_ty_57 = 2;
+pub type _bindgen_ty_57 = ::std::os::raw::c_uint;
+pub const ifla_gtp_role_GTP_ROLE_GGSN: ifla_gtp_role = 0;
+pub const ifla_gtp_role_GTP_ROLE_SGSN: ifla_gtp_role = 1;
+pub type ifla_gtp_role = ::std::os::raw::c_uint;
+pub const IFLA_GTP_UNSPEC: _bindgen_ty_58 = 0;
+pub const IFLA_GTP_FD0: _bindgen_ty_58 = 1;
+pub const IFLA_GTP_FD1: _bindgen_ty_58 = 2;
+pub const IFLA_GTP_PDP_HASHSIZE: _bindgen_ty_58 = 3;
+pub const IFLA_GTP_ROLE: _bindgen_ty_58 = 4;
+pub const __IFLA_GTP_MAX: _bindgen_ty_58 = 5;
+pub type _bindgen_ty_58 = ::std::os::raw::c_uint;
+pub const IFLA_BOND_UNSPEC: _bindgen_ty_59 = 0;
+pub const IFLA_BOND_MODE: _bindgen_ty_59 = 1;
+pub const IFLA_BOND_ACTIVE_SLAVE: _bindgen_ty_59 = 2;
+pub const IFLA_BOND_MIIMON: _bindgen_ty_59 = 3;
+pub const IFLA_BOND_UPDELAY: _bindgen_ty_59 = 4;
+pub const IFLA_BOND_DOWNDELAY: _bindgen_ty_59 = 5;
+pub const IFLA_BOND_USE_CARRIER: _bindgen_ty_59 = 6;
+pub const IFLA_BOND_ARP_INTERVAL: _bindgen_ty_59 = 7;
+pub const IFLA_BOND_ARP_IP_TARGET: _bindgen_ty_59 = 8;
+pub const IFLA_BOND_ARP_VALIDATE: _bindgen_ty_59 = 9;
+pub const IFLA_BOND_ARP_ALL_TARGETS: _bindgen_ty_59 = 10;
+pub const IFLA_BOND_PRIMARY: _bindgen_ty_59 = 11;
+pub const IFLA_BOND_PRIMARY_RESELECT: _bindgen_ty_59 = 12;
+pub const IFLA_BOND_FAIL_OVER_MAC: _bindgen_ty_59 = 13;
+pub const IFLA_BOND_XMIT_HASH_POLICY: _bindgen_ty_59 = 14;
+pub const IFLA_BOND_RESEND_IGMP: _bindgen_ty_59 = 15;
+pub const IFLA_BOND_NUM_PEER_NOTIF: _bindgen_ty_59 = 16;
+pub const IFLA_BOND_ALL_SLAVES_ACTIVE: _bindgen_ty_59 = 17;
+pub const IFLA_BOND_MIN_LINKS: _bindgen_ty_59 = 18;
+pub const IFLA_BOND_LP_INTERVAL: _bindgen_ty_59 = 19;
+pub const IFLA_BOND_PACKETS_PER_SLAVE: _bindgen_ty_59 = 20;
+pub const IFLA_BOND_AD_LACP_RATE: _bindgen_ty_59 = 21;
+pub const IFLA_BOND_AD_SELECT: _bindgen_ty_59 = 22;
+pub const IFLA_BOND_AD_INFO: _bindgen_ty_59 = 23;
+pub const IFLA_BOND_AD_ACTOR_SYS_PRIO: _bindgen_ty_59 = 24;
+pub const IFLA_BOND_AD_USER_PORT_KEY: _bindgen_ty_59 = 25;
+pub const IFLA_BOND_AD_ACTOR_SYSTEM: _bindgen_ty_59 = 26;
+pub const IFLA_BOND_TLB_DYNAMIC_LB: _bindgen_ty_59 = 27;
+pub const IFLA_BOND_PEER_NOTIF_DELAY: _bindgen_ty_59 = 28;
+pub const IFLA_BOND_AD_LACP_ACTIVE: _bindgen_ty_59 = 29;
+pub const IFLA_BOND_MISSED_MAX: _bindgen_ty_59 = 30;
+pub const __IFLA_BOND_MAX: _bindgen_ty_59 = 31;
+pub type _bindgen_ty_59 = ::std::os::raw::c_uint;
+pub const IFLA_BOND_AD_INFO_UNSPEC: _bindgen_ty_60 = 0;
+pub const IFLA_BOND_AD_INFO_AGGREGATOR: _bindgen_ty_60 = 1;
+pub const IFLA_BOND_AD_INFO_NUM_PORTS: _bindgen_ty_60 = 2;
+pub const IFLA_BOND_AD_INFO_ACTOR_KEY: _bindgen_ty_60 = 3;
+pub const IFLA_BOND_AD_INFO_PARTNER_KEY: _bindgen_ty_60 = 4;
+pub const IFLA_BOND_AD_INFO_PARTNER_MAC: _bindgen_ty_60 = 5;
+pub const __IFLA_BOND_AD_INFO_MAX: _bindgen_ty_60 = 6;
+pub type _bindgen_ty_60 = ::std::os::raw::c_uint;
+pub const IFLA_BOND_SLAVE_UNSPEC: _bindgen_ty_61 = 0;
+pub const IFLA_BOND_SLAVE_STATE: _bindgen_ty_61 = 1;
+pub const IFLA_BOND_SLAVE_MII_STATUS: _bindgen_ty_61 = 2;
+pub const IFLA_BOND_SLAVE_LINK_FAILURE_COUNT: _bindgen_ty_61 = 3;
+pub const IFLA_BOND_SLAVE_PERM_HWADDR: _bindgen_ty_61 = 4;
+pub const IFLA_BOND_SLAVE_QUEUE_ID: _bindgen_ty_61 = 5;
+pub const IFLA_BOND_SLAVE_AD_AGGREGATOR_ID: _bindgen_ty_61 = 6;
+pub const IFLA_BOND_SLAVE_AD_ACTOR_OPER_PORT_STATE: _bindgen_ty_61 = 7;
+pub const IFLA_BOND_SLAVE_AD_PARTNER_OPER_PORT_STATE: _bindgen_ty_61 = 8;
+pub const __IFLA_BOND_SLAVE_MAX: _bindgen_ty_61 = 9;
+pub type _bindgen_ty_61 = ::std::os::raw::c_uint;
+pub const IFLA_VF_INFO_UNSPEC: _bindgen_ty_62 = 0;
+pub const IFLA_VF_INFO: _bindgen_ty_62 = 1;
+pub const __IFLA_VF_INFO_MAX: _bindgen_ty_62 = 2;
+pub type _bindgen_ty_62 = ::std::os::raw::c_uint;
+pub const IFLA_VF_UNSPEC: _bindgen_ty_63 = 0;
+pub const IFLA_VF_MAC: _bindgen_ty_63 = 1;
+pub const IFLA_VF_VLAN: _bindgen_ty_63 = 2;
+pub const IFLA_VF_TX_RATE: _bindgen_ty_63 = 3;
+pub const IFLA_VF_SPOOFCHK: _bindgen_ty_63 = 4;
+pub const IFLA_VF_LINK_STATE: _bindgen_ty_63 = 5;
+pub const IFLA_VF_RATE: _bindgen_ty_63 = 6;
+pub const IFLA_VF_RSS_QUERY_EN: _bindgen_ty_63 = 7;
+pub const IFLA_VF_STATS: _bindgen_ty_63 = 8;
+pub const IFLA_VF_TRUST: _bindgen_ty_63 = 9;
+pub const IFLA_VF_IB_NODE_GUID: _bindgen_ty_63 = 10;
+pub const IFLA_VF_IB_PORT_GUID: _bindgen_ty_63 = 11;
+pub const IFLA_VF_VLAN_LIST: _bindgen_ty_63 = 12;
+pub const IFLA_VF_BROADCAST: _bindgen_ty_63 = 13;
+pub const __IFLA_VF_MAX: _bindgen_ty_63 = 14;
+pub type _bindgen_ty_63 = ::std::os::raw::c_uint;
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct ifla_vf_mac {
+    pub vf: __u32,
+    pub mac: [__u8; 32usize],
+}
+#[test]
+fn bindgen_test_layout_ifla_vf_mac() {
+    const UNINIT: ::std::mem::MaybeUninit<ifla_vf_mac> = ::std::mem::MaybeUninit::uninit();
+    let ptr = UNINIT.as_ptr();
+    assert_eq!(
+        ::std::mem::size_of::<ifla_vf_mac>(),
+        36usize,
+        concat!("Size of: ", stringify!(ifla_vf_mac))
+    );
+    assert_eq!(
+        ::std::mem::align_of::<ifla_vf_mac>(),
+        4usize,
+        concat!("Alignment of ", stringify!(ifla_vf_mac))
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).vf) as usize - ptr as usize },
+        0usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(ifla_vf_mac),
+            "::",
+            stringify!(vf)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).mac) as usize - ptr as usize },
+        4usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(ifla_vf_mac),
+            "::",
+            stringify!(mac)
+        )
+    );
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct ifla_vf_broadcast {
+    pub broadcast: [__u8; 32usize],
+}
+#[test]
+fn bindgen_test_layout_ifla_vf_broadcast() {
+    const UNINIT: ::std::mem::MaybeUninit<ifla_vf_broadcast> = ::std::mem::MaybeUninit::uninit();
+    let ptr = UNINIT.as_ptr();
+    assert_eq!(
+        ::std::mem::size_of::<ifla_vf_broadcast>(),
+        32usize,
+        concat!("Size of: ", stringify!(ifla_vf_broadcast))
+    );
+    assert_eq!(
+        ::std::mem::align_of::<ifla_vf_broadcast>(),
+        1usize,
+        concat!("Alignment of ", stringify!(ifla_vf_broadcast))
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).broadcast) as usize - ptr as usize },
+        0usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(ifla_vf_broadcast),
+            "::",
+            stringify!(broadcast)
+        )
+    );
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct ifla_vf_vlan {
+    pub vf: __u32,
+    pub vlan: __u32,
+    pub qos: __u32,
+}
+#[test]
+fn bindgen_test_layout_ifla_vf_vlan() {
+    const UNINIT: ::std::mem::MaybeUninit<ifla_vf_vlan> = ::std::mem::MaybeUninit::uninit();
+    let ptr = UNINIT.as_ptr();
+    assert_eq!(
+        ::std::mem::size_of::<ifla_vf_vlan>(),
+        12usize,
+        concat!("Size of: ", stringify!(ifla_vf_vlan))
+    );
+    assert_eq!(
+        ::std::mem::align_of::<ifla_vf_vlan>(),
+        4usize,
+        concat!("Alignment of ", stringify!(ifla_vf_vlan))
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).vf) as usize - ptr as usize },
+        0usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(ifla_vf_vlan),
+            "::",
+            stringify!(vf)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).vlan) as usize - ptr as usize },
+        4usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(ifla_vf_vlan),
+            "::",
+            stringify!(vlan)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).qos) as usize - ptr as usize },
+        8usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(ifla_vf_vlan),
+            "::",
+            stringify!(qos)
+        )
+    );
+}
+pub const IFLA_VF_VLAN_INFO_UNSPEC: _bindgen_ty_64 = 0;
+pub const IFLA_VF_VLAN_INFO: _bindgen_ty_64 = 1;
+pub const __IFLA_VF_VLAN_INFO_MAX: _bindgen_ty_64 = 2;
+pub type _bindgen_ty_64 = ::std::os::raw::c_uint;
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct ifla_vf_vlan_info {
+    pub vf: __u32,
+    pub vlan: __u32,
+    pub qos: __u32,
+    pub vlan_proto: __be16,
+}
+#[test]
+fn bindgen_test_layout_ifla_vf_vlan_info() {
+    const UNINIT: ::std::mem::MaybeUninit<ifla_vf_vlan_info> = ::std::mem::MaybeUninit::uninit();
+    let ptr = UNINIT.as_ptr();
+    assert_eq!(
+        ::std::mem::size_of::<ifla_vf_vlan_info>(),
+        16usize,
+        concat!("Size of: ", stringify!(ifla_vf_vlan_info))
+    );
+    assert_eq!(
+        ::std::mem::align_of::<ifla_vf_vlan_info>(),
+        4usize,
+        concat!("Alignment of ", stringify!(ifla_vf_vlan_info))
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).vf) as usize - ptr as usize },
+        0usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(ifla_vf_vlan_info),
+            "::",
+            stringify!(vf)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).vlan) as usize - ptr as usize },
+        4usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(ifla_vf_vlan_info),
+            "::",
+            stringify!(vlan)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).qos) as usize - ptr as usize },
+        8usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(ifla_vf_vlan_info),
+            "::",
+            stringify!(qos)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).vlan_proto) as usize - ptr as usize },
+        12usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(ifla_vf_vlan_info),
+            "::",
+            stringify!(vlan_proto)
+        )
+    );
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct ifla_vf_tx_rate {
+    pub vf: __u32,
+    pub rate: __u32,
+}
+#[test]
+fn bindgen_test_layout_ifla_vf_tx_rate() {
+    const UNINIT: ::std::mem::MaybeUninit<ifla_vf_tx_rate> = ::std::mem::MaybeUninit::uninit();
+    let ptr = UNINIT.as_ptr();
+    assert_eq!(
+        ::std::mem::size_of::<ifla_vf_tx_rate>(),
+        8usize,
+        concat!("Size of: ", stringify!(ifla_vf_tx_rate))
+    );
+    assert_eq!(
+        ::std::mem::align_of::<ifla_vf_tx_rate>(),
+        4usize,
+        concat!("Alignment of ", stringify!(ifla_vf_tx_rate))
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).vf) as usize - ptr as usize },
+        0usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(ifla_vf_tx_rate),
+            "::",
+            stringify!(vf)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).rate) as usize - ptr as usize },
+        4usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(ifla_vf_tx_rate),
+            "::",
+            stringify!(rate)
+        )
+    );
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct ifla_vf_rate {
+    pub vf: __u32,
+    pub min_tx_rate: __u32,
+    pub max_tx_rate: __u32,
+}
+#[test]
+fn bindgen_test_layout_ifla_vf_rate() {
+    const UNINIT: ::std::mem::MaybeUninit<ifla_vf_rate> = ::std::mem::MaybeUninit::uninit();
+    let ptr = UNINIT.as_ptr();
+    assert_eq!(
+        ::std::mem::size_of::<ifla_vf_rate>(),
+        12usize,
+        concat!("Size of: ", stringify!(ifla_vf_rate))
+    );
+    assert_eq!(
+        ::std::mem::align_of::<ifla_vf_rate>(),
+        4usize,
+        concat!("Alignment of ", stringify!(ifla_vf_rate))
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).vf) as usize - ptr as usize },
+        0usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(ifla_vf_rate),
+            "::",
+            stringify!(vf)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).min_tx_rate) as usize - ptr as usize },
+        4usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(ifla_vf_rate),
+            "::",
+            stringify!(min_tx_rate)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).max_tx_rate) as usize - ptr as usize },
+        8usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(ifla_vf_rate),
+            "::",
+            stringify!(max_tx_rate)
+        )
+    );
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct ifla_vf_spoofchk {
+    pub vf: __u32,
+    pub setting: __u32,
+}
+#[test]
+fn bindgen_test_layout_ifla_vf_spoofchk() {
+    const UNINIT: ::std::mem::MaybeUninit<ifla_vf_spoofchk> = ::std::mem::MaybeUninit::uninit();
+    let ptr = UNINIT.as_ptr();
+    assert_eq!(
+        ::std::mem::size_of::<ifla_vf_spoofchk>(),
+        8usize,
+        concat!("Size of: ", stringify!(ifla_vf_spoofchk))
+    );
+    assert_eq!(
+        ::std::mem::align_of::<ifla_vf_spoofchk>(),
+        4usize,
+        concat!("Alignment of ", stringify!(ifla_vf_spoofchk))
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).vf) as usize - ptr as usize },
+        0usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(ifla_vf_spoofchk),
+            "::",
+            stringify!(vf)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).setting) as usize - ptr as usize },
+        4usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(ifla_vf_spoofchk),
+            "::",
+            stringify!(setting)
+        )
+    );
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct ifla_vf_guid {
+    pub vf: __u32,
+    pub guid: __u64,
+}
+#[test]
+fn bindgen_test_layout_ifla_vf_guid() {
+    const UNINIT: ::std::mem::MaybeUninit<ifla_vf_guid> = ::std::mem::MaybeUninit::uninit();
+    let ptr = UNINIT.as_ptr();
+    assert_eq!(
+        ::std::mem::size_of::<ifla_vf_guid>(),
+        16usize,
+        concat!("Size of: ", stringify!(ifla_vf_guid))
+    );
+    assert_eq!(
+        ::std::mem::align_of::<ifla_vf_guid>(),
+        8usize,
+        concat!("Alignment of ", stringify!(ifla_vf_guid))
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).vf) as usize - ptr as usize },
+        0usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(ifla_vf_guid),
+            "::",
+            stringify!(vf)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).guid) as usize - ptr as usize },
+        8usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(ifla_vf_guid),
+            "::",
+            stringify!(guid)
+        )
+    );
+}
+pub const IFLA_VF_LINK_STATE_AUTO: _bindgen_ty_65 = 0;
+pub const IFLA_VF_LINK_STATE_ENABLE: _bindgen_ty_65 = 1;
+pub const IFLA_VF_LINK_STATE_DISABLE: _bindgen_ty_65 = 2;
+pub const __IFLA_VF_LINK_STATE_MAX: _bindgen_ty_65 = 3;
+pub type _bindgen_ty_65 = ::std::os::raw::c_uint;
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct ifla_vf_link_state {
+    pub vf: __u32,
+    pub link_state: __u32,
+}
+#[test]
+fn bindgen_test_layout_ifla_vf_link_state() {
+    const UNINIT: ::std::mem::MaybeUninit<ifla_vf_link_state> = ::std::mem::MaybeUninit::uninit();
+    let ptr = UNINIT.as_ptr();
+    assert_eq!(
+        ::std::mem::size_of::<ifla_vf_link_state>(),
+        8usize,
+        concat!("Size of: ", stringify!(ifla_vf_link_state))
+    );
+    assert_eq!(
+        ::std::mem::align_of::<ifla_vf_link_state>(),
+        4usize,
+        concat!("Alignment of ", stringify!(ifla_vf_link_state))
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).vf) as usize - ptr as usize },
+        0usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(ifla_vf_link_state),
+            "::",
+            stringify!(vf)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).link_state) as usize - ptr as usize },
+        4usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(ifla_vf_link_state),
+            "::",
+            stringify!(link_state)
+        )
+    );
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct ifla_vf_rss_query_en {
+    pub vf: __u32,
+    pub setting: __u32,
+}
+#[test]
+fn bindgen_test_layout_ifla_vf_rss_query_en() {
+    const UNINIT: ::std::mem::MaybeUninit<ifla_vf_rss_query_en> = ::std::mem::MaybeUninit::uninit();
+    let ptr = UNINIT.as_ptr();
+    assert_eq!(
+        ::std::mem::size_of::<ifla_vf_rss_query_en>(),
+        8usize,
+        concat!("Size of: ", stringify!(ifla_vf_rss_query_en))
+    );
+    assert_eq!(
+        ::std::mem::align_of::<ifla_vf_rss_query_en>(),
+        4usize,
+        concat!("Alignment of ", stringify!(ifla_vf_rss_query_en))
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).vf) as usize - ptr as usize },
+        0usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(ifla_vf_rss_query_en),
+            "::",
+            stringify!(vf)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).setting) as usize - ptr as usize },
+        4usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(ifla_vf_rss_query_en),
+            "::",
+            stringify!(setting)
+        )
+    );
+}
+pub const IFLA_VF_STATS_RX_PACKETS: _bindgen_ty_66 = 0;
+pub const IFLA_VF_STATS_TX_PACKETS: _bindgen_ty_66 = 1;
+pub const IFLA_VF_STATS_RX_BYTES: _bindgen_ty_66 = 2;
+pub const IFLA_VF_STATS_TX_BYTES: _bindgen_ty_66 = 3;
+pub const IFLA_VF_STATS_BROADCAST: _bindgen_ty_66 = 4;
+pub const IFLA_VF_STATS_MULTICAST: _bindgen_ty_66 = 5;
+pub const IFLA_VF_STATS_PAD: _bindgen_ty_66 = 6;
+pub const IFLA_VF_STATS_RX_DROPPED: _bindgen_ty_66 = 7;
+pub const IFLA_VF_STATS_TX_DROPPED: _bindgen_ty_66 = 8;
+pub const __IFLA_VF_STATS_MAX: _bindgen_ty_66 = 9;
+pub type _bindgen_ty_66 = ::std::os::raw::c_uint;
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct ifla_vf_trust {
+    pub vf: __u32,
+    pub setting: __u32,
+}
+#[test]
+fn bindgen_test_layout_ifla_vf_trust() {
+    const UNINIT: ::std::mem::MaybeUninit<ifla_vf_trust> = ::std::mem::MaybeUninit::uninit();
+    let ptr = UNINIT.as_ptr();
+    assert_eq!(
+        ::std::mem::size_of::<ifla_vf_trust>(),
+        8usize,
+        concat!("Size of: ", stringify!(ifla_vf_trust))
+    );
+    assert_eq!(
+        ::std::mem::align_of::<ifla_vf_trust>(),
+        4usize,
+        concat!("Alignment of ", stringify!(ifla_vf_trust))
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).vf) as usize - ptr as usize },
+        0usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(ifla_vf_trust),
+            "::",
+            stringify!(vf)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).setting) as usize - ptr as usize },
+        4usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(ifla_vf_trust),
+            "::",
+            stringify!(setting)
+        )
+    );
+}
+pub const IFLA_VF_PORT_UNSPEC: _bindgen_ty_67 = 0;
+pub const IFLA_VF_PORT: _bindgen_ty_67 = 1;
+pub const __IFLA_VF_PORT_MAX: _bindgen_ty_67 = 2;
+pub type _bindgen_ty_67 = ::std::os::raw::c_uint;
+pub const IFLA_PORT_UNSPEC: _bindgen_ty_68 = 0;
+pub const IFLA_PORT_VF: _bindgen_ty_68 = 1;
+pub const IFLA_PORT_PROFILE: _bindgen_ty_68 = 2;
+pub const IFLA_PORT_VSI_TYPE: _bindgen_ty_68 = 3;
+pub const IFLA_PORT_INSTANCE_UUID: _bindgen_ty_68 = 4;
+pub const IFLA_PORT_HOST_UUID: _bindgen_ty_68 = 5;
+pub const IFLA_PORT_REQUEST: _bindgen_ty_68 = 6;
+pub const IFLA_PORT_RESPONSE: _bindgen_ty_68 = 7;
+pub const __IFLA_PORT_MAX: _bindgen_ty_68 = 8;
+pub type _bindgen_ty_68 = ::std::os::raw::c_uint;
+pub const PORT_REQUEST_PREASSOCIATE: _bindgen_ty_69 = 0;
+pub const PORT_REQUEST_PREASSOCIATE_RR: _bindgen_ty_69 = 1;
+pub const PORT_REQUEST_ASSOCIATE: _bindgen_ty_69 = 2;
+pub const PORT_REQUEST_DISASSOCIATE: _bindgen_ty_69 = 3;
+pub type _bindgen_ty_69 = ::std::os::raw::c_uint;
+pub const PORT_VDP_RESPONSE_SUCCESS: _bindgen_ty_70 = 0;
+pub const PORT_VDP_RESPONSE_INVALID_FORMAT: _bindgen_ty_70 = 1;
+pub const PORT_VDP_RESPONSE_INSUFFICIENT_RESOURCES: _bindgen_ty_70 = 2;
+pub const PORT_VDP_RESPONSE_UNUSED_VTID: _bindgen_ty_70 = 3;
+pub const PORT_VDP_RESPONSE_VTID_VIOLATION: _bindgen_ty_70 = 4;
+pub const PORT_VDP_RESPONSE_VTID_VERSION_VIOALTION: _bindgen_ty_70 = 5;
+pub const PORT_VDP_RESPONSE_OUT_OF_SYNC: _bindgen_ty_70 = 6;
+pub const PORT_PROFILE_RESPONSE_SUCCESS: _bindgen_ty_70 = 256;
+pub const PORT_PROFILE_RESPONSE_INPROGRESS: _bindgen_ty_70 = 257;
+pub const PORT_PROFILE_RESPONSE_INVALID: _bindgen_ty_70 = 258;
+pub const PORT_PROFILE_RESPONSE_BADSTATE: _bindgen_ty_70 = 259;
+pub const PORT_PROFILE_RESPONSE_INSUFFICIENT_RESOURCES: _bindgen_ty_70 = 260;
+pub const PORT_PROFILE_RESPONSE_ERROR: _bindgen_ty_70 = 261;
+pub type _bindgen_ty_70 = ::std::os::raw::c_uint;
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct ifla_port_vsi {
+    pub vsi_mgr_id: __u8,
+    pub vsi_type_id: [__u8; 3usize],
+    pub vsi_type_version: __u8,
+    pub pad: [__u8; 3usize],
+}
+#[test]
+fn bindgen_test_layout_ifla_port_vsi() {
+    const UNINIT: ::std::mem::MaybeUninit<ifla_port_vsi> = ::std::mem::MaybeUninit::uninit();
+    let ptr = UNINIT.as_ptr();
+    assert_eq!(
+        ::std::mem::size_of::<ifla_port_vsi>(),
+        8usize,
+        concat!("Size of: ", stringify!(ifla_port_vsi))
+    );
+    assert_eq!(
+        ::std::mem::align_of::<ifla_port_vsi>(),
+        1usize,
+        concat!("Alignment of ", stringify!(ifla_port_vsi))
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).vsi_mgr_id) as usize - ptr as usize },
+        0usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(ifla_port_vsi),
+            "::",
+            stringify!(vsi_mgr_id)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).vsi_type_id) as usize - ptr as usize },
+        1usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(ifla_port_vsi),
+            "::",
+            stringify!(vsi_type_id)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).vsi_type_version) as usize - ptr as usize },
+        4usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(ifla_port_vsi),
+            "::",
+            stringify!(vsi_type_version)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).pad) as usize - ptr as usize },
+        5usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(ifla_port_vsi),
+            "::",
+            stringify!(pad)
+        )
+    );
+}
+pub const IFLA_IPOIB_UNSPEC: _bindgen_ty_71 = 0;
+pub const IFLA_IPOIB_PKEY: _bindgen_ty_71 = 1;
+pub const IFLA_IPOIB_MODE: _bindgen_ty_71 = 2;
+pub const IFLA_IPOIB_UMCAST: _bindgen_ty_71 = 3;
+pub const __IFLA_IPOIB_MAX: _bindgen_ty_71 = 4;
+pub type _bindgen_ty_71 = ::std::os::raw::c_uint;
+pub const IPOIB_MODE_DATAGRAM: _bindgen_ty_72 = 0;
+pub const IPOIB_MODE_CONNECTED: _bindgen_ty_72 = 1;
+pub type _bindgen_ty_72 = ::std::os::raw::c_uint;
+pub const HSR_PROTOCOL_HSR: _bindgen_ty_73 = 0;
+pub const HSR_PROTOCOL_PRP: _bindgen_ty_73 = 1;
+pub const HSR_PROTOCOL_MAX: _bindgen_ty_73 = 2;
+pub type _bindgen_ty_73 = ::std::os::raw::c_uint;
+pub const IFLA_HSR_UNSPEC: _bindgen_ty_74 = 0;
+pub const IFLA_HSR_SLAVE1: _bindgen_ty_74 = 1;
+pub const IFLA_HSR_SLAVE2: _bindgen_ty_74 = 2;
+pub const IFLA_HSR_MULTICAST_SPEC: _bindgen_ty_74 = 3;
+pub const IFLA_HSR_SUPERVISION_ADDR: _bindgen_ty_74 = 4;
+pub const IFLA_HSR_SEQ_NR: _bindgen_ty_74 = 5;
+pub const IFLA_HSR_VERSION: _bindgen_ty_74 = 6;
+pub const IFLA_HSR_PROTOCOL: _bindgen_ty_74 = 7;
+pub const __IFLA_HSR_MAX: _bindgen_ty_74 = 8;
+pub type _bindgen_ty_74 = ::std::os::raw::c_uint;
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct if_stats_msg {
+    pub family: __u8,
+    pub pad1: __u8,
+    pub pad2: __u16,
+    pub ifindex: __u32,
+    pub filter_mask: __u32,
+}
+#[test]
+fn bindgen_test_layout_if_stats_msg() {
+    const UNINIT: ::std::mem::MaybeUninit<if_stats_msg> = ::std::mem::MaybeUninit::uninit();
+    let ptr = UNINIT.as_ptr();
+    assert_eq!(
+        ::std::mem::size_of::<if_stats_msg>(),
+        12usize,
+        concat!("Size of: ", stringify!(if_stats_msg))
+    );
+    assert_eq!(
+        ::std::mem::align_of::<if_stats_msg>(),
+        4usize,
+        concat!("Alignment of ", stringify!(if_stats_msg))
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).family) as usize - ptr as usize },
+        0usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(if_stats_msg),
+            "::",
+            stringify!(family)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).pad1) as usize - ptr as usize },
+        1usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(if_stats_msg),
+            "::",
+            stringify!(pad1)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).pad2) as usize - ptr as usize },
+        2usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(if_stats_msg),
+            "::",
+            stringify!(pad2)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).ifindex) as usize - ptr as usize },
+        4usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(if_stats_msg),
+            "::",
+            stringify!(ifindex)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).filter_mask) as usize - ptr as usize },
+        8usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(if_stats_msg),
+            "::",
+            stringify!(filter_mask)
+        )
+    );
+}
+pub const IFLA_STATS_UNSPEC: _bindgen_ty_75 = 0;
+pub const IFLA_STATS_LINK_64: _bindgen_ty_75 = 1;
+pub const IFLA_STATS_LINK_XSTATS: _bindgen_ty_75 = 2;
+pub const IFLA_STATS_LINK_XSTATS_SLAVE: _bindgen_ty_75 = 3;
+pub const IFLA_STATS_LINK_OFFLOAD_XSTATS: _bindgen_ty_75 = 4;
+pub const IFLA_STATS_AF_SPEC: _bindgen_ty_75 = 5;
+pub const __IFLA_STATS_MAX: _bindgen_ty_75 = 6;
+pub type _bindgen_ty_75 = ::std::os::raw::c_uint;
+pub const LINK_XSTATS_TYPE_UNSPEC: _bindgen_ty_76 = 0;
+pub const LINK_XSTATS_TYPE_BRIDGE: _bindgen_ty_76 = 1;
+pub const LINK_XSTATS_TYPE_BOND: _bindgen_ty_76 = 2;
+pub const __LINK_XSTATS_TYPE_MAX: _bindgen_ty_76 = 3;
+pub type _bindgen_ty_76 = ::std::os::raw::c_uint;
+pub const IFLA_OFFLOAD_XSTATS_UNSPEC: _bindgen_ty_77 = 0;
+pub const IFLA_OFFLOAD_XSTATS_CPU_HIT: _bindgen_ty_77 = 1;
+pub const __IFLA_OFFLOAD_XSTATS_MAX: _bindgen_ty_77 = 2;
+pub type _bindgen_ty_77 = ::std::os::raw::c_uint;
+pub const XDP_ATTACHED_NONE: _bindgen_ty_78 = 0;
+pub const XDP_ATTACHED_DRV: _bindgen_ty_78 = 1;
+pub const XDP_ATTACHED_SKB: _bindgen_ty_78 = 2;
+pub const XDP_ATTACHED_HW: _bindgen_ty_78 = 3;
+pub const XDP_ATTACHED_MULTI: _bindgen_ty_78 = 4;
+pub type _bindgen_ty_78 = ::std::os::raw::c_uint;
+pub const IFLA_XDP_UNSPEC: _bindgen_ty_79 = 0;
+pub const IFLA_XDP_FD: _bindgen_ty_79 = 1;
+pub const IFLA_XDP_ATTACHED: _bindgen_ty_79 = 2;
+pub const IFLA_XDP_FLAGS: _bindgen_ty_79 = 3;
+pub const IFLA_XDP_PROG_ID: _bindgen_ty_79 = 4;
+pub const IFLA_XDP_DRV_PROG_ID: _bindgen_ty_79 = 5;
+pub const IFLA_XDP_SKB_PROG_ID: _bindgen_ty_79 = 6;
+pub const IFLA_XDP_HW_PROG_ID: _bindgen_ty_79 = 7;
+pub const IFLA_XDP_EXPECTED_FD: _bindgen_ty_79 = 8;
+pub const __IFLA_XDP_MAX: _bindgen_ty_79 = 9;
+pub type _bindgen_ty_79 = ::std::os::raw::c_uint;
+pub const IFLA_EVENT_NONE: _bindgen_ty_80 = 0;
+pub const IFLA_EVENT_REBOOT: _bindgen_ty_80 = 1;
+pub const IFLA_EVENT_FEATURES: _bindgen_ty_80 = 2;
+pub const IFLA_EVENT_BONDING_FAILOVER: _bindgen_ty_80 = 3;
+pub const IFLA_EVENT_NOTIFY_PEERS: _bindgen_ty_80 = 4;
+pub const IFLA_EVENT_IGMP_RESEND: _bindgen_ty_80 = 5;
+pub const IFLA_EVENT_BONDING_OPTIONS: _bindgen_ty_80 = 6;
+pub type _bindgen_ty_80 = ::std::os::raw::c_uint;
+pub const IFLA_TUN_UNSPEC: _bindgen_ty_81 = 0;
+pub const IFLA_TUN_OWNER: _bindgen_ty_81 = 1;
+pub const IFLA_TUN_GROUP: _bindgen_ty_81 = 2;
+pub const IFLA_TUN_TYPE: _bindgen_ty_81 = 3;
+pub const IFLA_TUN_PI: _bindgen_ty_81 = 4;
+pub const IFLA_TUN_VNET_HDR: _bindgen_ty_81 = 5;
+pub const IFLA_TUN_PERSIST: _bindgen_ty_81 = 6;
+pub const IFLA_TUN_MULTI_QUEUE: _bindgen_ty_81 = 7;
+pub const IFLA_TUN_NUM_QUEUES: _bindgen_ty_81 = 8;
+pub const IFLA_TUN_NUM_DISABLED_QUEUES: _bindgen_ty_81 = 9;
+pub const __IFLA_TUN_MAX: _bindgen_ty_81 = 10;
+pub type _bindgen_ty_81 = ::std::os::raw::c_uint;
+pub const IFLA_RMNET_UNSPEC: _bindgen_ty_82 = 0;
+pub const IFLA_RMNET_MUX_ID: _bindgen_ty_82 = 1;
+pub const IFLA_RMNET_FLAGS: _bindgen_ty_82 = 2;
+pub const __IFLA_RMNET_MAX: _bindgen_ty_82 = 3;
+pub type _bindgen_ty_82 = ::std::os::raw::c_uint;
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct ifla_rmnet_flags {
+    pub flags: __u32,
+    pub mask: __u32,
+}
+#[test]
+fn bindgen_test_layout_ifla_rmnet_flags() {
+    const UNINIT: ::std::mem::MaybeUninit<ifla_rmnet_flags> = ::std::mem::MaybeUninit::uninit();
+    let ptr = UNINIT.as_ptr();
+    assert_eq!(
+        ::std::mem::size_of::<ifla_rmnet_flags>(),
+        8usize,
+        concat!("Size of: ", stringify!(ifla_rmnet_flags))
+    );
+    assert_eq!(
+        ::std::mem::align_of::<ifla_rmnet_flags>(),
+        4usize,
+        concat!("Alignment of ", stringify!(ifla_rmnet_flags))
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).flags) as usize - ptr as usize },
+        0usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(ifla_rmnet_flags),
+            "::",
+            stringify!(flags)
+        )
+    );
+    assert_eq!(
+        unsafe { ::std::ptr::addr_of!((*ptr).mask) as usize - ptr as usize },
+        4usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(ifla_rmnet_flags),
+            "::",
+            stringify!(mask)
+        )
+    );
+}
+pub const IFLA_MCTP_UNSPEC: _bindgen_ty_83 = 0;
+pub const IFLA_MCTP_NET: _bindgen_ty_83 = 1;
+pub const __IFLA_MCTP_MAX: _bindgen_ty_83 = 2;
+pub type _bindgen_ty_83 = ::std::os::raw::c_uint;
 pub type __builtin_va_list = [__va_list_tag; 1usize];
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
