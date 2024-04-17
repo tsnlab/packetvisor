@@ -1,4 +1,4 @@
-use clap::{arg, Command};
+use clap::{arg, value_parser, ArgMatches, Command};
 use pnet::{
     datalink::MacAddr,
     packet::arp::{ArpOperations, MutableArpPacket},
@@ -32,70 +32,16 @@ use std::{
 };
 
 fn main() {
-    let matches = Command::new("echo")
-        .arg(arg!(interface: <interface> "Interface to use").required(true))
-        .arg(
-            arg!(chunk_size: -s --"chunk-size" <size> "Chunk size")
-                .required(false)
-                .default_value("2048"),
-        )
-        .arg(
-            arg!(chunk_count: -c --"chunk-count" <count> "Chunk count")
-                .required(false)
-                .default_value("1024"),
-        )
-        .arg(
-            arg!(rx_ring_size: -r --"rx-ring" <count> "Rx ring size")
-                .required(false)
-                .default_value("64"),
-        )
-        .arg(
-            arg!(tx_ring_size: -t --"tx-ring" <count> "Tx ring size")
-                .required(false)
-                .default_value("64"),
-        )
-        .arg(
-            arg!(fill_ring_size: -f --"fill-ring" <count> "Fill ring size")
-                .required(false)
-                .default_value("64"),
-        )
-        .arg(
-            arg!(completion_ring_size: -o --"completion-ring" <count> "Completion ring size")
-                .required(false)
-                .default_value("64"),
-        )
-        .get_matches();
+    let cli_options = parse_cli_options();
 
-    let if_name = matches.get_one::<String>("interface").unwrap().clone();
-    let chunk_size = matches
-        .get_one::<String>("chunk_size")
-        .unwrap()
-        .parse()
-        .unwrap();
-    let chunk_count = matches
-        .get_one::<String>("chunk_count")
-        .unwrap()
-        .parse()
-        .unwrap();
-    let rx_ring_size = matches
-        .get_one::<String>("rx_ring_size")
-        .unwrap()
-        .parse()
-        .unwrap();
-    let tx_ring_size = matches
-        .get_one::<String>("tx_ring_size")
-        .unwrap()
-        .parse()
-        .unwrap();
-    let filling_ring_size = matches
-        .get_one::<String>("fill_ring_size")
-        .unwrap()
-        .parse()
-        .unwrap();
-    let completion_ring_size = matches
-        .get_one::<String>("completion_ring_size")
-        .unwrap()
-        .parse()
+    let if_name = cli_options.get_one::<String>("interface").unwrap().clone();
+    let chunk_size = *cli_options.get_one::<usize>("chunk_size").unwrap();
+    let chunk_count = *cli_options.get_one::<usize>("chunk_count").unwrap();
+    let rx_ring_size = *cli_options.get_one::<usize>("rx_ring_size").unwrap();
+    let tx_ring_size = *cli_options.get_one::<usize>("tx_ring_size").unwrap();
+    let filling_ring_size = *cli_options.get_one::<usize>("fill_ring_size").unwrap();
+    let completion_ring_size = *cli_options
+        .get_one::<usize>("completion_ring_size")
         .unwrap();
 
     // Signal handlers
@@ -111,50 +57,46 @@ fn main() {
         panic!("signal is forbidden");
     }
 
-    let mut pool = match pv::Pool::new(
+    let mut nic = pv::Nic::new(
+        &if_name,
         chunk_size,
         chunk_count,
         filling_ring_size,
         completion_ring_size,
-        false,
-    ) {
-        Ok(pool) => pool,
-        Err(err) => {
-            panic!("Failed to create buffer pool: {}", err);
-        }
-    };
+        tx_ring_size,
+        rx_ring_size,
+    )
+    .unwrap_or_else(|err| panic!("Failed to create Nic: {}", err));
 
-    let mut nic = match pv::Nic::new(&if_name, &mut pool, tx_ring_size, rx_ring_size) {
-        Ok(nic) => nic,
-        Err(err) => {
-            panic!("Failed to create Nic: {}", err);
+    while !term.load(Ordering::Relaxed) {
+        if let Some(sent_cnt) = do_echo(&mut nic) {
+            println!("Echo Packet Count : {}", sent_cnt);
         }
-    };
 
+        thread::sleep(Duration::from_millis(100));
+    }
+}
+
+fn do_echo(echo_nic: &mut pv::Nic) -> Option<usize> {
     /* initialize rx_batch_size and packet metadata */
     let rx_batch_size = 64;
-    while !term.load(Ordering::Relaxed) {
-        thread::sleep(Duration::from_millis(100));
+    let mut packets = echo_nic.receive(rx_batch_size);
 
-        let mut packets = nic.receive(rx_batch_size);
-        let received = packets.len();
+    if packets.is_empty() {
+        return None;
+    }
 
-        if received == 0 && !term.load(Ordering::Relaxed) {
-            continue;
-        }
+    packets.retain_mut(|p| process_packet(p, echo_nic));
 
-        packets.retain_mut(|p| process_packet(p, &nic));
+    for _ in 0..3 {
+        let sent_cnt = echo_nic.send(&mut packets);
 
-        for retry in (0..3).rev() {
-            match (nic.send(&mut packets), retry) {
-                (cnt, _) if cnt > 0 => break, // Success
-                (0, 0) => {
-                    break; // Failed 3 times
-                }
-                _ => continue, // Retrying
-            }
+        if sent_cnt > 0 {
+            return Some(sent_cnt);
         }
     }
+
+    None
 }
 
 fn process_packet(packet: &mut pv::Packet, nic: &pv::Nic) -> bool {
@@ -172,8 +114,8 @@ fn process_packet(packet: &mut pv::Packet, nic: &pv::Nic) -> bool {
 
     match eth.get_ethertype() {
         EtherTypes::Arp => process_arp(packet, &nic.interface.mac.unwrap()),
-        EtherTypes::Ipv4 => process_ipv4(packet, &nic),
-        EtherTypes::Ipv6 => process_ipv6(packet, &nic),
+        EtherTypes::Ipv4 => process_ipv4(packet, nic),
+        EtherTypes::Ipv6 => process_ipv6(packet, nic),
         _ => false,
     }
 }
@@ -289,7 +231,7 @@ fn process_ipv6(packet: &mut pv::Packet, nic: &pv::Nic) -> bool {
     ipv6.set_source(*ipv6_addr);
     match ipv6.get_next_header() {
         IpNextHeaderProtocols::Udp => process_udpv6(packet),
-        IpNextHeaderProtocols::Icmpv6 => process_icmpv6(packet, &ipv6_addr),
+        IpNextHeaderProtocols::Icmpv6 => process_icmpv6(packet, ipv6_addr),
         _ => false,
     }
 }
@@ -306,7 +248,7 @@ fn process_icmpv6(packet: &mut pv::Packet, ipv6_addr: &Ipv6Addr) -> bool {
         return true;
     } else if icmpv6.get_icmpv6_type() == Icmpv6Types::EchoRequest {
         icmpv6.set_icmpv6_type(Icmpv6Types::EchoReply);
-        let checksum = icmpv6::checksum(&icmpv6.to_immutable(), &ipv6_addr, &other_ipv6);
+        let checksum = icmpv6::checksum(&icmpv6.to_immutable(), ipv6_addr, &other_ipv6);
         icmpv6.set_checksum(checksum);
         return true;
     }
@@ -334,7 +276,7 @@ fn process_ndp(packet: &mut pv::Packet, ipv6_addr: &Ipv6Addr) -> bool {
 
     let mut icmpv6 = MutableIcmpv6Packet::new(ipv6.payload_mut()).unwrap();
     icmpv6.set_icmpv6_type(Icmpv6Types::NeighborAdvert);
-    let checksum = icmpv6::checksum(&icmpv6.to_immutable(), &ipv6_addr, &other_ipv6);
+    let checksum = icmpv6::checksum(&icmpv6.to_immutable(), ipv6_addr, &other_ipv6);
     icmpv6.set_checksum(checksum);
     true
 }
@@ -360,4 +302,46 @@ fn process_udpv6(packet: &mut pv::Packet) -> bool {
         &destination,
     ));
     true
+}
+
+fn parse_cli_options() -> ArgMatches {
+    Command::new("echo")
+        .arg(arg!(interface: <interface> "Interface to use").required(true))
+        .arg(
+            arg!(chunk_size: -s --"chunk-size" <size> "Chunk size")
+                .required(false)
+                .value_parser(value_parser!(usize))
+                .default_value("2048"),
+        )
+        .arg(
+            arg!(chunk_count: -c --"chunk-count" <count> "Chunk count")
+                .required(false)
+                .value_parser(value_parser!(usize))
+                .default_value("1024"),
+        )
+        .arg(
+            arg!(rx_ring_size: -r --"rx-ring" <count> "Rx ring size")
+                .required(false)
+                .value_parser(value_parser!(usize))
+                .default_value("64"),
+        )
+        .arg(
+            arg!(tx_ring_size: -t --"tx-ring" <count> "Tx ring size")
+                .required(false)
+                .value_parser(value_parser!(usize))
+                .default_value("64"),
+        )
+        .arg(
+            arg!(fill_ring_size: -f --"fill-ring" <count> "Fill ring size")
+                .required(false)
+                .value_parser(value_parser!(usize))
+                .default_value("64"),
+        )
+        .arg(
+            arg!(completion_ring_size: -o --"completion-ring" <count> "Completion ring size")
+                .required(false)
+                .value_parser(value_parser!(usize))
+                .default_value("64"),
+        )
+        .get_matches()
 }

@@ -30,3 +30,9 @@ jobs:
         run: cargo test
       - name: Build
         run: cargo build --release
+      - name: Packaging test
+        run: cargo package
+      - name: Test docs.rs build
+        run: |-
+          cargo clean
+          DOCS_RS=1 cargo rustc -- --cfg docsrs
