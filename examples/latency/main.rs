@@ -1,3 +1,6 @@
+#![allow(clippy::unnecessary_cast)]
+#![allow(clippy::upper_case_acronyms)]
+
 use clap::{arg, Command};
 
 use signal_hook::SigId;
@@ -15,8 +18,8 @@ use num_traits::FromPrimitive;
 
 use pnet_macros::packet;
 use pnet_macros_support::types::u32be;
-use pnet_packet::{MutablePacket, Packet};
 
+use pnet::packet::{MutablePacket, Packet};
 use pnet::{
     datalink,
     datalink::{MacAddr, NetworkInterface},
@@ -59,7 +62,6 @@ const FILL_RING_SIZE: usize = 64;
 const COMP_RING_SIZE: usize = 64;
 const TX_RING_SIZE: usize = 64;
 const RX_RING_SIZE: usize = 64;
-const UMEM_SHARE: bool = false;
 const TX_BATCH_SIZE: usize = 1;
 const RX_BATCH_SIZE: usize = 1;
 
@@ -158,31 +160,16 @@ fn do_udp_receiver(iface_name: String, src_port: String) {
     };
     let src_port: u16 = src_port.parse().unwrap();
 
-    let mut pool = match pv::Pool::new(
+    let mut nic = pv::Nic::new(
+        &iface_name,
         CHUNK_SIZE,
         CHUNK_COUNT,
         FILL_RING_SIZE,
         COMP_RING_SIZE,
-        UMEM_SHARE,
-    ) {
-        Ok(pool) => {
-            println!("Pool created");
-            pool
-        }
-        Err(err) => {
-            panic!("Failed to create buffer pool: {}", err);
-        }
-    };
-
-    let mut nic = match pv::Nic::new(&iface_name, &mut pool, TX_RING_SIZE, RX_RING_SIZE) {
-        Ok(nic) => {
-            println!("Nic created");
-            nic
-        }
-        Err(err) => {
-            panic!("Failed to create NIC : {}", err);
-        }
-    };
+        TX_RING_SIZE,
+        RX_RING_SIZE,
+    )
+    .unwrap_or_else(|err| panic!("Failed to create Nic: {}", err));
 
     // Signal handlers
     let term: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
@@ -206,6 +193,8 @@ fn do_udp_receiver(iface_name: String, src_port: String) {
         if received > 0 {
             /* Rx */
             for packet in packets.iter_mut() {
+                packet.dump();
+
                 let packet_buffer = packet.get_buffer_mut();
 
                 // Check L2
@@ -309,48 +298,30 @@ fn do_udp_sender(
     let count: usize = count.parse().unwrap();
     let mut pkt_idx: usize = 1; // 1 to count
 
-    let mut pool = match pv::Pool::new(
+    let mut nic = pv::Nic::new(
+        &iface_name,
         CHUNK_SIZE,
         CHUNK_COUNT,
         FILL_RING_SIZE,
         COMP_RING_SIZE,
-        UMEM_SHARE,
-    ) {
-        Ok(pool) => {
-            println!("Pool created");
-            pool
-        }
-        Err(err) => {
-            panic!("Failed to create buffer pool: {}", err);
-        }
-    };
-
-    let mut nic = match pv::Nic::new(&iface_name, &mut pool, TX_RING_SIZE, RX_RING_SIZE) {
-        Ok(nic) => {
-            println!("Nic created");
-            nic
-        }
-        Err(err) => {
-            panic!("Failed to create NIC : {}", err);
-        }
-    };
+        TX_RING_SIZE,
+        RX_RING_SIZE,
+    )
+    .unwrap_or_else(|err| panic!("Failed to create Nic: {}", err));
 
     /* Session Init & RTT(UDP Ping-Pong) */
     loop {
-        match state {
-            SenderState::Running => {
-                if pkt_idx > count {
-                    break;
-                }
-
-                thread::sleep(Duration::from_millis(interval.try_into().unwrap()));
+        if state == SenderState::Running {
+            if pkt_idx > count {
+                break;
             }
-            _ => {}
+
+            thread::sleep(Duration::from_millis(interval.try_into().unwrap()));
         }
 
         /* Tx */
         let mut packets = Vec::<pv::Packet>::with_capacity(TX_BATCH_SIZE);
-        let mut packet: pv::Packet = match pool.try_alloc_packet() {
+        let mut packet: pv::Packet = match nic.alloc_packet() {
             Some(packet) => packet,
             None => panic!("Packet allocation failed.."),
         };
