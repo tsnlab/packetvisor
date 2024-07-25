@@ -45,7 +45,7 @@ In case of ipv6, Execute the following command.
 To execute change_word example.
 
 Execute `sudo ./set_veth.sh`.
-Execute change_word program `sudo ./target/release/examples/change_word --nic1 veth0 --nic2 veth2 --source apple --target watermelon`.
+Execute change_word program `sudo ./target/release/examples/change_word --nic1 veth0 --nic2 veth2 --source-word apple --change-word watermelon`.
 Run test server `sudo ip netns exec test2 nc -l 0.0.0.0 8080 -u`.
 Run test client `sudo ip netns exec test1 nc -u 10.0.0.7 8080`.
 
