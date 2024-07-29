@@ -4,12 +4,13 @@ Tunnel: Tunneling packets received through packetvisor to standard udp socket
 ## Run example
 To execute change_word example.
 
-```sh
+```
 # set veths
 $ sudo ./set_veth.sh
 # run example
 $ sudo ./target/release/examples/tunnel --interface <interface> --source <source> --destination <destination>
 
+# The commands below should be run concurrently on other shells
 # Run test server 
 $ sudo ip netns exec test2 nc -l 0.0.0.0 8080 -u
 # Run test client 

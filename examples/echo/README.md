@@ -7,7 +7,7 @@ Execute `echo --help`
 
 To execute echo example.
 
-```sh
+```
 # set veths
 $ sudo ./set_veth.sh
 # run example

@@ -4,12 +4,13 @@ Forward: Forward packets between two network interface
 ## Run example
 To execute change_word example.
 
-```sh
+```
 # set veths
 $ sudo ./set_veth.sh
 # run example
 $ sudo ./target/release/examples/forward -- veth0 veth2
 
+# The commands below should be run concurrently on other shells
 # Run test server 
 $ sudo ip netns exec test2 nc -l 0.0.0.0 8080 -u
 # Run test client 
