@@ -28,3 +28,8 @@ jobs:
           shellcheck_ignore_paths: >-
             bpftool
             xdp-tools
+
+      - name: Test docs.rs build
+        run: |-
+          cargo clean
+          DOCS_RS=1 cargo rustc -- --cfg docsrs
