@@ -1,0 +1,35 @@
+name: Check all
+
+on:
+  - push
+  - pull_request
+
+jobs:
+  check-all:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          submodules: recursive
+
+      - name: Install system dependencies
+        run: |-
+          sudo apt update &&\
+          sudo apt install --no-install-recommends -y libelf-dev clang llvm libpcap-dev gcc-multilib
+
+      - name: Check all
+        uses: tsnlab/check@main
+        with:
+          python_version: '3.12'
+          rust_version: 'stable'
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          shellcheck_ignore_paths: >-
+            bpftool
+            xdp-tools
+
+      - name: Test docs.rs build
+        run: |-
+          cargo clean
+          DOCS_RS=1 cargo rustc -- --cfg docsrs
