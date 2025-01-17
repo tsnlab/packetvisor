@@ -25,3 +25,6 @@ jobs:
           python_version: '3.12'
           rust_version: 'stable'
           github_token: ${{ secrets.GITHUB_TOKEN }}
+          shellcheck_ignore_paths: >-
+            bpftool
+            xdp-tools
