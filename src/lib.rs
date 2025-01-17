@@ -9,23 +9,23 @@
 //!
 //! **1. Bypassing the Network Stack in the Linux Kernel and Achieving Zero-Copy with `XDP`**
 //! * Packetvisor completely bypasses the Network Stack in the Linux kernel using `XDP`,
-//! reducing unnecessary overhead in the packet processing.
+//!   reducing unnecessary overhead in the packet processing.
 //!
 //! **2. High-Speed Packet Processing with the `pv::Nic` Structure**
 //! * `Packetvisor` uses the `pv::Nic` structure to attach to specific Network Interface.
-//! This structure utilizes `XDP_SOCKET(XSK)` to directly process transmit
-//! and receive packets, allowing applications to directly transmit and
-//! receive packets in the application space. This helps to simplify the
-//! data processing process and improve performance.
+//!   This structure utilizes `XDP_SOCKET(XSK)` to directly process transmit
+//!   and receive packets, allowing applications to directly transmit and
+//!   receive packets in the application space. This helps to simplify the
+//!   data processing process and improve performance.
 //!
 //! **3. Easy Development with Rust**
 //! * `Packetvisor` is developed based on the Rust language, so you can use
-//! Rust to create high-performance _firewalls_ and implement _tunneling
-//! protocols_ with just a few dozen lines of code.
+//!   Rust to create high-performance _firewalls_ and implement _tunneling
+//!   protocols_ with just a few dozen lines of code.
 //!
 //! **4. Automatically detects XDP mode**
 //! * `Packetvisor` supports both `XDP` `Native(=DRV)` and `Generic(=SKB)` modes,
-//! and the mode selection is automatically determined by `Packetvisor`.
+//!   and the mode selection is automatically determined by `Packetvisor`.
 //!
 //! ## Examples
 //! Various examples for packet _echo_, _filtering_, _forwarding_, etc.
