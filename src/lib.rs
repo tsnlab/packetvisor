@@ -381,7 +381,9 @@ impl Pool {
     ) -> Result<(), String> {
         unsafe {
             let pool = Pool::instance();
-            (*pool).re_init(chunk_size, chunk_count, fq_size, cq_size)?;
+            if (*pool).refcount == 0 {
+                (*pool).re_init(chunk_size, chunk_count, fq_size, cq_size)?;
+            }
         }
         Ok(())
     }
