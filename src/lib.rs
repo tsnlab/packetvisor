@@ -9,23 +9,23 @@
 //!
 //! **1. Bypassing the Network Stack in the Linux Kernel and Achieving Zero-Copy with `XDP`**
 //! * Packetvisor completely bypasses the Network Stack in the Linux kernel using `XDP`,
-//! reducing unnecessary overhead in the packet processing.
+//!   reducing unnecessary overhead in the packet processing.
 //!
 //! **2. High-Speed Packet Processing with the `pv::Nic` Structure**
 //! * `Packetvisor` uses the `pv::Nic` structure to attach to specific Network Interface.
-//! This structure utilizes `XDP_SOCKET(XSK)` to directly process transmit
-//! and receive packets, allowing applications to directly transmit and
-//! receive packets in the application space. This helps to simplify the
-//! data processing process and improve performance.
+//!   This structure utilizes `XDP_SOCKET(XSK)` to directly process transmit
+//!   and receive packets, allowing applications to directly transmit and
+//!   receive packets in the application space. This helps to simplify the
+//!   data processing process and improve performance.
 //!
 //! **3. Easy Development with Rust**
 //! * `Packetvisor` is developed based on the Rust language, so you can use
-//! Rust to create high-performance _firewalls_ and implement _tunneling
-//! protocols_ with just a few dozen lines of code.
+//!   Rust to create high-performance _firewalls_ and implement _tunneling
+//!   protocols_ with just a few dozen lines of code.
 //!
 //! **4. Automatically detects XDP mode**
 //! * `Packetvisor` supports both `XDP` `Native(=DRV)` and `Generic(=SKB)` modes,
-//! and the mode selection is automatically determined by `Packetvisor`.
+//!   and the mode selection is automatically determined by `Packetvisor`.
 //!
 //! ## Examples
 //! Various examples for packet _echo_, _filtering_, _forwarding_, etc.
@@ -61,13 +61,6 @@ use std::time::Duration;
 use libc::strerror;
 
 const DEFAULT_HEADROOM: usize = 256;
-
-/********************************************************************
- *
- * Global Variable (for Singleton-Pattern)
- *
- *******************************************************************/
-static mut POOL: Option<Pool> = None;
 
 /********************************************************************
  *
@@ -372,18 +365,26 @@ impl Pool {
         Ok(obj)
     }
 
+    fn instance() -> *mut Self {
+        static INSTANCE: std::sync::OnceLock<Pool> = std::sync::OnceLock::new();
+
+        INSTANCE.get_or_init(|| Self::new().unwrap());
+
+        INSTANCE.get().unwrap() as *const _ as *mut _
+    }
+
     fn init(
         chunk_size: usize,
         chunk_count: usize,
         fq_size: usize,
         cq_size: usize,
     ) -> Result<(), String> {
-        if unsafe { POOL.as_ref() }.is_none() {
-            let mut pool_obj = Pool::new()?;
-            pool_obj.re_init(chunk_size, chunk_count, fq_size, cq_size)?;
-            unsafe { POOL = Some(pool_obj) };
+        unsafe {
+            let pool = Pool::instance();
+            if (*pool).refcount == 0 {
+                (*pool).re_init(chunk_size, chunk_count, fq_size, cq_size)?;
+            }
         }
-
         Ok(())
     }
 
@@ -473,6 +474,9 @@ impl Pool {
     }
 }
 
+unsafe impl Send for Pool {}
+unsafe impl Sync for Pool {}
+
 impl Nic {
     /// # Description
     /// Attaching `pv::Nic` to network interface
@@ -537,8 +541,9 @@ impl Nic {
         ) {
             Ok(_) => {
                 unsafe {
-                    POOL.as_mut().unwrap().refcount += 1;
-                };
+                    let pool = Pool::instance();
+                    (*pool).refcount += 1;
+                }
                 Ok(nic)
             }
             Err(e) => {
@@ -573,7 +578,7 @@ impl Nic {
                 &mut self.xsk,
                 if_ptr,
                 0,
-                POOL.as_mut().unwrap().umem,
+                (*Pool::instance()).umem,
                 &mut self.rxq,
                 &mut self.txq,
                 &mut self.umem_fq,
@@ -583,16 +588,16 @@ impl Nic {
         };
 
         if ret != 0 {
-            match unsafe { POOL.as_ref().unwrap().refcount } {
+            match unsafe {
+                let pool = Pool::instance();
+                (*pool).refcount
+            } {
                 0 => {
                     // Pool Full-Fallback
-                    unsafe { xsk_umem__delete(POOL.as_mut().unwrap().umem) };
+                    unsafe { xsk_umem__delete((*Pool::instance()).umem) };
                     thread::sleep(Duration::from_millis(100));
-                    unsafe {
-                        POOL.as_mut()
-                            .unwrap()
-                            .re_init(chunk_size, chunk_count, fq_size, cq_size)?
-                    };
+
+                    Pool::init(chunk_size, chunk_count, fq_size, cq_size)?;
                 }
                 refcount if refcount > 0 => {
                     // Pool Semi-Fallback
@@ -605,15 +610,16 @@ impl Nic {
 
             xsk_cfg.xdp_flags = XDP_FLAGS_SKB_MODE;
             let ret: c_int = unsafe {
+                let pool = Pool::instance();
                 xsk_socket__create_shared(
                     &mut self.xsk,
                     if_ptr,
                     0,
-                    POOL.as_mut().unwrap().umem,
+                    (*pool).umem,
                     &mut self.rxq,
                     &mut self.txq,
-                    &mut POOL.as_mut().unwrap().umem_fq,
-                    &mut POOL.as_mut().unwrap().umem_cq,
+                    &mut (*pool).umem_fq,
+                    &mut (*pool).umem_cq,
                     &xsk_cfg,
                 )
             };
@@ -638,26 +644,30 @@ impl Nic {
          * After xsk_socket__create() or _shared() finishes, the stored fill_q and comp_q are assigned to the Nic object.
          * This resolves the Segmentation Fault issue.
          */
-        if unsafe { POOL.as_ref().unwrap().refcount == 0 } {
-            self.umem_fq = unsafe { POOL.as_ref().unwrap().umem_fq };
-            self.umem_cq = unsafe { POOL.as_ref().unwrap().umem_cq };
-
-            let fq_ptr = alloc_zeroed_layout::<xsk_ring_prod>()?;
-            let cq_ptr = alloc_zeroed_layout::<xsk_ring_cons>()?;
+        if unsafe {
+            let pool = Pool::instance();
+            (*pool).refcount == 0
+        } {
+            let pool = Pool::instance();
             unsafe {
-                POOL.as_mut().unwrap().umem_fq = std::ptr::read(fq_ptr.cast::<xsk_ring_prod>());
-                POOL.as_mut().unwrap().umem_cq = std::ptr::read(cq_ptr.cast::<xsk_ring_cons>());
+                self.umem_fq = (*pool).umem_fq;
+                self.umem_cq = (*pool).umem_cq;
+
+                let fq_ptr = alloc_zeroed_layout::<xsk_ring_prod>()?;
+                let cq_ptr = alloc_zeroed_layout::<xsk_ring_cons>()?;
+                (*pool).umem_fq = std::ptr::read(fq_ptr.cast::<xsk_ring_prod>());
+                (*pool).umem_cq = std::ptr::read(cq_ptr.cast::<xsk_ring_cons>());
             };
         }
 
-        let fq_size = unsafe { POOL.as_mut().unwrap().buffer_pool.borrow().fq_size };
         unsafe {
-            POOL.as_mut()
-                .unwrap()
+            let pool = Pool::instance();
+            let fq_size = (*pool).buffer_pool.borrow().fq_size;
+            (*pool)
                 .buffer_pool
                 .borrow_mut()
-                .reserve_fq(&mut self.umem_fq, fq_size)?
-        };
+                .reserve_fq(&mut self.umem_fq, fq_size)?;
+        }
 
         Ok(())
     }
@@ -668,7 +678,7 @@ impl Nic {
     /// On success, returns `pv::Packet` with empty payload. \
     /// On failure, returns `None`.
     pub fn alloc_packet(&self) -> Option<Packet> {
-        unsafe { POOL.as_mut().unwrap().try_alloc_packet() }
+        unsafe { (*Pool::instance()).try_alloc_packet() }
     }
 
     /// # Description
@@ -679,8 +689,9 @@ impl Nic {
     /// # Returns
     /// Number of packets sent
     pub fn send(&mut self, packets: &mut Vec<Packet>) -> usize {
+        let pool = Pool::instance();
         let sent_count = unsafe {
-            POOL.as_mut().unwrap().buffer_pool.borrow_mut().send(
+            (*pool).buffer_pool.borrow_mut().send(
                 packets,
                 &self.xsk,
                 &mut self.txq,
@@ -699,9 +710,10 @@ impl Nic {
     /// # Returns
     /// Received packets
     pub fn receive(&mut self, len: usize) -> Vec<Packet> {
+        let pool = Pool::instance();
         unsafe {
-            POOL.as_mut().unwrap().buffer_pool.borrow_mut().recv(
-                &POOL.as_mut().unwrap().buffer_pool,
+            (*(*pool).buffer_pool).borrow_mut().recv(
+                &(*pool).buffer_pool,
                 len,
                 &self.xsk,
                 &mut self.rxq,
@@ -848,10 +860,8 @@ impl Drop for Nic {
         // xsk delete
         unsafe {
             xsk_socket__delete(self.xsk);
-        }
-
-        unsafe {
-            POOL.as_mut().unwrap().refcount -= 1;
+            let pool = Pool::instance();
+            (*pool).refcount -= 1;
         };
     }
 }
