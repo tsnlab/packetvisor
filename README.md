@@ -115,7 +115,7 @@ in contrast to RX side procedure, `CQ` should have enough empty slots before sen
 # License
 This software is distributed under GPLv3 or any later version.
 
-If you need other license than GPLv3 for proprietary use or professional support, please mail us to contact at tsnlab dot com.
+If you need other license than GPLv3 for proprietary use (such as MIT license) and/or require professional support, please mail us to contact at tsnlab dot com.
 
 # TODO
 Make an installer including an option to change capabilities of the application.
