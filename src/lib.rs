@@ -510,14 +510,14 @@ impl Nic {
         // Load and attach XDP program
         // BPF_OBJECT_PATH is set at compile time by build.rs
         let bpf_obj_path = env!("BPF_OBJECT_PATH");
-        
-        let bpf_obj_cstr = CString::new(bpf_obj_path)
-            .map_err(|e| format!("Failed to create CString: {}", e))?;
-        
+
+        let bpf_obj_cstr =
+            CString::new(bpf_obj_path).map_err(|e| format!("Failed to create CString: {}", e))?;
+
         // Program name in the BPF object file
         let prog_name_cstr = CString::new("xsk_packetvisor_prog")
             .map_err(|e| format!("Failed to create CString for program name: {}", e))?;
-        
+
         // Initialize xdp_program_opts
         let mut opts = xdp_program_opts {
             sz: std::mem::size_of::<xdp_program_opts>(),
@@ -530,19 +530,23 @@ impl Nic {
             id: 0,
             fd: 0,
         };
-        
+
         // Create XDP program
         let prog = unsafe { xdp_program__create(&mut opts as *mut xdp_program_opts) };
         if prog.is_null() {
             return Err("Failed to create XDP program".to_string());
         }
-        
+
         // Check for errors
         let err = unsafe { libxdp_get_error(prog as *const c_void) };
         if err != 0 {
             let mut errmsg = vec![0u8; 1024];
             unsafe {
-                libxdp_strerror(err.try_into().unwrap(), errmsg.as_mut_ptr() as *mut c_char, errmsg.len());
+                libxdp_strerror(
+                    err.try_into().unwrap(),
+                    errmsg.as_mut_ptr() as *mut c_char,
+                    errmsg.len(),
+                );
             }
             let err_str = unsafe {
                 CStr::from_ptr(errmsg.as_ptr() as *const c_char)
@@ -551,20 +555,20 @@ impl Nic {
             };
             return Err(format!("Failed to load XDP program: {} ({})", err_str, err));
         }
-        
+
         // Find interface first to get ifindex
         let interface = interfaces()
             .into_iter()
             .find(|elem| elem.name.as_str() == if_name)
             .ok_or(format!("Interface {} not found.", if_name))?;
-        
+
         // Get interface index
         let ifindex = interface.index as i32;
-        
+
         // Attach XDP program to interface (try native mode first, fallback to SKB mode)
         let mut attach_mode = xdp_attach_mode_XDP_MODE_NATIVE;
         let mut ret = unsafe { xdp_program__attach(prog, ifindex, attach_mode, 0) };
-        
+
         if ret != 0 {
             // Try SKB mode if native mode fails
             attach_mode = xdp_attach_mode_XDP_MODE_SKB;
@@ -579,28 +583,34 @@ impl Nic {
                         .to_string_lossy()
                         .to_string()
                 };
-                return Err(format!("Failed to attach XDP program to interface: {} ({})", err_str, ret));
+                return Err(format!(
+                    "Failed to attach XDP program to interface: {} ({})",
+                    err_str, ret
+                ));
             }
         }
-        
+
         // Get xsks_map file descriptor for later use
         let bpf_obj = unsafe { xdp_program__bpf_obj(prog) };
         if bpf_obj.is_null() {
             return Err("Failed to get BPF object from XDP program".to_string());
         }
-        
-        let xsks_map_name = CString::new("xsks_map")
-            .map_err(|e| format!("Failed to create CString: {}", e))?;
+
+        let xsks_map_name =
+            CString::new("xsks_map").map_err(|e| format!("Failed to create CString: {}", e))?;
         let xsks_map = unsafe { bpf_object__find_map_by_name(bpf_obj, xsks_map_name.as_ptr()) };
         if xsks_map.is_null() {
             return Err("Failed to find xsks_map in BPF object".to_string());
         }
-        
+
         let xsks_map_fd = unsafe { bpf_map__fd(xsks_map) };
         if xsks_map_fd < 0 {
-            return Err(format!("Failed to get xsks_map file descriptor: {}", xsks_map_fd));
+            return Err(format!(
+                "Failed to get xsks_map file descriptor: {}",
+                xsks_map_fd
+            ));
         }
-        
+
         // Store prog, attach_mode, and xsks_map_fd for cleanup later
         let xdp_prog = prog;
         let xdp_attach_mode = attach_mode;
@@ -731,9 +741,7 @@ impl Nic {
 
             // Attach AF_XDP socket to xsks_map in XDP program
             if ret == 0 {
-                let update_ret = unsafe {
-                    xsk_socket__update_xskmap(self.xsk, self.xsks_map_fd)
-                };
+                let update_ret = unsafe { xsk_socket__update_xskmap(self.xsk, self.xsks_map_fd) };
                 if update_ret != 0 {
                     let msg = unsafe {
                         CStr::from_ptr(strerror(-update_ret))
@@ -981,13 +989,13 @@ impl Drop for Nic {
         unsafe {
             // xsk_socket__delete automatically removes the socket from xsks_map
             // and handles cleanup, so we don't need to manually delete it
-            
+
             // Detach XDP program from interface
             if !self.xdp_prog.is_null() {
                 let _ = xdp_program__detach(self.xdp_prog, self.ifindex, self.xdp_attach_mode, 0);
                 xdp_program__close(self.xdp_prog);
             }
-            
+
             // xsk delete (this also removes from xsks_map internally)
             xsk_socket__delete(self.xsk);
             let pool = Pool::instance();
