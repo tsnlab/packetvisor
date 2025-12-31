@@ -84,6 +84,9 @@ fn main() {
     // Store the path to the built object file for runtime use
     let bpf_obj_path = bpf_out_dir.join("af_xdp_kern.o");
     println!("BPF object built at: {}", bpf_obj_path.display());
+    
+    // Set the BPF object path as an environment variable that can be read at compile time
+    println!("cargo:rustc-env=BPF_OBJECT_PATH={}", bpf_obj_path.display());
 
     println!("cargo:include={}", headers_dir.display());
     println!("cargo:rustc-link-search={}", libxdp_dir.display());
