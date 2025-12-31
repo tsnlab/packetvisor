@@ -628,7 +628,7 @@ impl Nic {
                 fd
             }
         };
-        
+
         /*****************************************************************
          * TODO: Update config_value to specific protocol configuration.
          *****************************************************************/
@@ -651,7 +651,10 @@ impl Nic {
                 )
             };
             if update_ret != 0 {
-                eprintln!("Warning: Failed to initialize config_map: ret={}", update_ret);
+                eprintln!(
+                    "Warning: Failed to initialize config_map: ret={}",
+                    update_ret
+                );
             } else {
                 // Verify the update
                 let mut verify_value: i32 = 0;
@@ -669,7 +672,7 @@ impl Nic {
                 }
             }
         }
-        
+
         // Store prog, attach_mode, and xsks_map_fd for cleanup later
         let xdp_prog = prog;
         let xdp_attach_mode = attach_mode;
@@ -926,7 +929,7 @@ impl Nic {
 
         let key_ptr = &key as *const i32;
         let value_ptr = &value as *const i32;
-        
+
         let ret = unsafe {
             bpf_map_update_elem(
                 self.config_map_fd,
@@ -947,7 +950,10 @@ impl Nic {
                     .to_string_lossy()
                     .into_owned()
             };
-            return Err(format!("Failed to update config_map: {} (ret={}, errno={})", msg, ret, errno));
+            return Err(format!(
+                "Failed to update config_map: {} (ret={}, errno={})",
+                msg, ret, errno
+            ));
         }
 
         Ok(())
