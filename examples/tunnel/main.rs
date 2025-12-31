@@ -30,6 +30,7 @@ fn main() {
         COMPLETION_RING_SIZE,
         TX_RING_SIZE,
         RX_RING_SIZE,
+        None, // config_map initial value (default: 0)
     )
     .unwrap_or_else(|err| panic!("Failed to create interface: {}", err));
 

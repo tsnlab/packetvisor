@@ -114,6 +114,7 @@ pub struct Nic {
     xdp_attach_mode: xdp_attach_mode,
     ifindex: i32,
     xsks_map_fd: i32,
+    config_map_fd: i32, // File descriptor for config_map to pass values to XDP program
 }
 
 /// Packet Structure used by Packetvisor
@@ -495,6 +496,7 @@ impl Nic {
     /// `cq_size` - completion ring size \
     /// `tx_size` - tx ring size \
     /// `rx_size` - rx ring size \
+    /// `config_value` - initial value for config_map (default: 0 if None) \
     /// # Returns
     /// On success, returns `pv::Nic` bound to the network interface. \
     /// On failure, returns an error string.
@@ -506,6 +508,7 @@ impl Nic {
         cq_size: usize,
         tx_size: usize,
         rx_size: usize,
+        config_value: Option<i32>,
     ) -> Result<Nic, String> {
         // Load and attach XDP program
         // BPF_OBJECT_PATH is set at compile time by build.rs
@@ -611,6 +614,62 @@ impl Nic {
             ));
         }
 
+        // Get config_map file descriptor for passing values to XDP program
+        let config_map_name =
+            CString::new("config_map").map_err(|e| format!("Failed to create CString: {}", e))?;
+        let config_map = unsafe { bpf_object__find_map_by_name(bpf_obj, config_map_name.as_ptr()) };
+        let config_map_fd = if config_map.is_null() {
+            -1 // Map not found, optional map
+        } else {
+            let fd = unsafe { bpf_map__fd(config_map) };
+            if fd < 0 {
+                -1 // Failed to get fd, optional map
+            } else {
+                fd
+            }
+        };
+        
+        /*****************************************************************
+         * TODO: Update config_value to specific protocol configuration.
+         *****************************************************************/
+
+        // Update config_map immediately after XDP program is attached
+        // This ensures the map is initialized before any packets are processed
+        // Use provided config_value or default to 0 if None
+        let init_config_value = config_value.unwrap_or(0);
+        if config_map_fd >= 0 {
+            let key: i32 = 0;
+            let value: i32 = init_config_value;
+            let key_ptr = &key as *const i32;
+            let value_ptr = &value as *const i32;
+            let update_ret = unsafe {
+                bpf_map_update_elem(
+                    config_map_fd,
+                    key_ptr as *const c_void,
+                    value_ptr as *const c_void,
+                    BPF_ANY as u64,
+                )
+            };
+            if update_ret != 0 {
+                eprintln!("Warning: Failed to initialize config_map: ret={}", update_ret);
+            } else {
+                // Verify the update
+                let mut verify_value: i32 = 0;
+                let verify_ret = unsafe {
+                    bpf_map_lookup_elem(
+                        config_map_fd,
+                        key_ptr as *const c_void,
+                        &mut verify_value as *mut i32 as *mut c_void,
+                    )
+                };
+                if verify_ret == 0 {
+                    eprintln!("Debug: config_map initialized with value: {}", verify_value);
+                } else {
+                    eprintln!("Warning: Failed to verify config_map initialization");
+                }
+            }
+        }
+        
         // Store prog, attach_mode, and xsks_map_fd for cleanup later
         let xdp_prog = prog;
         let xdp_attach_mode = attach_mode;
@@ -642,6 +701,7 @@ impl Nic {
                 xdp_attach_mode: xdp_attach_mode,
                 ifindex: ifindex,
                 xsks_map_fd: xsks_map_fd,
+                config_map_fd: config_map_fd,
             }
         };
 
@@ -849,6 +909,80 @@ impl Nic {
                 &mut self.umem_fq,
             )
         }
+    }
+
+    /// # Description
+    /// Update configuration value in XDP program's config_map
+    /// This allows passing values from user space to the XDP program
+    /// # Arguments
+    /// `key` - Map key (typically 0 for single-value config maps)
+    /// `value` - Value to set in the map
+    /// # Returns
+    /// On success, returns `Ok(())`. On failure, returns an error string.
+    pub fn update_config(&self, key: i32, value: i32) -> Result<(), String> {
+        if self.config_map_fd < 0 {
+            return Err("config_map not available".to_string());
+        }
+
+        let key_ptr = &key as *const i32;
+        let value_ptr = &value as *const i32;
+        
+        let ret = unsafe {
+            bpf_map_update_elem(
+                self.config_map_fd,
+                key_ptr as *const c_void,
+                value_ptr as *const c_void,
+                BPF_ANY as u64,
+            )
+        };
+
+        if ret != 0 {
+            let errno = if ret < 0 {
+                -ret as i32
+            } else {
+                unsafe { *libc::__errno_location() }
+            };
+            let msg = unsafe {
+                CStr::from_ptr(strerror(errno))
+                    .to_string_lossy()
+                    .into_owned()
+            };
+            return Err(format!("Failed to update config_map: {} (ret={}, errno={})", msg, ret, errno));
+        }
+
+        Ok(())
+    }
+
+    /// # Description
+    /// Lookup configuration value from XDP program's config_map
+    /// # Arguments
+    /// `key` - Map key (typically 0 for single-value config maps)
+    /// # Returns
+    /// On success, returns the value. On failure, returns an error string.
+    pub fn lookup_config(&self, key: i32) -> Result<i32, String> {
+        if self.config_map_fd < 0 {
+            return Err("config_map not available".to_string());
+        }
+
+        let mut value: i32 = 0;
+        let ret = unsafe {
+            bpf_map_lookup_elem(
+                self.config_map_fd,
+                &key as *const i32 as *const c_void,
+                &mut value as *mut i32 as *mut c_void,
+            )
+        };
+
+        if ret != 0 {
+            let msg = unsafe {
+                CStr::from_ptr(strerror(-ret))
+                    .to_string_lossy()
+                    .into_owned()
+            };
+            return Err(format!("Failed to lookup config_map: {} ({})", msg, ret));
+        }
+
+        Ok(value)
     }
 }
 

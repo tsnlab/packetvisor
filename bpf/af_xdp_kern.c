@@ -13,6 +13,14 @@ struct {
 	__uint(max_entries, DEFAULT_QUEUE_IDS);
 } xsks_map SEC(".maps");
 
+/* Configuration map to receive single key-value from user space */
+struct {
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__uint(key_size, sizeof(int));
+	__uint(value_size, sizeof(int));
+	__uint(max_entries, 1);
+} config_map SEC(".maps");
+
 struct {
 	__uint(priority, 5);
 	__uint(XDP_PASS, 1);
@@ -33,6 +41,13 @@ int xsk_packetvisor_prog(struct xdp_md *ctx)
 	/* Make sure refcount is referenced by the program */
 	if (!refcnt)
 		return XDP_PASS;
+
+	/* Read configuration value from user space */
+	int config_key = 0;
+	int *config_value = bpf_map_lookup_elem(&config_map, &config_key);
+	if (config_value) {
+		bpf_printk("%s: Config value: %d", __func__, *config_value);
+	}
 
 	int index = ctx->rx_queue_index;
 
