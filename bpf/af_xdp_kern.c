@@ -36,8 +36,6 @@ struct {
 SEC("xdp")
 int xsk_packetvisor_prog(struct xdp_md *ctx)
 {
-    bpf_printk("%s: Hello, World!", __func__);
-
 	/* Make sure refcount is referenced by the program */
 	if (!refcnt)
 		return XDP_PASS;
@@ -45,19 +43,26 @@ int xsk_packetvisor_prog(struct xdp_md *ctx)
 	/* Read configuration value from user space */
 	int config_key = 0;
 	int *config_value = bpf_map_lookup_elem(&config_map, &config_key);
-	if (config_value) {
-		bpf_printk("%s: Config value: %d", __func__, *config_value);
+
+	/* If config_value is not 0, pass all packets to kernel */
+	if (*config_value != 0) {
+        bpf_printk("%s: Passing packet to kernel", __func__);
+		return XDP_PASS;
 	}
 
+	/* If config_value is 0, redirect all packets to user space */
 	int index = ctx->rx_queue_index;
 
 	/* A set entry here means that the corresponding queue_id
 	 * has an active AF_XDP socket bound to it.
 	 */
-	if (bpf_map_lookup_elem(&xsks_map, &index))
+	if (bpf_map_lookup_elem(&xsks_map, &index)) {
+        bpf_printk("%s: Redirecting packet to user space", __func__);
 		return bpf_redirect_map(&xsks_map, index, 0);
+    }
 
-	return XDP_PASS;
+    bpf_printk("%s: Dropping packet", __func__);
+	return XDP_DROP;
 }
 
 char _license[] SEC("license") = "GPL";
