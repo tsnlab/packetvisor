@@ -6,9 +6,9 @@ LLC ?= llc
 BPF_TARGET ?= bpf
 
 # Source and output files
-XDP_SRC := packervisor.bpf.c
-XDP_OBJ := packervisor.bpf.o
-XDP_LL := packervisor.bpf.ll
+XDP_SRC := packetvisor.bpf.c
+XDP_OBJ := packetvisor.bpf.o
+XDP_LL := packetvisor.bpf.ll
 
 # Header directories (will be set by build.rs)
 HEADER_DIR ?= ../xdp-tools/headers
