@@ -4,6 +4,8 @@
 #include <bpf/bpf_helpers.h>
 #include <xdp/xdp_helpers.h>
 
+#include "packervisor.bpf.h"
+
 #define DEFAULT_QUEUE_IDS 64
 
 struct {
@@ -17,9 +19,9 @@ struct {
 struct {
 	__uint(type, BPF_MAP_TYPE_ARRAY);
 	__uint(key_size, sizeof(int));
-	__uint(value_size, sizeof(int));
+	__uint(value_size, sizeof(struct af_xdp_rx_config));
 	__uint(max_entries, 1);
-} config_map SEC(".maps");
+} rx_config_map SEC(".maps");
 
 struct {
 	__uint(priority, 5);
@@ -36,13 +38,30 @@ struct {
 SEC("xdp")
 int xsk_packetvisor_prog(struct xdp_md *ctx)
 {
+	void *data = (void *)(long)ctx->data;
+	void *data_end = (void *)(long)ctx->data_end;
+	struct ethhdr *eth = (struct ethhdr *)data;
+
 	/* Make sure refcount is referenced by the program */
 	if (!refcnt)
 		return XDP_PASS;
 
 	/* Read configuration value from user space */
-	int config_key = 0;
-	int *config_value = bpf_map_lookup_elem(&config_map, &config_key);
+	int config_key = PACKERVISOR_CONFIG_KEY;
+	struct af_xdp_rx_config *rx_config = bpf_map_lookup_elem(&rx_config_map, &config_key);
+
+	/* If no configuration is found, pass all packets to kernel */
+	if (!rx_config) {
+		bpf_printk("%s: No configuration found", __func__);
+		return XDP_PASS;
+	}
+
+	/* Check if packet is Ethernet */
+	if (rx_config->l2_flags & L2_FLAGS_ETH) {
+		switch()
+
+		return XDP_DROP;
+	}
 
 	/* If config_value is not 0, pass all packets to kernel */
 	if (*config_value != 0) {
