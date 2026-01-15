@@ -535,7 +535,10 @@ impl Nic {
                 Ok(nic)
             }
             Err(e) => {
-                // FIXME: Print here is fine. But segfault happened when printing in the caller.
+				if !nic.xsk.is_null() {
+					unsafe { xsk_socket__delete(nic.xsk); }
+					nic.xsk = std::ptr::null_mut();
+      			}
                 eprintln!("Failed to open NIC: {}", e);
                 Err(e)
             }
@@ -844,6 +847,9 @@ impl Drop for Nic {
     // move ownership of nic
     fn drop(&mut self) {
         // xsk delete
+		if self.xsk.is_null() {
+			return;
+		}
         unsafe {
             xsk_socket__delete(self.xsk);
             let pool = Pool::instance();
