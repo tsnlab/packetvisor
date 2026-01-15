@@ -341,12 +341,10 @@ impl BufferPool {
 impl Pool {
     fn new() -> Result<Self, String> {
         let umem_ptr = alloc_zeroed_layout::<xsk_umem>()?;
-        let fq_ptr = alloc_zeroed_layout::<xsk_ring_prod>()?;
-        let cq_ptr = alloc_zeroed_layout::<xsk_ring_cons>()?;
 
         let umem = umem_ptr.cast::<xsk_umem>(); // umem is needed to be dealloc after using packetvisor library.
-        let fq = unsafe { std::ptr::read(fq_ptr.cast::<xsk_ring_prod>()) };
-        let cq = unsafe { std::ptr::read(cq_ptr.cast::<xsk_ring_cons>()) };
+        let fq: xsk_ring_prod = unsafe { std::mem::zeroed() };
+        let cq: xsk_ring_cons = unsafe { std::mem::zeroed() };
 
         let chunk_pool = BufferPool::new(0, 0, std::ptr::null_mut(), 0, 0);
 
@@ -506,10 +504,6 @@ impl Nic {
             .ok_or(format!("Interface {} not found.", if_name))?;
 
         let xsk_ptr = alloc_zeroed_layout::<xsk_socket>()?;
-        let rx_ptr = alloc_zeroed_layout::<xsk_ring_cons>()?;
-        let tx_ptr = alloc_zeroed_layout::<xsk_ring_prod>()?;
-        let fq_ptr = alloc_zeroed_layout::<xsk_ring_prod>()?;
-        let cq_ptr = alloc_zeroed_layout::<xsk_ring_cons>()?;
 
         /* The result of Pool::init() must be unwrapped using the unwrap() function. \
          * If you do not use unwrap(), the internal fields of the Pool object will not \
@@ -519,15 +513,13 @@ impl Nic {
          *     Other unexpected problems may occur. */
         Pool::init(chunk_size, chunk_count, fq_size, cq_size).unwrap();
 
-        let mut nic = unsafe {
-            Nic {
+        let mut nic = Nic {
                 interface: interface.clone(),
                 xsk: xsk_ptr.cast::<xsk_socket>(),
-                rxq: std::ptr::read(rx_ptr.cast::<xsk_ring_cons>()),
-                txq: std::ptr::read(tx_ptr.cast::<xsk_ring_prod>()),
-                umem_fq: std::ptr::read(fq_ptr.cast::<xsk_ring_prod>()),
-                umem_cq: std::ptr::read(cq_ptr.cast::<xsk_ring_cons>()),
-            }
+                rxq: unsafe { std::mem::zeroed() },
+                txq: unsafe { std::mem::zeroed() },
+                umem_fq: unsafe { std::mem::zeroed() },
+                umem_cq: unsafe { std::mem::zeroed() },
         };
 
         match Nic::open(
@@ -653,10 +645,8 @@ impl Nic {
                 self.umem_fq = (*pool).umem_fq;
                 self.umem_cq = (*pool).umem_cq;
 
-                let fq_ptr = alloc_zeroed_layout::<xsk_ring_prod>()?;
-                let cq_ptr = alloc_zeroed_layout::<xsk_ring_cons>()?;
-                (*pool).umem_fq = std::ptr::read(fq_ptr.cast::<xsk_ring_prod>());
-                (*pool).umem_cq = std::ptr::read(cq_ptr.cast::<xsk_ring_cons>());
+                (*pool).umem_fq = std::mem::zeroed();
+                (*pool).umem_cq = std::mem::zeroed();
             };
         }
 
