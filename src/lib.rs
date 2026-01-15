@@ -340,9 +340,7 @@ impl BufferPool {
 
 impl Pool {
     fn new() -> Result<Self, String> {
-        let umem_ptr = alloc_zeroed_layout::<xsk_umem>()?;
-
-        let umem = umem_ptr.cast::<xsk_umem>(); // umem is needed to be dealloc after using packetvisor library.
+        let umem: *mut xsk_umem = std::ptr::null_mut();
         let fq: xsk_ring_prod = unsafe { std::mem::zeroed() };
         let cq: xsk_ring_cons = unsafe { std::mem::zeroed() };
 
@@ -503,8 +501,6 @@ impl Nic {
             .find(|elem| elem.name.as_str() == if_name)
             .ok_or(format!("Interface {} not found.", if_name))?;
 
-        let xsk_ptr = alloc_zeroed_layout::<xsk_socket>()?;
-
         /* The result of Pool::init() must be unwrapped using the unwrap() function. \
          * If you do not use unwrap(), the internal fields of the Pool object will not \
          * be properly initialized, which can lead to potential problems.
@@ -515,7 +511,7 @@ impl Nic {
 
         let mut nic = Nic {
                 interface: interface.clone(),
-                xsk: xsk_ptr.cast::<xsk_socket>(),
+                xsk: std::ptr::null_mut(),
                 rxq: unsafe { std::mem::zeroed() },
                 txq: unsafe { std::mem::zeroed() },
                 umem_fq: unsafe { std::mem::zeroed() },
