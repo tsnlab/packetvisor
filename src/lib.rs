@@ -340,13 +340,9 @@ impl BufferPool {
 
 impl Pool {
     fn new() -> Result<Self, String> {
-        let umem_ptr = alloc_zeroed_layout::<xsk_umem>()?;
-        let fq_ptr = alloc_zeroed_layout::<xsk_ring_prod>()?;
-        let cq_ptr = alloc_zeroed_layout::<xsk_ring_cons>()?;
-
-        let umem = umem_ptr.cast::<xsk_umem>(); // umem is needed to be dealloc after using packetvisor library.
-        let fq = unsafe { std::ptr::read(fq_ptr.cast::<xsk_ring_prod>()) };
-        let cq = unsafe { std::ptr::read(cq_ptr.cast::<xsk_ring_cons>()) };
+        let umem: *mut xsk_umem = std::ptr::null_mut();
+        let fq: xsk_ring_prod = unsafe { std::mem::zeroed() };
+        let cq: xsk_ring_cons = unsafe { std::mem::zeroed() };
 
         let chunk_pool = BufferPool::new(0, 0, std::ptr::null_mut(), 0, 0);
 
@@ -505,12 +501,6 @@ impl Nic {
             .find(|elem| elem.name.as_str() == if_name)
             .ok_or(format!("Interface {} not found.", if_name))?;
 
-        let xsk_ptr = alloc_zeroed_layout::<xsk_socket>()?;
-        let rx_ptr = alloc_zeroed_layout::<xsk_ring_cons>()?;
-        let tx_ptr = alloc_zeroed_layout::<xsk_ring_prod>()?;
-        let fq_ptr = alloc_zeroed_layout::<xsk_ring_prod>()?;
-        let cq_ptr = alloc_zeroed_layout::<xsk_ring_cons>()?;
-
         /* The result of Pool::init() must be unwrapped using the unwrap() function. \
          * If you do not use unwrap(), the internal fields of the Pool object will not \
          * be properly initialized, which can lead to potential problems.
@@ -519,15 +509,13 @@ impl Nic {
          *     Other unexpected problems may occur. */
         Pool::init(chunk_size, chunk_count, fq_size, cq_size).unwrap();
 
-        let mut nic = unsafe {
-            Nic {
+        let mut nic = Nic {
                 interface: interface.clone(),
-                xsk: xsk_ptr.cast::<xsk_socket>(),
-                rxq: std::ptr::read(rx_ptr.cast::<xsk_ring_cons>()),
-                txq: std::ptr::read(tx_ptr.cast::<xsk_ring_prod>()),
-                umem_fq: std::ptr::read(fq_ptr.cast::<xsk_ring_prod>()),
-                umem_cq: std::ptr::read(cq_ptr.cast::<xsk_ring_cons>()),
-            }
+                xsk: std::ptr::null_mut(),
+                rxq: unsafe { std::mem::zeroed() },
+                txq: unsafe { std::mem::zeroed() },
+                umem_fq: unsafe { std::mem::zeroed() },
+                umem_cq: unsafe { std::mem::zeroed() },
         };
 
         match Nic::open(
@@ -547,7 +535,10 @@ impl Nic {
                 Ok(nic)
             }
             Err(e) => {
-                // FIXME: Print here is fine. But segfault happened when printing in the caller.
+				if !nic.xsk.is_null() {
+					unsafe { xsk_socket__delete(nic.xsk); }
+					nic.xsk = std::ptr::null_mut();
+      			}
                 eprintln!("Failed to open NIC: {}", e);
                 Err(e)
             }
@@ -653,10 +644,8 @@ impl Nic {
                 self.umem_fq = (*pool).umem_fq;
                 self.umem_cq = (*pool).umem_cq;
 
-                let fq_ptr = alloc_zeroed_layout::<xsk_ring_prod>()?;
-                let cq_ptr = alloc_zeroed_layout::<xsk_ring_cons>()?;
-                (*pool).umem_fq = std::ptr::read(fq_ptr.cast::<xsk_ring_prod>());
-                (*pool).umem_cq = std::ptr::read(cq_ptr.cast::<xsk_ring_cons>());
+                (*pool).umem_fq = std::mem::zeroed();
+                (*pool).umem_cq = std::mem::zeroed();
             };
         }
 
@@ -858,6 +847,9 @@ impl Drop for Nic {
     // move ownership of nic
     fn drop(&mut self) {
         // xsk delete
+		if self.xsk.is_null() {
+			return;
+		}
         unsafe {
             xsk_socket__delete(self.xsk);
             let pool = Pool::instance();
