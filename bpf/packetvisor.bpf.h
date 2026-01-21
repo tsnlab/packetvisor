@@ -33,11 +33,11 @@
 
 /* AF_XDP rx configuration */
 struct af_xdp_rx_config{
-    u32 l2_flags;
-    u32 l3_flags;
+    __u32 l2_flags;
+    __u32 l3_flags;
 
-    u32 eth_type_mask;
-    u32 ipv4_proto_mask;
+    __u32 eth_type_mask;
+    __u32 ipv4_proto_mask;
 };
 
 #endif

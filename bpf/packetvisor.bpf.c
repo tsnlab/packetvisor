@@ -4,7 +4,7 @@
 #include <bpf/bpf_helpers.h>
 #include <xdp/xdp_helpers.h>
 
-#include "packervisor.bpf.h"
+#include "packetvisor.bpf.h"
 
 #define DEFAULT_QUEUE_IDS 64
 
@@ -38,9 +38,11 @@ struct {
 SEC("xdp")
 int xsk_packetvisor_prog(struct xdp_md *ctx)
 {
+#if 0
 	void *data = (void *)(long)ctx->data;
 	void *data_end = (void *)(long)ctx->data_end;
 	struct ethhdr *eth = (struct ethhdr *)data;
+#endif
 
 	/* Make sure refcount is referenced by the program */
 	if (!refcnt)
@@ -48,24 +50,27 @@ int xsk_packetvisor_prog(struct xdp_md *ctx)
 
 	/* Read configuration value from user space */
 	int config_key = PACKERVISOR_CONFIG_KEY;
+#if 0
 	struct af_xdp_rx_config *rx_config = bpf_map_lookup_elem(&rx_config_map, &config_key);
+#endif
+	__u32 *config_value = bpf_map_lookup_elem(&rx_config_map, &config_key);
 
 	/* If no configuration is found, pass all packets to kernel */
-	if (!rx_config) {
+	if (!config_value) {
 		bpf_printk("%s: No configuration found", __func__);
 		return XDP_PASS;
 	}
 
 	/* Check if packet is Ethernet */
+#if 0
 	if (rx_config->l2_flags & L2_FLAGS_ETH) {
-		switch()
-
 		return XDP_DROP;
 	}
+#endif
 
 	/* If config_value is not 0, pass all packets to kernel */
 	if (*config_value != 0) {
-        bpf_printk("%s: Passing packet to kernel", __func__);
+		bpf_printk("%s: Passing packet to kernel", __func__);
 		return XDP_PASS;
 	}
 
