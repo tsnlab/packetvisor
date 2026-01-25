@@ -744,7 +744,7 @@ impl Nic {
         let mut xsk_cfg: xsk_socket_config = xsk_socket_config {
             rx_size: rx_ring_size.try_into().unwrap(),
             tx_size: tx_ring_size.try_into().unwrap(),
-            __bindgen_anon_1: xsk_socket_config__bindgen_ty_1 { libxdp_flags: 0 },
+            __bindgen_anon_1: xsk_socket_config__bindgen_ty_1 { libxdp_flags: XSK_LIBXDP_FLAGS__INHIBIT_PROG_LOAD  },
             xdp_flags: XDP_FLAGS_DRV_MODE,
             bind_flags: XDP_USE_NEED_WAKEUP as u16,
         };
@@ -764,6 +764,20 @@ impl Nic {
                 &xsk_cfg,
             )
         };
+
+        // Attach AF_XDP socket to xsks_map in XDP program
+        if ret == 0 {
+            let update_ret = unsafe { xsk_socket__update_xskmap(self.xsk, self.xsks_map_fd) };
+            if update_ret != 0 {
+                let msg = unsafe {
+                    CStr::from_ptr(strerror(-update_ret))
+                        .to_string_lossy()
+                        .into_owned()
+                };
+                let message = format!("Error: {}", msg);
+                return Err(format!("xsk_socket__update_xskmap failed: {}", message));
+            }
+        }
 
         if ret != 0 {
             match unsafe {
