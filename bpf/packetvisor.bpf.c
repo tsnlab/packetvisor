@@ -19,9 +19,9 @@ struct {
 struct {
 	__uint(type, BPF_MAP_TYPE_ARRAY);
 	__uint(key_size, sizeof(int));
-	__uint(value_size, sizeof(struct af_xdp_rx_config));
+	__uint(value_size, sizeof(__u32));
 	__uint(max_entries, 1);
-} rx_config_map SEC(".maps");
+} config_map SEC(".maps");
 
 struct {
 	__uint(priority, 5);
@@ -53,7 +53,7 @@ int xsk_packetvisor_prog(struct xdp_md *ctx)
 #if 0
 	struct af_xdp_rx_config *rx_config = bpf_map_lookup_elem(&rx_config_map, &config_key);
 #endif
-	__u32 *config_value = bpf_map_lookup_elem(&rx_config_map, &config_key);
+	__u32 *config_value = bpf_map_lookup_elem(&config_map, &config_key);
 
 	/* If no configuration is found, pass all packets to kernel */
 	if (!config_value) {
