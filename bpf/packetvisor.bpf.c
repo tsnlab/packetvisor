@@ -62,6 +62,10 @@ static __always_inline bool match_l3_flag(__u16 h_proto, __u32 l3_flags)
 		return (l3_flags & L3_FLAGS_IPV6) != 0;
 	case ETH_P_ARP:
 		return (l3_flags & L3_FLAGS_ARP) != 0;
+	case ETH_P_PAE:
+		bpf_printk("Proto is EAPOL");
+		bpf_printk("Result: %d\n", l3_flags & L3_FLAGS_EAPOL);
+		return (l3_flags & L3_FLAGS_EAPOL) != 0;
 	default:
 		return (l3_flags & L3_FLAGS_OTHER) != 0;
 	}

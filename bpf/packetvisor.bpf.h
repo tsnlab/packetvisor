@@ -18,7 +18,8 @@
 #define L3_FLAGS_IPV4 (1 << 0)
 #define L3_FLAGS_IPV6 (1 << 1)
 #define L3_FLAGS_ARP (1 << 2)
-#define L3_FLAGS_OTHER (1 << 3)
+#define L3_FLAGS_EAPOL (1 << 3)
+#define L3_FLAGS_OTHER (1 << 4)
 #define L3_FLAGS_RESERVED (1 << 4)
 
 

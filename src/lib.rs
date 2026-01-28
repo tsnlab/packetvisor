@@ -70,7 +70,8 @@ pub const L2_FLAGS_RESERVED: u32 = 1 << 2;
 pub const L3_FLAGS_IPV4: u32 = 1 << 0;
 pub const L3_FLAGS_IPV6: u32 = 1 << 1;
 pub const L3_FLAGS_ARP: u32 = 1 << 2;
-pub const L3_FLAGS_OTHER: u32 = 1 << 3;
+pub const L3_FLAGS_EAPOL: u32 = 1 << 3;
+pub const L3_FLAGS_OTHER: u32 = 1 << 4;
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default)]
@@ -86,32 +87,10 @@ impl AfXdpRxConfig {
             l3_flags: 0,
         }
     }
-
-    pub fn all_filter() -> Self {
+    pub fn eapol_filter() -> Self {
         Self {
             l2_flags: L2_FLAGS_ETH | L2_FLAGS_VLAN,
-            l3_flags: L3_FLAGS_IPV4 | L3_FLAGS_IPV6 | L3_FLAGS_ARP | L3_FLAGS_OTHER,
-        }
-    }
-
-    pub fn arp_filter() -> Self {
-        Self {
-            l2_flags: L2_FLAGS_ETH | L2_FLAGS_VLAN,
-            l3_flags: L3_FLAGS_ARP,
-        }
-    }
-
-    pub fn vlan_filter() -> Self {
-        Self {
-            l2_flags: L2_FLAGS_VLAN,
-            l3_flags: 0,
-        }
-    }
-
-    pub fn l3_other_filter() -> Self {
-        Self {
-            l2_flags: L2_FLAGS_ETH | L2_FLAGS_VLAN,
-            l3_flags: L3_FLAGS_OTHER,
+            l3_flags: L3_FLAGS_EAPOL,
         }
     }
 }
