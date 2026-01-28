@@ -63,6 +63,59 @@ use libc::strerror;
 
 const DEFAULT_HEADROOM: usize = 256;
 
+pub const L2_FLAGS_ETH: u32 = 1 << 0;
+pub const L2_FLAGS_VLAN: u32 = 1 << 1;
+pub const L2_FLAGS_RESERVED: u32 = 1 << 2;
+
+pub const L3_FLAGS_IPV4: u32 = 1 << 0;
+pub const L3_FLAGS_IPV6: u32 = 1 << 1;
+pub const L3_FLAGS_ARP: u32 = 1 << 2;
+pub const L3_FLAGS_OTHER: u32 = 1 << 3;
+
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default)]
+pub struct AfXdpRxConfig {
+    pub l2_flags: u32,
+    pub l3_flags: u32,
+}
+
+impl AfXdpRxConfig {
+    pub fn user_all() -> Self {
+        Self {
+            l2_flags: 0,
+            l3_flags: 0,
+        }
+    }
+
+    pub fn all_filter() -> Self {
+        Self {
+            l2_flags: L2_FLAGS_ETH | L2_FLAGS_VLAN,
+            l3_flags: L3_FLAGS_IPV4 | L3_FLAGS_IPV6 | L3_FLAGS_ARP | L3_FLAGS_OTHER,
+        }
+    }
+
+    pub fn arp_filter() -> Self {
+        Self {
+            l2_flags: L2_FLAGS_ETH | L2_FLAGS_VLAN,
+            l3_flags: L3_FLAGS_ARP,
+        }
+    }
+
+    pub fn vlan_filter() -> Self {
+        Self {
+            l2_flags: L2_FLAGS_VLAN,
+            l3_flags: 0,
+        }
+    }
+
+    pub fn l3_other_filter() -> Self {
+        Self {
+            l2_flags: L2_FLAGS_ETH | L2_FLAGS_VLAN,
+            l3_flags: L3_FLAGS_OTHER,
+        }
+    }
+}
+
 /********************************************************************
  *
  * Structures
@@ -496,7 +549,7 @@ impl Nic {
     /// `cq_size` - completion ring size \
     /// `tx_size` - tx ring size \
     /// `rx_size` - rx ring size \
-    /// `config_value` - initial value for config_map (default: 0 if None) \
+    /// `config_value` - initial value for config_map (default: kernel-only if None) \
     /// # Returns
     /// On success, returns `pv::Nic` bound to the network interface. \
     /// On failure, returns an error string.
@@ -508,7 +561,7 @@ impl Nic {
         cq_size: usize,
         tx_size: usize,
         rx_size: usize,
-        config_value: Option<i32>,
+        config_value: Option<AfXdpRxConfig>,
     ) -> Result<Nic, String> {
         // Load and attach XDP program
         // BPF_OBJECT_PATH is set at compile time by build.rs
@@ -635,13 +688,12 @@ impl Nic {
 
         // Update config_map immediately after XDP program is attached
         // This ensures the map is initialized before any packets are processed
-        // Use provided config_value or default to 0 if None
-        let init_config_value = config_value.unwrap_or(0);
+        // Use provided config_value or default to kernel-only if None
+        let init_config_value = config_value.unwrap_or_else(AfXdpRxConfig::user_all);
         if config_map_fd >= 0 {
             let key: i32 = 0;
-            let value: i32 = init_config_value;
             let key_ptr = &key as *const i32;
-            let value_ptr = &value as *const i32;
+            let value_ptr = &init_config_value as *const AfXdpRxConfig;
             let update_ret = unsafe {
                 bpf_map_update_elem(
                     config_map_fd,
@@ -657,16 +709,19 @@ impl Nic {
                 );
             } else {
                 // Verify the update
-                let mut verify_value: i32 = 0;
+                let mut verify_value = AfXdpRxConfig::default();
                 let verify_ret = unsafe {
                     bpf_map_lookup_elem(
                         config_map_fd,
                         key_ptr as *const c_void,
-                        &mut verify_value as *mut i32 as *mut c_void,
+                        &mut verify_value as *mut AfXdpRxConfig as *mut c_void,
                     )
                 };
                 if verify_ret == 0 {
-                    eprintln!("Debug: config_map initialized with value: {}", verify_value);
+                    eprintln!(
+                        "Debug: config_map initialized with value: {:?}",
+                        verify_value
+                    );
                 } else {
                     eprintln!("Warning: Failed to verify config_map initialization");
                 }
@@ -744,7 +799,9 @@ impl Nic {
         let mut xsk_cfg: xsk_socket_config = xsk_socket_config {
             rx_size: rx_ring_size.try_into().unwrap(),
             tx_size: tx_ring_size.try_into().unwrap(),
-            __bindgen_anon_1: xsk_socket_config__bindgen_ty_1 { libxdp_flags: XSK_LIBXDP_FLAGS__INHIBIT_PROG_LOAD  },
+            __bindgen_anon_1: xsk_socket_config__bindgen_ty_1 {
+                libxdp_flags: XSK_LIBXDP_FLAGS__INHIBIT_PROG_LOAD,
+            },
             xdp_flags: XDP_FLAGS_DRV_MODE,
             bind_flags: XDP_USE_NEED_WAKEUP as u16,
         };
@@ -765,7 +822,6 @@ impl Nic {
             )
         };
 
-        // Attach AF_XDP socket to xsks_map in XDP program
         if ret == 0 {
             let update_ret = unsafe { xsk_socket__update_xskmap(self.xsk, self.xsks_map_fd) };
             if update_ret != 0 {
@@ -936,13 +992,13 @@ impl Nic {
     /// `value` - Value to set in the map
     /// # Returns
     /// On success, returns `Ok(())`. On failure, returns an error string.
-    pub fn update_config(&self, key: i32, value: i32) -> Result<(), String> {
+    pub fn update_config(&self, key: i32, value: AfXdpRxConfig) -> Result<(), String> {
         if self.config_map_fd < 0 {
             return Err("config_map not available".to_string());
         }
 
         let key_ptr = &key as *const i32;
-        let value_ptr = &value as *const i32;
+        let value_ptr = &value as *const AfXdpRxConfig;
 
         let ret = unsafe {
             bpf_map_update_elem(
@@ -979,17 +1035,17 @@ impl Nic {
     /// `key` - Map key (typically 0 for single-value config maps)
     /// # Returns
     /// On success, returns the value. On failure, returns an error string.
-    pub fn lookup_config(&self, key: i32) -> Result<i32, String> {
+    pub fn lookup_config(&self, key: i32) -> Result<AfXdpRxConfig, String> {
         if self.config_map_fd < 0 {
             return Err("config_map not available".to_string());
         }
 
-        let mut value: i32 = 0;
+        let mut value = AfXdpRxConfig::default();
         let ret = unsafe {
             bpf_map_lookup_elem(
                 self.config_map_fd,
                 &key as *const i32 as *const c_void,
-                &mut value as *mut i32 as *mut c_void,
+                &mut value as *mut AfXdpRxConfig as *mut c_void,
             )
         };
 

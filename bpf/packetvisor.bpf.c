@@ -1,10 +1,25 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 
 #include <linux/bpf.h>
+#include <linux/if_ether.h>
+#include <linux/in.h>
+#include <linux/icmp.h>
+#include <linux/icmpv6.h>
+#include <linux/ip.h>
+#include <linux/ipv6.h>
+#include <linux/tcp.h>
+#include <linux/udp.h>
+#include <stdbool.h>
+#include <bpf/bpf_endian.h>
 #include <bpf/bpf_helpers.h>
 #include <xdp/xdp_helpers.h>
 
 #include "packetvisor.bpf.h"
+
+struct vlan_hdr {
+	__be16 h_vlan_TCI;
+	__be16 h_vlan_encapsulated_proto;
+};
 
 #define DEFAULT_QUEUE_IDS 64
 
@@ -19,7 +34,7 @@ struct {
 struct {
 	__uint(type, BPF_MAP_TYPE_ARRAY);
 	__uint(key_size, sizeof(int));
-	__uint(value_size, sizeof(__u32));
+	__uint(value_size, sizeof(struct af_xdp_rx_config));
 	__uint(max_entries, 1);
 } config_map SEC(".maps");
 
@@ -34,59 +49,156 @@ struct {
  */
  volatile int refcnt = 1;
 
+
+static __always_inline bool match_l3_flag(__u16 h_proto, __u32 l3_flags)
+{
+	if (!l3_flags)
+		return true;
+
+	switch (h_proto) {
+	case ETH_P_IP:
+		return (l3_flags & L3_FLAGS_IPV4) != 0;
+	case ETH_P_IPV6:
+		return (l3_flags & L3_FLAGS_IPV6) != 0;
+	case ETH_P_ARP:
+		return (l3_flags & L3_FLAGS_ARP) != 0;
+	default:
+		return (l3_flags & L3_FLAGS_OTHER) != 0;
+	}
+}
+
+static __always_inline bool match_ipv4_l4(void *nh, void *data_end)
+{
+	struct iphdr *ip = nh;
+	__u32 ihl;
+	void *l4;
+
+	if ((void *)(ip + 1) > data_end)
+		return false;
+
+	ihl = ip->ihl * 4;
+	if (ihl < sizeof(*ip))
+		return false;
+
+	if ((void *)ip + ihl > data_end)
+		return false;
+
+	l4 = (void *)ip + ihl;
+	switch (ip->protocol) {
+	case IPPROTO_TCP:
+		return (void *)(l4 + sizeof(struct tcphdr)) <= data_end;
+	case IPPROTO_UDP:
+		return (void *)(l4 + sizeof(struct udphdr)) <= data_end;
+	case IPPROTO_ICMP:
+		return (void *)(l4 + sizeof(struct icmphdr)) <= data_end;
+	default:
+		return true;
+	}
+}
+
+static __always_inline bool match_ipv6_l4(void *nh, void *data_end)
+{
+	struct ipv6hdr *ip6 = nh;
+	void *l4;
+
+	if ((void *)(ip6 + 1) > data_end)
+		return false;
+
+	l4 = (void *)(ip6 + 1);
+	switch (ip6->nexthdr) {
+	case IPPROTO_TCP:
+		return (void *)(l4 + sizeof(struct tcphdr)) <= data_end;
+	case IPPROTO_UDP:
+		return (void *)(l4 + sizeof(struct udphdr)) <= data_end;
+	case IPPROTO_ICMPV6:
+		return (void *)(l4 + sizeof(struct icmp6hdr)) <= data_end;
+	default:
+		return true;
+	}
+}
+
+
 /* This is the program for post 5.3 kernels. */
 SEC("xdp")
 int xsk_packetvisor_prog(struct xdp_md *ctx)
 {
-#if 0
 	void *data = (void *)(long)ctx->data;
 	void *data_end = (void *)(long)ctx->data_end;
-	struct ethhdr *eth = (struct ethhdr *)data;
-#endif
+	struct ethhdr *eth = data;
+	struct af_xdp_rx_config *rx_config;
+	int config_key = PACKERVISOR_CONFIG_KEY;
+	__u16 h_proto;
+	void *nh;
+	bool vlan = false;
+	bool matched = true;
 
 	/* Make sure refcount is referenced by the program */
 	if (!refcnt)
 		return XDP_PASS;
 
-	/* Read configuration value from user space */
-	int config_key = PACKERVISOR_CONFIG_KEY;
-#if 0
-	struct af_xdp_rx_config *rx_config = bpf_map_lookup_elem(&rx_config_map, &config_key);
-#endif
-	__u32 *config_value = bpf_map_lookup_elem(&config_map, &config_key);
+	if ((void *)(eth + 1) > data_end)
+		return XDP_PASS;
 
-	/* If no configuration is found, pass all packets to kernel */
-	if (!config_value) {
-		bpf_printk("%s: No configuration found", __func__);
+	rx_config = bpf_map_lookup_elem(&config_map, &config_key);
+	if (!rx_config)
+		return XDP_PASS;
+
+	if (!(rx_config->l2_flags || rx_config->l3_flags)) {
+		int index = ctx->rx_queue_index;
+
+		if (bpf_map_lookup_elem(&xsks_map, &index))
+			return bpf_redirect_map(&xsks_map, index, 0);
+
 		return XDP_PASS;
 	}
 
-	/* Check if packet is Ethernet */
-#if 0
-	if (rx_config->l2_flags & L2_FLAGS_ETH) {
-		return XDP_DROP;
-	}
-#endif
+	h_proto = bpf_ntohs(eth->h_proto);
+	nh = eth + 1;
+	if (h_proto == ETH_P_8021Q || h_proto == ETH_P_8021AD) {
+		struct vlan_hdr *vh = nh;
 
-	/* If config_value is not 0, pass all packets to kernel */
-	if (*config_value != 0) {
-		bpf_printk("%s: Passing packet to kernel", __func__);
+		if ((void *)(vh + 1) > data_end)
+			return XDP_PASS;
+
+		h_proto = bpf_ntohs(vh->h_vlan_encapsulated_proto);
+		nh = vh + 1;
+		vlan = true;
+	}
+
+	if (rx_config->l2_flags) {
+		if (vlan) {
+			if (!(rx_config->l2_flags & L2_FLAGS_VLAN))
+				matched = false;
+		} else {
+			if (!(rx_config->l2_flags & L2_FLAGS_ETH))
+				matched = false;
+		}
+	}
+
+	if (matched && rx_config->l3_flags) {
+		if (!match_l3_flag(h_proto, rx_config->l3_flags))
+			matched = false;
+	}
+
+	if (matched) {
+		if (h_proto == ETH_P_IP) {
+			if (!match_ipv4_l4(nh, data_end))
+				matched = false;
+		} else if (h_proto == ETH_P_IPV6) {
+			if (!match_ipv6_l4(nh, data_end))
+				matched = false;
+		}
+	}
+
+	if (matched)
 		return XDP_PASS;
-	}
 
-	/* If config_value is 0, redirect all packets to user space */
+	/* Packet did not match config, redirect to user space if socket is bound */
 	int index = ctx->rx_queue_index;
-
-	/* A set entry here means that the corresponding queue_id
-	 * has an active AF_XDP socket bound to it.
-	 */
-	if (bpf_map_lookup_elem(&xsks_map, &index)) {
-        bpf_printk("%s: Redirecting packet to user space", __func__);
+	if (bpf_map_lookup_elem(&xsks_map, &index))
 		return bpf_redirect_map(&xsks_map, index, 0);
-    }
 
-    bpf_printk("%s: Dropping packet", __func__);
-	return XDP_DROP;
+	return XDP_PASS;
 }
 
 char _license[] SEC("license") = "GPL";
