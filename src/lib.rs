@@ -65,32 +65,75 @@ const DEFAULT_HEADROOM: usize = 256;
 
 pub const L2_FLAGS_ETH: u32 = 1 << 0;
 pub const L2_FLAGS_VLAN: u32 = 1 << 1;
-pub const L2_FLAGS_RESERVED: u32 = 1 << 2;
+pub const L2_FLAGS_ARP: u32 = 1 << 2;
+pub const L2_FLAGS_RESERVED: u32 = 1 << 3;
 
 pub const L3_FLAGS_IPV4: u32 = 1 << 0;
 pub const L3_FLAGS_IPV6: u32 = 1 << 1;
-pub const L3_FLAGS_ARP: u32 = 1 << 2;
-pub const L3_FLAGS_EAPOL: u32 = 1 << 3;
-pub const L3_FLAGS_OTHER: u32 = 1 << 4;
+pub const L3_FLAGS_EAPOL: u32 = 1 << 2;
+pub const L3_FLAGS_OTHER: u32 = 1 << 3;
+
+pub const L4_FLAGS_TCP: u32 = 1 << 0;
+pub const L4_FLAGS_UDP: u32 = 1 << 1;
+pub const L4_FLAGS_ICMP: u32 = 1 << 2;
+pub const L4_FLAGS_ICMPV6: u32 = 1 << 3;
+pub const L4_FLAGS_OTHER: u32 = 1 << 4;
+pub const L4_FLAGS_RESERVED: u32 = 1 << 5;
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default)]
 pub struct AfXdpRxConfig {
     pub l2_flags: u32,
     pub l3_flags: u32,
+    pub l4_flags: u32,
 }
 
 impl AfXdpRxConfig {
-    pub fn user_all() -> Self {
+    pub fn kernel_only() -> Self {
         Self {
             l2_flags: 0,
             l3_flags: 0,
+            l4_flags: 0,
         }
     }
+
+    pub fn arp_filter() -> Self {
+        Self {
+            l2_flags: L2_FLAGS_ETH | L2_FLAGS_VLAN | L2_FLAGS_ARP,
+            l3_flags: 0,
+            l4_flags: 0,
+        }
+    }
+
+    pub fn vlan_filter() -> Self {
+        Self {
+            l2_flags: L2_FLAGS_VLAN,
+            l3_flags: 0,
+            l4_flags: 0,
+        }
+    }
+
+    pub fn l3_other_filter() -> Self {
+        Self {
+            l2_flags: L2_FLAGS_ETH | L2_FLAGS_VLAN,
+            l3_flags: L3_FLAGS_OTHER,
+            l4_flags: 0,
+        }
+    }
+
     pub fn eapol_filter() -> Self {
         Self {
             l2_flags: L2_FLAGS_ETH | L2_FLAGS_VLAN,
             l3_flags: L3_FLAGS_EAPOL,
+            l4_flags: 0,
+        }
+    }
+
+    pub fn tcp_udp_userspace_filter() -> Self {
+        Self {
+            l2_flags: L2_FLAGS_ETH | L2_FLAGS_VLAN,
+            l3_flags: L3_FLAGS_IPV4 | L3_FLAGS_IPV6,
+            l4_flags: L4_FLAGS_TCP | L4_FLAGS_UDP,
         }
     }
 }
@@ -668,7 +711,7 @@ impl Nic {
         // Update config_map immediately after XDP program is attached
         // This ensures the map is initialized before any packets are processed
         // Use provided config_value or default to kernel-only if None
-        let init_config_value = config_value.unwrap_or_else(AfXdpRxConfig::user_all);
+        let init_config_value = config_value.unwrap_or_else(AfXdpRxConfig::kernel_only);
         if config_map_fd >= 0 {
             let key: i32 = 0;
             let key_ptr = &key as *const i32;

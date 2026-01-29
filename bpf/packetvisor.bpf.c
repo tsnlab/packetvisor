@@ -21,6 +21,17 @@ struct vlan_hdr {
 	__be16 h_vlan_encapsulated_proto;
 };
 
+struct llc_hdr {
+	__u8 dsap;
+	__u8 ssap;
+	__u8 ctrl;
+};
+
+struct snap_hdr {
+	__u8 oui[3];
+	__be16 ethertype;
+};
+
 #define DEFAULT_QUEUE_IDS 64
 
 struct {
@@ -49,6 +60,50 @@ struct {
  */
  volatile int refcnt = 1;
 
+static __always_inline bool match_l4_ipv4(__u8 proto, __u32 l4_flags)
+{
+	if (!l4_flags)
+		return true;
+
+	switch (proto) {
+	case IPPROTO_TCP:
+		bpf_printk("[%s / %d] TCP Packet Detected", __func__, __LINE__);
+		bpf_printk("[%s / %d] Result: %d", __func__, __LINE__, l4_flags & L4_FLAGS_TCP);
+		return (l4_flags & L4_FLAGS_TCP) != 0;
+	case IPPROTO_UDP:
+		bpf_printk("[%s / %d] UDP Packet Detected", __func__, __LINE__);
+		bpf_printk("[%s / %d] Result: %d", __func__, __LINE__, l4_flags & L4_FLAGS_UDP);
+		return (l4_flags & L4_FLAGS_UDP) != 0;
+	case IPPROTO_ICMP:
+		bpf_printk("[%s / %d] ICMP Packet Detected", __func__, __LINE__);
+		bpf_printk("[%s / %d] Result: %d", __func__, __LINE__, l4_flags & L4_FLAGS_ICMP);
+		return (l4_flags & L4_FLAGS_ICMP) != 0;
+	default:
+		return (l4_flags & L4_FLAGS_OTHER) != 0;
+	}
+}
+
+static __always_inline bool match_l4_ipv6(__u8 proto, __u32 l4_flags)
+{
+	if (!l4_flags)
+		return true;
+
+	switch (proto) {
+	case IPPROTO_TCP:
+		bpf_printk("[%s / %d] TCP Packet Detected", __func__, __LINE__);
+		bpf_printk("[%s / %d] Result: %d", __func__, __LINE__, l4_flags & L4_FLAGS_TCP);
+		return (l4_flags & L4_FLAGS_TCP) != 0;
+	case IPPROTO_UDP:
+		bpf_printk("[%s / %d] UDP Packet Detected", __func__, __LINE__);
+		bpf_printk("[%s / %d] Result: %d", __func__, __LINE__, l4_flags & L4_FLAGS_UDP);
+		return (l4_flags & L4_FLAGS_UDP) != 0;
+	case IPPROTO_ICMP:
+		bpf_printk("[%s / %d] ICMP Packet Detected", __func__, __LINE__);
+		bpf_printk("[%s / %d] Result: %d", __func__, __LINE__, l4_flags & L4_FLAGS_ICMPV6);
+	default:
+		return (l4_flags & L4_FLAGS_OTHER) != 0;
+	}
+}
 
 static __always_inline bool match_l3_flag(__u16 h_proto, __u32 l3_flags)
 {
@@ -60,18 +115,16 @@ static __always_inline bool match_l3_flag(__u16 h_proto, __u32 l3_flags)
 		return (l3_flags & L3_FLAGS_IPV4) != 0;
 	case ETH_P_IPV6:
 		return (l3_flags & L3_FLAGS_IPV6) != 0;
-	case ETH_P_ARP:
-		return (l3_flags & L3_FLAGS_ARP) != 0;
 	case ETH_P_PAE:
-		bpf_printk("Proto is EAPOL");
-		bpf_printk("Result: %d\n", l3_flags & L3_FLAGS_EAPOL);
+		bpf_printk("[%s / %d] EAPOL Packet Detected", __func__, __LINE__);
+		bpf_printk("[%s / %d] Result: %d", __func__, __LINE__, l3_flags & L3_FLAGS_EAPOL);
 		return (l3_flags & L3_FLAGS_EAPOL) != 0;
 	default:
 		return (l3_flags & L3_FLAGS_OTHER) != 0;
 	}
 }
 
-static __always_inline bool match_ipv4_l4(void *nh, void *data_end)
+static __always_inline bool match_ipv4_l4(void *nh, void *data_end, __u32 l4_flags)
 {
 	struct iphdr *ip = nh;
 	__u32 ihl;
@@ -87,6 +140,12 @@ static __always_inline bool match_ipv4_l4(void *nh, void *data_end)
 	if ((void *)ip + ihl > data_end)
 		return false;
 
+	if (!match_l4_ipv4(ip->protocol, l4_flags))
+		return false;
+
+	if (!l4_flags)
+		return true;
+
 	l4 = (void *)ip + ihl;
 	switch (ip->protocol) {
 	case IPPROTO_TCP:
@@ -100,13 +159,19 @@ static __always_inline bool match_ipv4_l4(void *nh, void *data_end)
 	}
 }
 
-static __always_inline bool match_ipv6_l4(void *nh, void *data_end)
+static __always_inline bool match_ipv6_l4(void *nh, void *data_end, __u32 l4_flags)
 {
 	struct ipv6hdr *ip6 = nh;
 	void *l4;
 
 	if ((void *)(ip6 + 1) > data_end)
 		return false;
+
+	if (!match_l4_ipv6(ip6->nexthdr, l4_flags))
+		return false;
+
+	if (!l4_flags)
+		return true;
 
 	l4 = (void *)(ip6 + 1);
 	switch (ip6->nexthdr) {
@@ -147,14 +212,8 @@ int xsk_packetvisor_prog(struct xdp_md *ctx)
 	if (!rx_config)
 		return XDP_PASS;
 
-	if (!(rx_config->l2_flags || rx_config->l3_flags)) {
-		int index = ctx->rx_queue_index;
-
-		if (bpf_map_lookup_elem(&xsks_map, &index))
-			return bpf_redirect_map(&xsks_map, index, 0);
-
+	if (!(rx_config->l2_flags || rx_config->l3_flags || rx_config->l4_flags))
 		return XDP_PASS;
-	}
 
 	h_proto = bpf_ntohs(eth->h_proto);
 	nh = eth + 1;
@@ -169,7 +228,29 @@ int xsk_packetvisor_prog(struct xdp_md *ctx)
 		vlan = true;
 	}
 
+	if (h_proto <= ETH_P_802_3_MIN) {
+		struct llc_hdr *llc = nh;
+		struct snap_hdr *snap;
+
+		if ((void *)(llc + 1) > data_end)
+			return XDP_PASS;
+
+		if (llc->dsap == 0xaa && llc->ssap == 0xaa && llc->ctrl == 0x03) {
+			snap = (void *)(llc + 1);
+			if ((void *)(snap + 1) > data_end)
+				return XDP_PASS;
+			if (snap->oui[0] == 0x00 && snap->oui[1] == 0x00 && snap->oui[2] == 0x00) {
+				h_proto = bpf_ntohs(snap->ethertype);
+				nh = snap + 1;
+			}
+		}
+	}
+
 	if (rx_config->l2_flags) {
+		if (rx_config->l2_flags & L2_FLAGS_ARP) {
+			if (h_proto != ETH_P_ARP)
+				matched = false;
+		}
 		if (vlan) {
 			if (!(rx_config->l2_flags & L2_FLAGS_VLAN))
 				matched = false;
@@ -179,28 +260,31 @@ int xsk_packetvisor_prog(struct xdp_md *ctx)
 		}
 	}
 
-	if (matched && rx_config->l3_flags) {
+	if (matched && rx_config->l3_flags && h_proto != ETH_P_ARP) {
 		if (!match_l3_flag(h_proto, rx_config->l3_flags))
 			matched = false;
 	}
 
-	if (matched) {
+	if (matched && rx_config->l4_flags) {
 		if (h_proto == ETH_P_IP) {
-			if (!match_ipv4_l4(nh, data_end))
+			if (!match_ipv4_l4(nh, data_end, rx_config->l4_flags))
 				matched = false;
 		} else if (h_proto == ETH_P_IPV6) {
-			if (!match_ipv6_l4(nh, data_end))
+			if (!match_ipv6_l4(nh, data_end, rx_config->l4_flags))
 				matched = false;
 		}
 	}
 
-	if (matched)
-		return XDP_PASS;
+	if (matched) {
+		/* Packet matched config, redirect to user space if socket is bound */
+		int index = ctx->rx_queue_index;
+		if (bpf_map_lookup_elem(&xsks_map, &index)) {
+			bpf_printk("Send to userspace by Filter");
+			return bpf_redirect_map(&xsks_map, index, 0);
+		}
 
-	/* Packet did not match config, redirect to user space if socket is bound */
-	int index = ctx->rx_queue_index;
-	if (bpf_map_lookup_elem(&xsks_map, &index))
-		return bpf_redirect_map(&xsks_map, index, 0);
+		return XDP_PASS;
+	}
 
 	return XDP_PASS;
 }
