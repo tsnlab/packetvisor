@@ -1,3 +1,5 @@
+/* SPDX-License-Identifier: GPLv3.0+ */
+
 #ifndef AF_XDP_KERN_H
 #define AF_XDP_KERN_H
 
@@ -37,6 +39,5 @@ struct af_xdp_rx_config{
 
     // TODO: match ipv4 address & TCP, UDP port number
 };
-
 
 #endif
