@@ -195,7 +195,7 @@ int xsk_packetvisor_prog(struct xdp_md *ctx)
 	void *data_end = (void *)(long)ctx->data_end;
 	struct ethhdr *eth = data;
 	struct af_xdp_rx_config *rx_config;
-	int config_key = PACKERVISOR_CONFIG_KEY;
+	int config_key = PACKETVISOR_CONFIG_KEY;
 	__u16 h_proto;
 	void *nh;
 	bool vlan = false;

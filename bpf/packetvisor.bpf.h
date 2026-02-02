@@ -7,8 +7,8 @@
 #include <bpf/bpf_helpers.h>
 #include <xdp/xdp_helpers.h>
 
-/* Packervisor configuration key */
-#define PACKERVISOR_CONFIG_KEY 0
+/* Packetvisor configuration key */
+#define PACKETVISOR_CONFIG_KEY 0
 
 
 /* L2 flags */
