@@ -90,7 +90,6 @@ pub struct AfXdpRxConfig {
     pub l4_flags: u32,
 }
 
-
 /********************************************************************
  *
  * Structures
@@ -703,10 +702,9 @@ impl Nic {
             }
         }
 
-        // Store prog, attach_mode, and xsks_map_fd for cleanup later
+        // Store prog and attach_mode for cleanup later
         let xdp_prog = prog;
         let xdp_attach_mode = attach_mode;
-        let xsks_map_fd = xsks_map_fd;
 
         let xsk_ptr = alloc_zeroed_layout::<xsk_socket>()?;
         let rx_ptr = alloc_zeroed_layout::<xsk_ring_cons>()?;
@@ -730,11 +728,11 @@ impl Nic {
                 txq: std::ptr::read(tx_ptr.cast::<xsk_ring_prod>()),
                 umem_fq: std::ptr::read(fq_ptr.cast::<xsk_ring_prod>()),
                 umem_cq: std::ptr::read(cq_ptr.cast::<xsk_ring_cons>()),
-                xdp_prog: xdp_prog,
-                xdp_attach_mode: xdp_attach_mode,
-                ifindex: ifindex,
-                xsks_map_fd: xsks_map_fd,
-                config_map_fd: config_map_fd,
+                xdp_prog,
+                xdp_attach_mode,
+                ifindex,
+                xsks_map_fd,
+                config_map_fd,
             }
         };
 
@@ -1141,9 +1139,9 @@ impl Packet {
                 count += 1;
                 if count == length {
                     break;
-                } else if count % 8 == 0 {
+                } else if count.is_multiple_of(8) {
                     print!(" ");
-                    if count % 16 == 0 {
+                    if count.is_multiple_of(16) {
                         println!();
                     }
                 }
