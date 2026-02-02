@@ -115,10 +115,6 @@ static __always_inline bool match_l3_flag(__u16 h_proto, __u32 l3_flags)
 		return (l3_flags & L3_FLAGS_IPV4) != 0;
 	case ETH_P_IPV6:
 		return (l3_flags & L3_FLAGS_IPV6) != 0;
-	case ETH_P_PAE:
-		bpf_printk("[%s / %d] EAPOL Packet Detected", __func__, __LINE__);
-		bpf_printk("[%s / %d] Result: %d", __func__, __LINE__, l3_flags & L3_FLAGS_EAPOL);
-		return (l3_flags & L3_FLAGS_EAPOL) != 0;
 	default:
 		return (l3_flags & L3_FLAGS_OTHER) != 0;
 	}
@@ -247,8 +243,8 @@ int xsk_packetvisor_prog(struct xdp_md *ctx)
 	}
 
 	if (rx_config->l2_flags) {
-		if (rx_config->l2_flags & L2_FLAGS_ARP) {
-			if (h_proto != ETH_P_ARP)
+		if (h_proto == ETH_P_ARP) {
+			if (!(rx_config->l2_flags & L2_FLAGS_ARP))
 				matched = false;
 		}
 		if (vlan) {
