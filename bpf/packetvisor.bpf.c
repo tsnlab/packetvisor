@@ -13,13 +13,9 @@
 #include <bpf/bpf_endian.h>
 #include <bpf/bpf_helpers.h>
 #include <xdp/xdp_helpers.h>
+#include <xdp/parsing_helpers.h>
 
 #include "packetvisor.bpf.h"
-
-struct vlan_hdr {
-	__be16 h_vlan_TCI;
-	__be16 h_vlan_encapsulated_proto;
-};
 
 struct llc_hdr {
 	__u8 dsap;
