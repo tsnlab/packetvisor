@@ -193,23 +193,32 @@ int xsk_packetvisor_prog(struct xdp_md *ctx)
 	bool vlan = false;
 	bool matched = true;
 
-	/* Make sure refcount is referenced by the program */
+	/* Program enabled check: if refcnt is zero, always pass to kernel */
 	if (!refcnt)
 		return XDP_PASS;
 
+	/* Ensure Ethernet header is within bounds */
 	if ((void *)(eth + 1) > data_end)
 		return XDP_PASS;
 
+	/* Read filter configuration from user space */
 	rx_config = bpf_map_lookup_elem(&config_map, &config_key);
 	if (!rx_config)
 		return XDP_PASS;
 
+	/*
+	 * No filter flags set:
+	 * - By design, treat as "no userspace filter"
+	 * - Default to kernel path
+	 */
 	if (!(rx_config->l2_flags || rx_config->l3_flags || rx_config->l4_flags))
 		return XDP_PASS;
 
+	/* Start L2 parsing from Ethernet header */
 	h_proto = bpf_ntohs(eth->h_proto);
 	nh = eth + 1;
-	if (h_proto == ETH_P_8021Q || h_proto == ETH_P_8021AD) {
+	/* VLAN tag present: advance to encapsulated EtherType */
+	if (h_proto == ETH_P_8021Q) {
 		struct vlan_hdr *vh = nh;
 
 		if ((void *)(vh + 1) > data_end)
@@ -220,7 +229,12 @@ int xsk_packetvisor_prog(struct xdp_md *ctx)
 		vlan = true;
 	}
 
+	/*
+	 * 802.3 length field case: EtherType is in LLC/SNAP
+	 * This is required for EAPOL on some WiFi paths.
+	 */
 	if (h_proto <= ETH_P_802_3_MIN) {
+		/* 802.3 length field: check LLC/SNAP for real EtherType */
 		struct llc_hdr *llc = nh;
 		struct snap_hdr *snap;
 
@@ -239,6 +253,11 @@ int xsk_packetvisor_prog(struct xdp_md *ctx)
 	}
 
 	if (rx_config->l2_flags) {
+		/*
+		 * L2 filter:
+		 * - ETH/VLAN selection
+		 * - Optional ARP gating (ARP must be explicitly allowed)
+		 */
 		if (h_proto == ETH_P_ARP) {
 			if (!(rx_config->l2_flags & L2_FLAGS_ARP))
 				matched = false;
@@ -253,11 +272,21 @@ int xsk_packetvisor_prog(struct xdp_md *ctx)
 	}
 
 	if (matched && rx_config->l3_flags && h_proto != ETH_P_ARP) {
+		/*
+		 * L3 filter (non-ARP only):
+		 * - IPv4 / IPv6 / EAPOL(ETH_P_PAE) / OTHER
+		 * - ARP is handled entirely in L2
+		 */
 		if (!match_l3_flag(h_proto, rx_config->l3_flags))
 			matched = false;
 	}
 
 	if (matched && rx_config->l4_flags) {
+		/*
+		 * L4 filter (IP only):
+		 * - TCP/UDP/ICMP/ICMPv6 selection
+		 * - Also validates L4 header bounds
+		 */
 		if (h_proto == ETH_P_IP) {
 			if (!match_ipv4_l4(nh, data_end, rx_config->l4_flags))
 				matched = false;
@@ -268,7 +297,11 @@ int xsk_packetvisor_prog(struct xdp_md *ctx)
 	}
 
 	if (matched) {
-		/* Packet matched config, redirect to user space if socket is bound */
+		/*
+		 * Matched filter:
+		 * - Userspace processing requested for this packet
+		 * - Redirect only if AF_XDP socket is bound to this queue
+		 */
 		int index = ctx->rx_queue_index;
 		if (bpf_map_lookup_elem(&xsks_map, &index)) {
 			bpf_printk("Send to userspace by Filter");
@@ -278,6 +311,7 @@ int xsk_packetvisor_prog(struct xdp_md *ctx)
 		return XDP_PASS;
 	}
 
+	/* Not matched: default to kernel path */
 	return XDP_PASS;
 }
 
