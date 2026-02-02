@@ -9,6 +9,7 @@
 #include <linux/ipv6.h>
 #include <linux/tcp.h>
 #include <linux/udp.h>
+#include <linux/if_fddi.h>
 #include <stdbool.h>
 #include <bpf/bpf_endian.h>
 #include <bpf/bpf_helpers.h>
@@ -16,17 +17,6 @@
 #include <xdp/parsing_helpers.h>
 
 #include "packetvisor.bpf.h"
-
-struct llc_hdr {
-	__u8 dsap;
-	__u8 ssap;
-	__u8 ctrl;
-};
-
-struct snap_hdr {
-	__u8 oui[3];
-	__be16 ethertype;
-};
 
 #define DEFAULT_QUEUE_IDS 64
 
@@ -235,16 +225,12 @@ int xsk_packetvisor_prog(struct xdp_md *ctx)
 	 */
 	if (h_proto <= ETH_P_802_3_MIN) {
 		/* 802.3 length field: check LLC/SNAP for real EtherType */
-		struct llc_hdr *llc = nh;
-		struct snap_hdr *snap;
+		struct fddi_snap_hdr *snap = nh;
 
-		if ((void *)(llc + 1) > data_end)
+		if ((void *)(snap + 1) > data_end)
 			return XDP_PASS;
 
-		if (llc->dsap == 0xaa && llc->ssap == 0xaa && llc->ctrl == 0x03) {
-			snap = (void *)(llc + 1);
-			if ((void *)(snap + 1) > data_end)
-				return XDP_PASS;
+		if (snap->dsap == 0xaa && snap->ssap == 0xaa && snap->ctrl == 0x03) {
 			if (snap->oui[0] == 0x00 && snap->oui[1] == 0x00 && snap->oui[2] == 0x00) {
 				h_proto = bpf_ntohs(snap->ethertype);
 				nh = snap + 1;
