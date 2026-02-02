@@ -15,13 +15,14 @@
 #define L2_FLAGS_ETH (1 << 0)
 #define L2_FLAGS_VLAN (1 << 1)
 #define L2_FLAGS_ARP (1 << 2)
-#define L2_FLAGS_RESERVED (1 << 3)
+#define L2_FLAGS_OTHER (1 << 3)
+#define L2_FLAGS_RESERVED (1 << 4)
 
 /* L3 flags */
 #define L3_FLAGS_IPV4 (1 << 0)
 #define L3_FLAGS_IPV6 (1 << 1)
-#define L3_FLAGS_EAPOL (1 << 2)
-#define L3_FLAGS_OTHER (1 << 3)
+#define L3_FLAGS_OTHER (1 << 2)
+#define L3_FLAGS_RESERVED (1 << 3)
 
 /* L4 flags */
 #define L4_FLAGS_TCP (1 << 0)
