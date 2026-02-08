@@ -222,6 +222,10 @@ int xsk_packetvisor_prog(struct xdp_md *ctx)
 	/*
 	 * 802.3 length field case: EtherType is in LLC/SNAP
 	 * This is required for EAPOL on some WiFi paths.
+	 *
+	 * NOTE:
+	 * If h_proto is less than ETH_P_802_3_MIN (0x0600),
+	 * the field is interpreted as a frame length according to the IEEE 802.3 specification.
 	 */
 	if (h_proto <= ETH_P_802_3_MIN) {
 		/* 802.3 length field: check LLC/SNAP for real EtherType */
@@ -237,6 +241,8 @@ int xsk_packetvisor_prog(struct xdp_md *ctx)
 			}
 		}
 	}
+
+	/* Ethernet II frame: EtherType >= ETH_P_802_3_MIN */
 
 	if (rx_config->l2_flags) {
 		/*
