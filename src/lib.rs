@@ -46,7 +46,7 @@ mod bindings {
     include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 }
 
-mod presets;
+mod xdp_config;
 
 use bindings::*;
 use pnet::datalink::{interfaces, NetworkInterface};
@@ -64,23 +64,6 @@ use std::time::Duration;
 use libc::strerror;
 
 const DEFAULT_HEADROOM: usize = 256;
-
-pub const L2_FLAGS_ETH: u32 = 1 << 0;
-pub const L2_FLAGS_VLAN: u32 = 1 << 1;
-pub const L2_FLAGS_ARP: u32 = 1 << 2;
-pub const L2_FLAGS_RESERVED: u32 = 1 << 3;
-
-pub const L3_FLAGS_IPV4: u32 = 1 << 0;
-pub const L3_FLAGS_IPV6: u32 = 1 << 1;
-pub const L3_FLAGS_EAPOL: u32 = 1 << 2;
-pub const L3_FLAGS_OTHER: u32 = 1 << 3;
-
-pub const L4_FLAGS_TCP: u32 = 1 << 0;
-pub const L4_FLAGS_UDP: u32 = 1 << 1;
-pub const L4_FLAGS_ICMP: u32 = 1 << 2;
-pub const L4_FLAGS_ICMPV6: u32 = 1 << 3;
-pub const L4_FLAGS_OTHER: u32 = 1 << 4;
-pub const L4_FLAGS_RESERVED: u32 = 1 << 5;
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default)]
