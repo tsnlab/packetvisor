@@ -53,16 +53,10 @@ static __always_inline bool match_l4_ipv4(__u8 proto, __u32 l4_flags)
 
 	switch (proto) {
 	case IPPROTO_TCP:
-		bpf_printk("[%s / %d] TCP Packet Detected", __func__, __LINE__);
-		bpf_printk("[%s / %d] Result: %d", __func__, __LINE__, l4_flags & L4_FLAGS_TCP);
 		return (l4_flags & L4_FLAGS_TCP) != 0;
 	case IPPROTO_UDP:
-		bpf_printk("[%s / %d] UDP Packet Detected", __func__, __LINE__);
-		bpf_printk("[%s / %d] Result: %d", __func__, __LINE__, l4_flags & L4_FLAGS_UDP);
 		return (l4_flags & L4_FLAGS_UDP) != 0;
 	case IPPROTO_ICMP:
-		bpf_printk("[%s / %d] ICMP Packet Detected", __func__, __LINE__);
-		bpf_printk("[%s / %d] Result: %d", __func__, __LINE__, l4_flags & L4_FLAGS_ICMP);
 		return (l4_flags & L4_FLAGS_ICMP) != 0;
 	default:
 		return (l4_flags & L4_FLAGS_OTHER) != 0;
@@ -76,16 +70,11 @@ static __always_inline bool match_l4_ipv6(__u8 proto, __u32 l4_flags)
 
 	switch (proto) {
 	case IPPROTO_TCP:
-		bpf_printk("[%s / %d] TCP Packet Detected", __func__, __LINE__);
-		bpf_printk("[%s / %d] Result: %d", __func__, __LINE__, l4_flags & L4_FLAGS_TCP);
 		return (l4_flags & L4_FLAGS_TCP) != 0;
 	case IPPROTO_UDP:
-		bpf_printk("[%s / %d] UDP Packet Detected", __func__, __LINE__);
-		bpf_printk("[%s / %d] Result: %d", __func__, __LINE__, l4_flags & L4_FLAGS_UDP);
 		return (l4_flags & L4_FLAGS_UDP) != 0;
 	case IPPROTO_ICMP:
-		bpf_printk("[%s / %d] ICMP Packet Detected", __func__, __LINE__);
-		bpf_printk("[%s / %d] Result: %d", __func__, __LINE__, l4_flags & L4_FLAGS_ICMPV6);
+        return (l4_flags & L4_FLAGS_ICMPV6);
 	default:
 		return (l4_flags & L4_FLAGS_OTHER) != 0;
 	}
@@ -234,7 +223,7 @@ int xsk_packetvisor_prog(struct xdp_md *ctx)
 		if ((void *)(snap + 1) > data_end)
 			return XDP_PASS;
 
-		if (snap->dsap == 0xaa && snap->ssap == 0xaa && snap->ctrl == 0x03) {
+		if (snap->dsap == LLC_SNAP_DSAP && snap->ssap == LLC_SNAP_SSAP && snap->ctrl == LLC_SNP_CONTROL) {
 			if (snap->oui[0] == 0x00 && snap->oui[1] == 0x00 && snap->oui[2] == 0x00) {
 				h_proto = bpf_ntohs(snap->ethertype);
 				nh = snap + 1;
@@ -296,7 +285,6 @@ int xsk_packetvisor_prog(struct xdp_md *ctx)
 		 */
 		int index = ctx->rx_queue_index;
 		if (bpf_map_lookup_elem(&xsks_map, &index)) {
-			bpf_printk("Send to userspace by Filter");
 			return bpf_redirect_map(&xsks_map, index, 0);
 		}
 

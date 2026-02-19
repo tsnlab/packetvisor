@@ -10,7 +10,6 @@
 /* Packetvisor configuration key */
 #define PACKETVISOR_CONFIG_KEY 0
 
-
 /* L2 flags */
 #define L2_FLAGS_ETH (1 << 0)
 #define L2_FLAGS_VLAN (1 << 1)
@@ -31,6 +30,11 @@
 #define L4_FLAGS_ICMPV6 (1 << 3)
 #define L4_FLAGS_OTHER (1 << 4)
 #define L4_FLAGS_RESERVED (1 << 5)
+
+/* Headers */
+#define LLC_SNAP_DSAP   0xAA
+#define LLC_SNAP_SSAP   0xAA
+#define LLC_SNAP_CONTROL  0x03
 
 /* AF_XDP rx configuration */
 struct af_xdp_rx_config{
