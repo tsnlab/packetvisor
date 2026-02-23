@@ -95,7 +95,7 @@ static __always_inline bool match_l3_flag(__u16 h_proto, __u32 l3_flags)
 	}
 }
 
-static __always_inline bool match_ipv4_l4(void *nh, void *data_end, __u32 l4_flags)
+static __always_inline bool match_l4_over_ipv4(void *nh, void *data_end, __u32 l4_flags)
 {
 	struct iphdr *ip = nh;
 	__u32 ihl;
@@ -130,7 +130,7 @@ static __always_inline bool match_ipv4_l4(void *nh, void *data_end, __u32 l4_fla
 	}
 }
 
-static __always_inline bool match_ipv6_l4(void *nh, void *data_end, __u32 l4_flags)
+static __always_inline bool match_l4_over_ipv6(void *nh, void *data_end, __u32 l4_flags)
 {
 	struct ipv6hdr *ip6 = nh;
 	void *l4;
@@ -269,10 +269,10 @@ int xsk_packetvisor_prog(struct xdp_md *ctx)
 		 * - Also validates L4 header bounds
 		 */
 		if (h_proto == ETH_P_IP) {
-			if (!match_ipv4_l4(nh, data_end, rx_config->l4_flags))
+			if (!match_l4_over_ipv4(nh, data_end, rx_config->l4_flags))
 				matched = false;
 		} else if (h_proto == ETH_P_IPV6) {
-			if (!match_ipv6_l4(nh, data_end, rx_config->l4_flags))
+			if (!match_l4_over_ipv6(nh, data_end, rx_config->l4_flags))
 				matched = false;
 		}
 	}
