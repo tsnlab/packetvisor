@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-3.0+
+# SPDX-License-Identifier: GPLv3+
 
 # Default values - can be overridden by build.rs
 CLANG ?= clang

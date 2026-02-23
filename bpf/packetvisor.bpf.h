@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPLv3.0+ */
+// SPDX-License-Identifier: GPLv3+
 
 #ifndef AF_XDP_KERN_H
 #define AF_XDP_KERN_H

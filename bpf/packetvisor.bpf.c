@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPLv3.0+ */
+// SPDX-License-Identifier: GPLv3+
 
 #include <linux/bpf.h>
 #include <linux/if_ether.h>
@@ -295,4 +295,4 @@ int xsk_packetvisor_prog(struct xdp_md *ctx)
 	return XDP_PASS;
 }
 
-char _license[] SEC("license") = "GPLv3.0+";
+char _license[] SEC("license") = "GPLv3+";
