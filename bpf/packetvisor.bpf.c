@@ -223,7 +223,7 @@ int xsk_packetvisor_prog(struct xdp_md *ctx)
 		if ((void *)(snap + 1) > data_end)
 			return XDP_PASS;
 
-		if (snap->dsap == LLC_SNAP_DSAP && snap->ssap == LLC_SNAP_SSAP && snap->ctrl == LLC_SNP_CONTROL) {
+		if (snap->dsap == LLC_SNAP_DSAP && snap->ssap == LLC_SNAP_SSAP && snap->ctrl == LLC_SNAP_CONTROL) {
 			if (snap->oui[0] == 0x00 && snap->oui[1] == 0x00 && snap->oui[2] == 0x00) {
 				h_proto = bpf_ntohs(snap->ethertype);
 				nh = snap + 1;
