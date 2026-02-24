@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPLv3+
+
 //!
 //! # Packetvisor
 //!
@@ -46,12 +48,15 @@ mod bindings {
     include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 }
 
+mod xdp_config;
+
 use bindings::*;
 use pnet::datalink::{interfaces, NetworkInterface};
 use std::alloc::{alloc_zeroed, Layout};
 use std::cell::RefCell;
 use std::collections::hash_set::HashSet;
 use std::convert::TryInto;
+use std::env;
 use std::ffi::{c_char, c_int, c_void, CStr, CString};
 use std::ptr::copy;
 use std::rc::Rc;
@@ -59,6 +64,8 @@ use std::thread;
 use std::time::Duration;
 
 use libc::strerror;
+
+use crate::xdp_config::AfXdpRxConfig;
 
 const DEFAULT_HEADROOM: usize = 256;
 
@@ -107,6 +114,13 @@ pub struct Nic {
     txq: xsk_ring_prod,
     umem_fq: xsk_ring_prod,
     umem_cq: xsk_ring_cons,
+
+    /* XDP program */
+    xdp_prog: *mut xdp_program,
+    xdp_attach_mode: xdp_attach_mode,
+    ifindex: i32,
+    xsks_map_fd: i32,
+    config_map_fd: i32, // File descriptor for config_map to pass values to XDP program
 }
 
 /// Packet Structure used by Packetvisor
@@ -488,6 +502,7 @@ impl Nic {
     /// `cq_size` - completion ring size \
     /// `tx_size` - tx ring size \
     /// `rx_size` - rx ring size \
+    /// `config_value` - initial value for config_map (default: kernel-only if None) \
     /// # Returns
     /// On success, returns `pv::Nic` bound to the network interface. \
     /// On failure, returns an error string.
@@ -499,11 +514,176 @@ impl Nic {
         cq_size: usize,
         tx_size: usize,
         rx_size: usize,
+        config_value: Option<AfXdpRxConfig>,
     ) -> Result<Nic, String> {
+        // Load and attach XDP program
+        // BPF_OBJECT_PATH is set at compile time by build.rs
+        let bpf_obj_path = env!("BPF_OBJECT_PATH");
+
+        let bpf_obj_cstr =
+            CString::new(bpf_obj_path).map_err(|e| format!("Failed to create CString: {}", e))?;
+
+        // Program name in the BPF object file
+        let prog_name_cstr = CString::new("xsk_packetvisor_prog")
+            .map_err(|e| format!("Failed to create CString for program name: {}", e))?;
+
+        // Initialize xdp_program_opts
+        let mut opts = xdp_program_opts {
+            sz: std::mem::size_of::<xdp_program_opts>(),
+            obj: std::ptr::null_mut(),
+            opts: std::ptr::null_mut(),
+            prog_name: prog_name_cstr.as_ptr(),
+            find_filename: std::ptr::null(),
+            open_filename: bpf_obj_cstr.as_ptr(),
+            pin_path: std::ptr::null(),
+            id: 0,
+            fd: 0,
+        };
+
+        // Create XDP program
+        let prog = unsafe { xdp_program__create(&mut opts as *mut xdp_program_opts) };
+        if prog.is_null() {
+            return Err("Failed to create XDP program".to_string());
+        }
+
+        // Check for errors
+        let err = unsafe { libxdp_get_error(prog as *const c_void) };
+        if err != 0 {
+            let mut errmsg = vec![0u8; 1024];
+            unsafe {
+                libxdp_strerror(
+                    err.try_into().unwrap(),
+                    errmsg.as_mut_ptr() as *mut c_char,
+                    errmsg.len(),
+                );
+            }
+            let err_str = unsafe {
+                CStr::from_ptr(errmsg.as_ptr() as *const c_char)
+                    .to_string_lossy()
+                    .to_string()
+            };
+            return Err(format!("Failed to load XDP program: {} ({})", err_str, err));
+        }
+
+        // Find interface first to get ifindex
         let interface = interfaces()
             .into_iter()
             .find(|elem| elem.name.as_str() == if_name)
             .ok_or(format!("Interface {} not found.", if_name))?;
+
+        // Get interface index
+        let ifindex = interface.index as i32;
+
+        // Attach XDP program to interface (try native mode first, fallback to SKB mode)
+        let mut attach_mode = xdp_attach_mode_XDP_MODE_NATIVE;
+        let mut ret = unsafe { xdp_program__attach(prog, ifindex, attach_mode, 0) };
+
+        if ret != 0 {
+            // Try SKB mode if native mode fails
+            attach_mode = xdp_attach_mode_XDP_MODE_SKB;
+            ret = unsafe { xdp_program__attach(prog, ifindex, attach_mode, 0) };
+            if ret != 0 {
+                let mut errmsg = vec![0u8; 1024];
+                unsafe {
+                    libxdp_strerror(ret, errmsg.as_mut_ptr() as *mut c_char, errmsg.len());
+                }
+                let err_str = unsafe {
+                    CStr::from_ptr(errmsg.as_ptr() as *const c_char)
+                        .to_string_lossy()
+                        .to_string()
+                };
+                return Err(format!(
+                    "Failed to attach XDP program to interface: {} ({})",
+                    err_str, ret
+                ));
+            }
+        }
+
+        // Get xsks_map file descriptor for later use
+        let bpf_obj = unsafe { xdp_program__bpf_obj(prog) };
+        if bpf_obj.is_null() {
+            return Err("Failed to get BPF object from XDP program".to_string());
+        }
+
+        let xsks_map_name =
+            CString::new("xsks_map").map_err(|e| format!("Failed to create CString: {}", e))?;
+        let xsks_map = unsafe { bpf_object__find_map_by_name(bpf_obj, xsks_map_name.as_ptr()) };
+        if xsks_map.is_null() {
+            return Err("Failed to find xsks_map in BPF object".to_string());
+        }
+
+        let xsks_map_fd = unsafe { bpf_map__fd(xsks_map) };
+        if xsks_map_fd < 0 {
+            return Err(format!(
+                "Failed to get xsks_map file descriptor: {}",
+                xsks_map_fd
+            ));
+        }
+
+        // Get config_map file descriptor for passing values to XDP program
+        let config_map_name =
+            CString::new("config_map").map_err(|e| format!("Failed to create CString: {}", e))?;
+        let config_map = unsafe { bpf_object__find_map_by_name(bpf_obj, config_map_name.as_ptr()) };
+        let config_map_fd = if config_map.is_null() {
+            -1 // Map not found, optional map
+        } else {
+            let fd = unsafe { bpf_map__fd(config_map) };
+            if fd < 0 {
+                -1 // Failed to get fd, optional map
+            } else {
+                fd
+            }
+        };
+
+        /*****************************************************************
+         * TODO: Update config_value to specific protocol configuration.
+         *****************************************************************/
+
+        // Update config_map immediately after XDP program is attached
+        // This ensures the map is initialized before any packets are processed
+        // Use provided config_value or default to kernel-only if None
+        let init_config_value = config_value.unwrap_or_else(AfXdpRxConfig::kernel_only);
+        if config_map_fd >= 0 {
+            let key: i32 = 0;
+            let key_ptr = &key as *const i32;
+            let value_ptr = &init_config_value as *const AfXdpRxConfig;
+            let update_ret = unsafe {
+                bpf_map_update_elem(
+                    config_map_fd,
+                    key_ptr as *const c_void,
+                    value_ptr as *const c_void,
+                    BPF_ANY as u64,
+                )
+            };
+            if update_ret != 0 {
+                eprintln!(
+                    "Warning: Failed to initialize config_map: ret={}",
+                    update_ret
+                );
+            } else {
+                // Verify the update
+                let mut verify_value = AfXdpRxConfig::default();
+                let verify_ret = unsafe {
+                    bpf_map_lookup_elem(
+                        config_map_fd,
+                        key_ptr as *const c_void,
+                        &mut verify_value as *mut AfXdpRxConfig as *mut c_void,
+                    )
+                };
+                if verify_ret == 0 {
+                    eprintln!(
+                        "Debug: config_map initialized with value: {:?}",
+                        verify_value
+                    );
+                } else {
+                    eprintln!("Warning: Failed to verify config_map initialization");
+                }
+            }
+        }
+
+        // Store prog and attach_mode for cleanup later
+        let xdp_prog = prog;
+        let xdp_attach_mode = attach_mode;
 
         let xsk_ptr = alloc_zeroed_layout::<xsk_socket>()?;
         let rx_ptr = alloc_zeroed_layout::<xsk_ring_cons>()?;
@@ -527,6 +707,11 @@ impl Nic {
                 txq: std::ptr::read(tx_ptr.cast::<xsk_ring_prod>()),
                 umem_fq: std::ptr::read(fq_ptr.cast::<xsk_ring_prod>()),
                 umem_cq: std::ptr::read(cq_ptr.cast::<xsk_ring_cons>()),
+                xdp_prog,
+                xdp_attach_mode,
+                ifindex,
+                xsks_map_fd,
+                config_map_fd,
             }
         };
 
@@ -566,7 +751,9 @@ impl Nic {
         let mut xsk_cfg: xsk_socket_config = xsk_socket_config {
             rx_size: rx_ring_size.try_into().unwrap(),
             tx_size: tx_ring_size.try_into().unwrap(),
-            __bindgen_anon_1: xsk_socket_config__bindgen_ty_1 { libxdp_flags: 0 },
+            __bindgen_anon_1: xsk_socket_config__bindgen_ty_1 {
+                libxdp_flags: XSK_LIBXDP_FLAGS__INHIBIT_PROG_LOAD,
+            },
             xdp_flags: XDP_FLAGS_DRV_MODE,
             bind_flags: XDP_USE_NEED_WAKEUP as u16,
         };
@@ -586,6 +773,19 @@ impl Nic {
                 &xsk_cfg,
             )
         };
+
+        if ret == 0 {
+            let update_ret = unsafe { xsk_socket__update_xskmap(self.xsk, self.xsks_map_fd) };
+            if update_ret != 0 {
+                let msg = unsafe {
+                    CStr::from_ptr(strerror(-update_ret))
+                        .to_string_lossy()
+                        .into_owned()
+                };
+                let message = format!("Error: {}", msg);
+                return Err(format!("xsk_socket__update_xskmap failed: {}", message));
+            }
+        }
 
         if ret != 0 {
             match unsafe {
@@ -623,6 +823,20 @@ impl Nic {
                     &xsk_cfg,
                 )
             };
+
+            // Attach AF_XDP socket to xsks_map in XDP program
+            if ret == 0 {
+                let update_ret = unsafe { xsk_socket__update_xskmap(self.xsk, self.xsks_map_fd) };
+                if update_ret != 0 {
+                    let msg = unsafe {
+                        CStr::from_ptr(strerror(-update_ret))
+                            .to_string_lossy()
+                            .into_owned()
+                    };
+                    let message = format!("Error: {}", msg);
+                    return Err(format!("xsk_socket__update_xskmap failed: {}", message));
+                }
+            }
 
             if ret != 0 {
                 let msg = unsafe {
@@ -720,6 +934,83 @@ impl Nic {
                 &mut self.umem_fq,
             )
         }
+    }
+
+    /// # Description
+    /// Update configuration value in XDP program's config_map
+    /// This allows passing values from user space to the XDP program
+    /// # Arguments
+    /// `key` - Map key (typically 0 for single-value config maps)
+    /// `value` - Value to set in the map
+    /// # Returns
+    /// On success, returns `Ok(())`. On failure, returns an error string.
+    pub fn update_config(&self, key: i32, value: AfXdpRxConfig) -> Result<(), String> {
+        if self.config_map_fd < 0 {
+            return Err("config_map not available".to_string());
+        }
+
+        let key_ptr = &key as *const i32;
+        let value_ptr = &value as *const AfXdpRxConfig;
+
+        let ret = unsafe {
+            bpf_map_update_elem(
+                self.config_map_fd,
+                key_ptr as *const c_void,
+                value_ptr as *const c_void,
+                BPF_ANY as u64,
+            )
+        };
+
+        if ret != 0 {
+            let errno = if ret < 0 {
+                -ret as i32
+            } else {
+                unsafe { *libc::__errno_location() }
+            };
+            let msg = unsafe {
+                CStr::from_ptr(strerror(errno))
+                    .to_string_lossy()
+                    .into_owned()
+            };
+            return Err(format!(
+                "Failed to update config_map: {} (ret={}, errno={})",
+                msg, ret, errno
+            ));
+        }
+
+        Ok(())
+    }
+
+    /// # Description
+    /// Lookup configuration value from XDP program's config_map
+    /// # Arguments
+    /// `key` - Map key (typically 0 for single-value config maps)
+    /// # Returns
+    /// On success, returns the value. On failure, returns an error string.
+    pub fn lookup_config(&self, key: i32) -> Result<AfXdpRxConfig, String> {
+        if self.config_map_fd < 0 {
+            return Err("config_map not available".to_string());
+        }
+
+        let mut value = AfXdpRxConfig::default();
+        let ret = unsafe {
+            bpf_map_lookup_elem(
+                self.config_map_fd,
+                &key as *const i32 as *const c_void,
+                &mut value as *mut AfXdpRxConfig as *mut c_void,
+            )
+        };
+
+        if ret != 0 {
+            let msg = unsafe {
+                CStr::from_ptr(strerror(-ret))
+                    .to_string_lossy()
+                    .into_owned()
+            };
+            return Err(format!("Failed to lookup config_map: {} ({})", msg, ret));
+        }
+
+        Ok(value)
     }
 }
 
@@ -827,9 +1118,9 @@ impl Packet {
                 count += 1;
                 if count == length {
                     break;
-                } else if count % 8 == 0 {
+                } else if count.is_multiple_of(8) {
                     print!(" ");
-                    if count % 16 == 0 {
+                    if count.is_multiple_of(16) {
                         println!();
                     }
                 }
@@ -857,8 +1148,17 @@ impl Drop for Pool {
 impl Drop for Nic {
     // move ownership of nic
     fn drop(&mut self) {
-        // xsk delete
         unsafe {
+            // xsk_socket__delete automatically removes the socket from xsks_map
+            // and handles cleanup, so we don't need to manually delete it
+
+            // Detach XDP program from interface
+            if !self.xdp_prog.is_null() {
+                let _ = xdp_program__detach(self.xdp_prog, self.ifindex, self.xdp_attach_mode, 0);
+                xdp_program__close(self.xdp_prog);
+            }
+
+            // xsk delete (this also removes from xsks_map internally)
             xsk_socket__delete(self.xsk);
             let pool = Pool::instance();
             (*pool).refcount -= 1;

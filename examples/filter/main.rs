@@ -52,6 +52,7 @@ fn main() {
         completion_ring_size,
         tx_ring_size,
         rx_ring_size,
+        None, // config_map initial value (default: 0)
     )
     .unwrap_or_else(|err| panic!("Failed to create Nic1: {}", err));
 
@@ -63,6 +64,7 @@ fn main() {
         completion_ring_size,
         tx_ring_size,
         rx_ring_size,
+        None, // config_map initial value (default: 0)
     )
     .unwrap_or_else(|err| panic!("Failed to create Nic2: {}", err));
 

@@ -65,6 +65,7 @@ fn main() {
         completion_ring_size,
         tx_ring_size,
         rx_ring_size,
+        Some(pv::AfXdpRxConfig::kernel_only()), // config_map initial value
     )
     .unwrap_or_else(|err| panic!("Failed to create Nic: {}", err));
 
