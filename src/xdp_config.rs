@@ -1,8 +1,12 @@
 // SPDX-License-Identifier: GPLv3+
 
-use crate::{
-    AfXdpRxConfig
-};
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default)]
+pub struct AfXdpRxConfig {
+    pub l2_flags: u32,
+    pub l3_flags: u32,
+    pub l4_flags: u32,
+}
 
 impl AfXdpRxConfig {
     pub const L2_FLAGS_ETH: u32 = 1 << 0;

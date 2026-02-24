@@ -65,15 +65,9 @@ use std::time::Duration;
 
 use libc::strerror;
 
-const DEFAULT_HEADROOM: usize = 256;
+use crate::xdp_config::AfXdpRxConfig;
 
-#[repr(C)]
-#[derive(Clone, Copy, Debug, Default)]
-pub struct AfXdpRxConfig {
-    pub l2_flags: u32,
-    pub l3_flags: u32,
-    pub l4_flags: u32,
-}
+const DEFAULT_HEADROOM: usize = 256;
 
 /********************************************************************
  *
