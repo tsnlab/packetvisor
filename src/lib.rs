@@ -48,7 +48,7 @@ mod bindings {
     include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 }
 
-mod xdp_config;
+pub mod xdp_config;
 
 use bindings::*;
 use pnet::datalink::{interfaces, NetworkInterface};
@@ -65,7 +65,7 @@ use std::time::Duration;
 
 use libc::strerror;
 
-use crate::xdp_config::AfXdpRxConfig;
+pub use crate::xdp_config::AfXdpRxConfig;
 
 const DEFAULT_HEADROOM: usize = 256;
 
@@ -201,12 +201,19 @@ impl BufferPool {
     /// Reserve FQ and UMEM chunks as much as **len
     fn reserve_fq(&mut self, fq: &mut xsk_ring_prod, len: usize) -> Result<usize, &'static str> {
         let mut cq_idx = 0;
-        let reserved = unsafe { xsk_ring_prod__reserve(fq, len as u32, &mut cq_idx) };
+        let mut reserved = unsafe { xsk_ring_prod__reserve(fq, len as u32, &mut cq_idx) };
 
         // Allocate UMEM chunks into fq
         for i in 0..reserved {
             unsafe {
-                *xsk_ring_prod__fill_addr(fq, cq_idx + i) = self.alloc_addr()?;
+                let addr = match self.alloc_addr() {
+                    Ok(addr) => addr,
+                    Err(_) => {
+                        reserved = i;
+                        break;
+                    }
+                };
+                *xsk_ring_prod__fill_addr(fq, cq_idx + i) = addr;
             }
         }
 
