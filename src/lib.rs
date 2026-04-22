@@ -40,6 +40,7 @@ mod bindings {
     #![allow(non_camel_case_types)]
     #![allow(non_snake_case)]
     #![allow(dead_code)]
+    #![allow(improper_ctypes)]
     #![allow(clippy::all)]
 
     #[cfg(docsrs)]
@@ -187,7 +188,7 @@ impl BufferPool {
 
         #[cfg(debug_assertions)]
         if self.pool.contains(&chunk_addr) {
-            eprintln!("Chunk Pool already contains chunk_addr: {}", chunk_addr);
+            eprintln!("Chunk Pool already contains chunk_addr: {chunk_addr}");
         }
 
         self.pool.insert(chunk_addr);
@@ -462,7 +463,7 @@ impl Pool {
                     .into_owned()
             };
 
-            return Err(format!("Failed to create UMEM: {}", msg));
+            return Err(format!("Failed to create UMEM: {msg}"));
         }
 
         let chunk_pool = BufferPool::new(chunk_size, chunk_count, mmap_address, fq_size, cq_size);
@@ -513,6 +514,7 @@ impl Nic {
     /// # Returns
     /// On success, returns `pv::Nic` bound to the network interface. \
     /// On failure, returns an error string.
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         if_name: &str,
         chunk_size: usize,
@@ -528,11 +530,11 @@ impl Nic {
         let bpf_obj_path = env!("BPF_OBJECT_PATH");
 
         let bpf_obj_cstr =
-            CString::new(bpf_obj_path).map_err(|e| format!("Failed to create CString: {}", e))?;
+            CString::new(bpf_obj_path).map_err(|e| format!("Failed to create CString: {e}"))?;
 
         // Program name in the BPF object file
         let prog_name_cstr = CString::new("xsk_packetvisor_prog")
-            .map_err(|e| format!("Failed to create CString for program name: {}", e))?;
+            .map_err(|e| format!("Failed to create CString for program name: {e}"))?;
 
         // Initialize xdp_program_opts
         let mut opts = xdp_program_opts {
@@ -569,14 +571,14 @@ impl Nic {
                     .to_string_lossy()
                     .to_string()
             };
-            return Err(format!("Failed to load XDP program: {} ({})", err_str, err));
+            return Err(format!("Failed to load XDP program: {err_str} ({err})"));
         }
 
         // Find interface first to get ifindex
         let interface = interfaces()
             .into_iter()
             .find(|elem| elem.name.as_str() == if_name)
-            .ok_or(format!("Interface {} not found.", if_name))?;
+            .ok_or(format!("Interface {if_name} not found."))?;
 
         // Get interface index
         let ifindex = interface.index as i32;
@@ -600,8 +602,7 @@ impl Nic {
                         .to_string()
                 };
                 return Err(format!(
-                    "Failed to attach XDP program to interface: {} ({})",
-                    err_str, ret
+                    "Failed to attach XDP program to interface: {err_str} ({ret})"
                 ));
             }
         }
@@ -613,7 +614,7 @@ impl Nic {
         }
 
         let xsks_map_name =
-            CString::new("xsks_map").map_err(|e| format!("Failed to create CString: {}", e))?;
+            CString::new("xsks_map").map_err(|e| format!("Failed to create CString: {e}"))?;
         let xsks_map = unsafe { bpf_object__find_map_by_name(bpf_obj, xsks_map_name.as_ptr()) };
         if xsks_map.is_null() {
             return Err("Failed to find xsks_map in BPF object".to_string());
@@ -622,14 +623,13 @@ impl Nic {
         let xsks_map_fd = unsafe { bpf_map__fd(xsks_map) };
         if xsks_map_fd < 0 {
             return Err(format!(
-                "Failed to get xsks_map file descriptor: {}",
-                xsks_map_fd
+                "Failed to get xsks_map file descriptor: {xsks_map_fd}"
             ));
         }
 
         // Get config_map file descriptor for passing values to XDP program
         let config_map_name =
-            CString::new("config_map").map_err(|e| format!("Failed to create CString: {}", e))?;
+            CString::new("config_map").map_err(|e| format!("Failed to create CString: {e}"))?;
         let config_map = unsafe { bpf_object__find_map_by_name(bpf_obj, config_map_name.as_ptr()) };
         let config_map_fd = if config_map.is_null() {
             -1 // Map not found, optional map
@@ -663,10 +663,7 @@ impl Nic {
                 )
             };
             if update_ret != 0 {
-                eprintln!(
-                    "Warning: Failed to initialize config_map: ret={}",
-                    update_ret
-                );
+                eprintln!("Warning: Failed to initialize config_map: ret={update_ret}");
             } else {
                 // Verify the update
                 let mut verify_value = AfXdpRxConfig::default();
@@ -678,10 +675,7 @@ impl Nic {
                     )
                 };
                 if verify_ret == 0 {
-                    eprintln!(
-                        "Debug: config_map initialized with value: {:?}",
-                        verify_value
-                    );
+                    eprintln!("Debug: config_map initialized with value: {verify_value:?}");
                 } else {
                     eprintln!("Warning: Failed to verify config_map initialization");
                 }
@@ -740,7 +734,7 @@ impl Nic {
             }
             Err(e) => {
                 // FIXME: Print here is fine. But segfault happened when printing in the caller.
-                eprintln!("Failed to open NIC: {}", e);
+                eprintln!("Failed to open NIC: {e}");
                 Err(e)
             }
         }
@@ -789,8 +783,8 @@ impl Nic {
                         .to_string_lossy()
                         .into_owned()
                 };
-                let message = format!("Error: {}", msg);
-                return Err(format!("xsk_socket__update_xskmap failed: {}", message));
+                let message = format!("Error: {msg}");
+                return Err(format!("xsk_socket__update_xskmap failed: {message}"));
             }
         }
 
@@ -840,8 +834,8 @@ impl Nic {
                             .to_string_lossy()
                             .into_owned()
                     };
-                    let message = format!("Error: {}", msg);
-                    return Err(format!("xsk_socket__update_xskmap failed: {}", message));
+                    let message = format!("Error: {msg}");
+                    return Err(format!("xsk_socket__update_xskmap failed: {message}"));
                 }
             }
 
@@ -851,8 +845,8 @@ impl Nic {
                         .to_string_lossy()
                         .into_owned()
                 };
-                let message = format!("Error: {}", msg);
-                return Err(format!("xsk_socket__create failed: {}", message));
+                let message = format!("Error: {msg}");
+                return Err(format!("xsk_socket__create failed: {message}"));
             }
         }
 
@@ -980,8 +974,7 @@ impl Nic {
                     .into_owned()
             };
             return Err(format!(
-                "Failed to update config_map: {} (ret={}, errno={})",
-                msg, ret, errno
+                "Failed to update config_map: {msg} (ret={ret}, errno={errno})"
             ));
         }
 
@@ -1014,7 +1007,7 @@ impl Nic {
                     .to_string_lossy()
                     .into_owned()
             };
-            return Err(format!("Failed to lookup config_map: {} ({})", msg, ret));
+            return Err(format!("Failed to lookup config_map: {msg} ({ret})"));
         }
 
         Ok(value)
@@ -1115,7 +1108,7 @@ impl Packet {
         let mut count: usize = 0;
 
         unsafe {
-            println!("---packet dump--- chunk addr: {}", chunk_address);
+            println!("---packet dump--- chunk addr: {chunk_address}");
 
             loop {
                 let read_offset: usize = count + self.start;
