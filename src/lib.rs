@@ -201,20 +201,21 @@ impl BufferPool {
 
     /// Reserve FQ and UMEM chunks as much as **len
     fn reserve_fq(&mut self, fq: &mut xsk_ring_prod, len: usize) -> Result<usize, &'static str> {
-        let mut cq_idx = 0;
-        let mut reserved = unsafe { xsk_ring_prod__reserve(fq, len as u32, &mut cq_idx) };
+        let available = len
+            .min(self.pool.len())
+            .min(unsafe { xsk_prod_nb_free(fq, len as u32) as usize });
+
+        if available == 0 {
+            return Ok(0);
+        }
+
+        let mut fq_idx = 0;
+        let reserved = unsafe { xsk_ring_prod__reserve(fq, available as u32, &mut fq_idx) };
 
         // Allocate UMEM chunks into fq
         for i in 0..reserved {
             unsafe {
-                let addr = match self.alloc_addr() {
-                    Ok(addr) => addr,
-                    Err(_) => {
-                        reserved = i;
-                        break;
-                    }
-                };
-                *xsk_ring_prod__fill_addr(fq, cq_idx + i) = addr;
+                *xsk_ring_prod__fill_addr(fq, fq_idx + i) = self.alloc_addr().unwrap();
             }
         }
 
@@ -255,6 +256,21 @@ impl BufferPool {
         Ok(count)
     }
 
+    fn wake_rx_if_needed(&self, xsk: &*mut xsk_socket, fq: &mut xsk_ring_prod) {
+        unsafe {
+            if xsk_ring_prod__needs_wakeup(&*fq) != 0 {
+                libc::recvfrom(
+                    xsk_socket__fd(*xsk),
+                    std::ptr::null_mut::<libc::c_void>(),
+                    0 as libc::size_t,
+                    libc::MSG_DONTWAIT,
+                    std::ptr::null_mut::<libc::sockaddr>(),
+                    std::ptr::null_mut::<u32>(),
+                );
+            }
+        }
+    }
+
     fn recv(
         &mut self,
         chunk_pool_rc: &Rc<RefCell<Self>>,
@@ -291,8 +307,7 @@ impl BufferPool {
             xsk_ring_cons__release(rxq, received);
         }
 
-        self.reserve_fq(fq, packets.len()).unwrap();
-
+        self.reserve_fq(fq, self.fq_size).unwrap();
         /*
          * XSK manages interrupts through xsk_ring_prod__needs_wakup().
          *
@@ -300,18 +315,7 @@ impl BufferPool {
          * This significantly degrades Packetvisor performance.
          * To resolve this issue, the interrupt is woken up whenever Recv() is called.
          */
-        unsafe {
-            if xsk_ring_prod__needs_wakeup(&*fq) != 0 {
-                libc::recvfrom(
-                    xsk_socket__fd(*_xsk),
-                    std::ptr::null_mut::<libc::c_void>(),
-                    0 as libc::size_t,
-                    libc::MSG_DONTWAIT,
-                    std::ptr::null_mut::<libc::sockaddr>(),
-                    std::ptr::null_mut::<u32>(),
-                );
-            }
-        }
+        self.wake_rx_if_needed(_xsk, fq);
 
         packets
     }
