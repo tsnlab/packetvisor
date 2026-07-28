@@ -48,7 +48,7 @@ mod bindings {
     include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 }
 
-mod xdp_config;
+pub mod xdp_config;
 
 use bindings::*;
 use pnet::datalink::{interfaces, NetworkInterface};
@@ -893,6 +893,12 @@ impl Nic {
     /// On failure, returns `None`.
     pub fn alloc_packet(&self) -> Option<Packet> {
         unsafe { (*Pool::instance()).try_alloc_packet() }
+    }
+
+    /// # Description
+    /// Return the underlying AF_XDP socket file descriptor.
+    pub fn fd(&self) -> i32 {
+        unsafe { xsk_socket__fd(self.xsk) }
     }
 
     /// # Description
