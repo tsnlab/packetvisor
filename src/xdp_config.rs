@@ -40,7 +40,10 @@ impl AfXdpRxConfig {
     pub fn all_filter() -> Self {
         Self {
             l2_flags: Self::L2_FLAGS_ETH | Self::L2_FLAGS_VLAN | Self::L2_FLAGS_ARP,
-            l3_flags: Self::L3_FLAGS_IPV4 | Self::L3_FLAGS_IPV6 | Self::L3_FLAGS_EAPOL | Self::L3_FLAGS_OTHER,
+            l3_flags: Self::L3_FLAGS_IPV4
+                | Self::L3_FLAGS_IPV6
+                | Self::L3_FLAGS_EAPOL
+                | Self::L3_FLAGS_OTHER,
             l4_flags: 0,
         }
     }

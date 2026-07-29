@@ -23,7 +23,7 @@ jobs:
         uses: tsnlab/check@main
         with:
           python_version: '3.12'
-          rust_version: 'stable'
+          rust_version: '1.88.0'
           github_token: ${{ secrets.GITHUB_TOKEN }}
           shellcheck_ignore_paths: >-
             bpftool
