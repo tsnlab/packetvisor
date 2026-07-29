@@ -901,6 +901,12 @@ impl Nic {
     }
 
     /// # Description
+    /// Return the underlying AF_XDP socket file descriptor.
+    pub fn fd(&self) -> i32 {
+        unsafe { xsk_socket__fd(self.xsk) }
+    }
+
+    /// # Description
     /// Send packets \
     /// **\*Sent packets are removed from the vector.**
     /// # Arguments
