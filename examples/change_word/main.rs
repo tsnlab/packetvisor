@@ -58,7 +58,7 @@ fn main() {
         rx_ring_size,
         None, // config_map initial value (default: 0)
     )
-    .unwrap_or_else(|err| panic!("Failed to create Nic1: {}", err));
+    .unwrap_or_else(|err| panic!("Failed to create Nic1: {err}"));
 
     let mut nic2 = pv::Nic::new(
         &if_name2,
@@ -70,7 +70,7 @@ fn main() {
         rx_ring_size,
         None, // config_map initial value (default: 0)
     )
-    .unwrap_or_else(|err| panic!("Failed to create Nic2: {}", err));
+    .unwrap_or_else(|err| panic!("Failed to create Nic2: {err}"));
 
     while !term.load(Ordering::Relaxed) {
         if let Some(sent_cnt) = forward(&mut nic1, &mut nic2, &source_word, &change_word) {
@@ -108,9 +108,8 @@ fn forward(
     let received = packets.len();
     let mut change_word_packets: Vec<pv::Packet> = Vec::with_capacity(received);
     for packet in &mut packets {
-        match is_udp(packet) {
-            true => change_word(packet, source_word, target_word),
-            false => {}
+        if is_udp(packet) {
+            change_word(packet, source_word, target_word)
         }
 
         let packet_data = packet.get_buffer_mut().to_vec();

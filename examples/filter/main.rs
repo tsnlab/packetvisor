@@ -54,7 +54,7 @@ fn main() {
         rx_ring_size,
         None, // config_map initial value (default: 0)
     )
-    .unwrap_or_else(|err| panic!("Failed to create Nic1: {}", err));
+    .unwrap_or_else(|err| panic!("Failed to create Nic1: {err}"));
 
     let mut nic2 = pv::Nic::new(
         &if_name2,
@@ -66,7 +66,7 @@ fn main() {
         rx_ring_size,
         None, // config_map initial value (default: 0)
     )
-    .unwrap_or_else(|err| panic!("Failed to create Nic2: {}", err));
+    .unwrap_or_else(|err| panic!("Failed to create Nic2: {err}"));
 
     while !term.load(Ordering::Relaxed) {
         if let Some(sent_cnt) = forward(&mut nic1, &mut nic2) {
@@ -144,7 +144,7 @@ fn process_packet(packet: &mut pv::Packet) -> bool {
         None => return true,
     };
 
-    if !word.is_empty() && (tcp.get_source() == port || tcp.get_destination() == port) {
+    if tcp.get_source() == port || tcp.get_destination() == port {
         return !String::from_utf8_lossy(tcp.payload())
             .into_owned()
             .contains(word);

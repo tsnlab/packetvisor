@@ -67,11 +67,11 @@ fn main() {
         rx_ring_size,
         Some(pv::AfXdpRxConfig::kernel_only()), // config_map initial value
     )
-    .unwrap_or_else(|err| panic!("Failed to create Nic: {}", err));
+    .unwrap_or_else(|err| panic!("Failed to create Nic: {err}"));
 
     while !term.load(Ordering::Relaxed) {
         if let Some(sent_cnt) = do_echo(&mut nic) {
-            println!("Echo Packet Count : {}", sent_cnt);
+            println!("Echo Packet Count : {sent_cnt}");
         }
 
         thread::sleep(Duration::from_millis(100));
@@ -269,9 +269,7 @@ fn process_ndp(packet: &mut pv::Packet, ipv6_addr: &Ipv6Addr) -> bool {
 
     let mut ndp_option = icmpv6_ndp.get_options();
     //Copy sender's mac_addr to ndp_option_data
-    for i in 0..6 {
-        ndp_option[0].data[i] = eth_addr.octets()[i];
-    }
+    ndp_option[0].data[..6].copy_from_slice(&eth_addr.octets());
     ndp_option[0].option_type = NdpOptionTypes::TargetLLAddr;
     icmpv6_ndp.set_options(&ndp_option);
 

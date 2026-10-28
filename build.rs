@@ -13,6 +13,8 @@ fn main() {
     println!("cargo:rerun-if-changed=bpf/Makefile");
 
     if std::env::var("DOCS_RS").is_ok() {
+        // docs.rs does not build the BPF program, but lib.rs still needs the variable to compile
+        println!("cargo:rustc-env=BPF_OBJECT_PATH=");
         return;
     }
 
@@ -101,6 +103,8 @@ fn main() {
         .clang_arg(format!("-I{}", headers_dir.display()))
         .clang_arg(format!("-I{}", include_dir.display()))
         .generate_inline_functions(true)
+        // libc symbols already provided by std; their u64 size_t signatures trigger rustc lints
+        .blocklist_function("memcpy|memmove|memset|memcmp|bcmp|strlen")
         .generate()
         .expect("Unable to generate bindings")
         .write_to_file(out_dir.join("bindings.rs"))
