@@ -32,7 +32,7 @@ fn main() {
         RX_RING_SIZE,
         None, // config_map initial value (default: 0)
     )
-    .unwrap_or_else(|err| panic!("Failed to create interface: {}", err));
+    .unwrap_or_else(|err| panic!("Failed to create interface: {err}"));
 
     let socket = UdpSocket::bind(source).unwrap();
     socket

@@ -48,7 +48,7 @@ fn main() {
         rx_ring_size,
         None, // config_map initial value (default: 0)
     )
-    .unwrap_or_else(|err| panic!("Failed to create Nic1: {}", err));
+    .unwrap_or_else(|err| panic!("Failed to create Nic1: {err}"));
 
     let mut nic2 = pv::Nic::new(
         &if_name2,
@@ -60,7 +60,7 @@ fn main() {
         rx_ring_size,
         None, // config_map initial value (default: 0)
     )
-    .unwrap_or_else(|err| panic!("Failed to create Nic2: {}", err));
+    .unwrap_or_else(|err| panic!("Failed to create Nic2: {err}"));
 
     while !term.load(Ordering::Relaxed) {
         let processed1 = forward(&mut nic1, &mut nic2, dump);
@@ -69,7 +69,7 @@ fn main() {
         if processed1 + processed2 == 0 {
             thread::sleep(Duration::from_millis(100));
         } else if stat {
-            println!("Processed {}, {} packets", processed1, processed2);
+            println!("Processed {processed1}, {processed2} packets");
         }
     }
 }
